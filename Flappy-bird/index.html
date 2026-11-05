@@ -32,7 +32,8 @@
     get(k, d) { try { return Object.assign({}, d, JSON.parse(localStorage.getItem(k))); } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   };
-  const cfg = store.get('flyingBirdCfg', { theme: 'NIGHT', music: 4, sfx: 7, cb: 'OFF', fx: false, diff: 'NORMAL', skin: 0, muted: false });
+  const cfg = store.get('flyingBirdCfg', { theme: 'NIGHT', music: 4, sfx: 7, cb: 'OFF', fx: false, diff: 'NORMAL', skin: 0, muted: false, lang: 'EN' });
+  if (!['EN', 'ZH', 'RU', 'ES', 'PT'].includes(cfg.lang)) cfg.lang = 'EN';
   const save = store.get('flyingBirdSave', { best: { EASY: 0, NORMAL: 0, HARD: 0 }, games: 0, flaps: 0, pipes: 0, ach: {} });
   const saveCfg = () => store.set('flyingBirdCfg', cfg);
   const saveGame = () => store.set('flyingBirdSave', save);
@@ -69,6 +70,137 @@
     'BLUE-YELLOW': [{ main: '#e63946', light: '#ffa3aa', dark: '#9d1f2b' }, { main: '#2ec4b6', light: '#a8f0e8', dark: '#13766d' }],
     'HIGH CONTRAST': [{ main: '#ffffff', light: '#ffffff', dark: '#9a9a9a' }, { main: '#ffe600', light: '#fff7a0', dark: '#a89a00' }]
   };
+
+  // ---------- Localization ----------
+  // English is the default. Language choice is stored in flyingBirdCfg.
+  const LANGS = ['EN', 'ZH', 'RU', 'ES', 'PT'];
+  const LANG_NAMES = { EN: 'ENGLISH', ZH: '简体中文', RU: 'РУССКИЙ', ES: 'ESPAÑOL', PT: 'PORTUGUÊS (BR)' };
+  const I18N = {
+    EN: {
+      PLAY:'PLAY', ACHIEVEMENTS:'ACHIEVEMENTS', SETTINGS:'SETTINGS', BEST:'BEST', PAUSED:'PAUSED',
+      RESUME:'RESUME', MAIN_MENU:'MAIN MENU', THEME:'THEME', MUSIC:'MUSIC', SOUND_FX:'SOUND FX',
+      COLOR_MODE:'COLOR MODE', REDUCE_EFFECTS:'REDUCE EFFECTS', DIFFICULTY:'DIFFICULTY',
+      BIRD_SKIN:'BIRD SKIN', FULLSCREEN:'FULLSCREEN', LANGUAGE:'LANGUAGE',
+      RESET_PROGRESS:'RESET PROGRESS', PRESS_RESET:'PRESS AGAIN TO RESET', BACK:'BACK',
+      ON:'ON', OFF:'OFF', NIGHT:'NIGHT', DAY:'DAY', AUTO:'AUTO',
+      EASY:'EASY', NORMAL:'NORMAL', HARD:'HARD', CLASSIC:'CLASSIC', RED:'RED',
+      BLUE:'BLUE', GHOST:'GHOST', NONE:'OFF', RED_GREEN:'RED-GREEN',
+      BLUE_YELLOW:'BLUE-YELLOW', HIGH_CONTRAST:'HIGH CONTRAST',
+      SKIN_UNLOCK:'SKIN UNLOCKS AT BEST SCORE', SPACE_CLICK_TAP:'SPACE / CLICK / TAP',
+      GAME_OVER:'GAME OVER', SCORE:'SCORE', RANK:'RANK', NEW:'NEW!',
+      RETRY:'RETRY', MENU:'MENU', GAMES:'GAMES', FLAPS:'FLAPS',
+      FIRST_FLIGHT:'FIRST FLIGHT', FIRST_FLIGHT_DESC:'Finish your first game',
+      ROOKIE:'ROOKIE', ROOKIE_DESC:'Score 5', PRO:'PRO', PRO_DESC:'Score 15',
+      MASTER:'MASTER', MASTER_DESC:'Score 30', LEGEND:'LEGEND', LEGEND_DESC:'Score 50',
+      PINK_PASSER:'PINK PASSER', PINK_PASSER_DESC:'Pass 5 moving pipes in one run',
+      REGULAR:'REGULAR', REGULAR_DESC:'Play 25 games', FLAP_HAPPY:'FLAP HAPPY',
+      FLAP_HAPPY_DESC:'Flap 1000 times', NIGHT_OWL:'NIGHT OWL', NIGHT_OWL_DESC:'Score 10 at night',
+      EARLY_BIRD:'EARLY BIRD', EARLY_BIRD_DESC:'Score 10 by day',
+      PAUSE_HINT:'P: PAUSE', MUTE:'MUTE', UNMUTE:'UNMUTE', FULLSCREEN_HINT:'F: FULLSCREEN',
+      ACHIEVEMENT_TOAST:'ACHIEVEMENT'
+    },
+    ZH: {
+      PLAY:'开始游戏', ACHIEVEMENTS:'成就', SETTINGS:'设置', BEST:'最高分', PAUSED:'已暂停',
+      RESUME:'继续游戏', MAIN_MENU:'主菜单', THEME:'主题', MUSIC:'音乐', SOUND_FX:'音效',
+      COLOR_MODE:'色盲模式', REDUCE_EFFECTS:'减少特效', DIFFICULTY:'难度',
+      BIRD_SKIN:'小鸟外观', FULLSCREEN:'全屏', LANGUAGE:'语言',
+      RESET_PROGRESS:'重置进度', PRESS_RESET:'再按一次确认', BACK:'返回',
+      ON:'开', OFF:'关', NIGHT:'夜晚', DAY:'白天', AUTO:'自动',
+      EASY:'简单', NORMAL:'普通', HARD:'困难', CLASSIC:'经典', RED:'红色',
+      BLUE:'蓝色', GHOST:'幽灵', NONE:'关闭', RED_GREEN:'红绿模式',
+      BLUE_YELLOW:'蓝黄模式', HIGH_CONTRAST:'高对比度',
+      SKIN_UNLOCK:'达到最高分解锁外观', SPACE_CLICK_TAP:'按空格 / 点击 / 触摸',
+      GAME_OVER:'游戏结束', SCORE:'得分', RANK:'等级', NEW:'新纪录!',
+      RETRY:'重试', MENU:'菜单', GAMES:'游戏', FLAPS:'拍翅',
+      FIRST_FLIGHT:'初次飞行', FIRST_FLIGHT_DESC:'完成第一局游戏',
+      ROOKIE:'新手', ROOKIE_DESC:'得分达到 5', PRO:'高手', PRO_DESC:'得分达到 15',
+      MASTER:'大师', MASTER_DESC:'得分达到 30', LEGEND:'传奇', LEGEND_DESC:'得分达到 50',
+      PINK_PASSER:'穿越粉色管道', PINK_PASSER_DESC:'一局中穿过 5 个移动管道',
+      REGULAR:'常客', REGULAR_DESC:'进行 25 局游戏', FLAP_HAPPY:'振翅达人',
+      FLAP_HAPPY_DESC:'拍翅 1000 次', NIGHT_OWL:'夜猫子', NIGHT_OWL_DESC:'夜间得分达到 10',
+      EARLY_BIRD:'早起的鸟', EARLY_BIRD_DESC:'白天得分达到 10',
+      PAUSE_HINT:'P：暂停', MUTE:'取消静音', UNMUTE:'静音', FULLSCREEN_HINT:'F：全屏',
+      ACHIEVEMENT_TOAST:'获得成就'
+    },
+    RU: {
+      PLAY:'ИГРАТЬ', ACHIEVEMENTS:'ДОСТИЖЕНИЯ', SETTINGS:'НАСТРОЙКИ', BEST:'РЕКОРД', PAUSED:'ПАУЗА',
+      RESUME:'ПРОДОЛЖИТЬ', MAIN_MENU:'ГЛАВНОЕ МЕНЮ', THEME:'ТЕМА', MUSIC:'МУЗЫКА', SOUND_FX:'ЗВУКИ',
+      COLOR_MODE:'РЕЖИМ ЦВЕТА', REDUCE_EFFECTS:'МЕНЬШЕ ЭФФЕКТОВ', DIFFICULTY:'СЛОЖНОСТЬ',
+      BIRD_SKIN:'ВНЕШНИЙ ВИД', FULLSCREEN:'ПОЛНЫЙ ЭКРАН', LANGUAGE:'ЯЗЫК',
+      RESET_PROGRESS:'СБРОСИТЬ ПРОГРЕСС', PRESS_RESET:'НАЖМИТЕ ЕЩЁ РАЗ', BACK:'НАЗАД',
+      ON:'ВКЛ', OFF:'ВЫКЛ', NIGHT:'НОЧЬ', DAY:'ДЕНЬ', AUTO:'АВТО',
+      EASY:'ЛЕГКО', NORMAL:'НОРМАЛЬНО', HARD:'СЛОЖНО', CLASSIC:'КЛАССИКА', RED:'КРАСНЫЙ',
+      BLUE:'СИНИЙ', GHOST:'ПРИЗРАК', NONE:'ВЫКЛ', RED_GREEN:'КРАСНЫЙ-ЗЕЛЁНЫЙ',
+      BLUE_YELLOW:'СИНИЙ-ЖЁЛТЫЙ', HIGH_CONTRAST:'ВЫСОКИЙ КОНТРАСТ',
+      SKIN_UNLOCK:'ОТКРОЕТСЯ ПРИ РЕКОРДЕ', SPACE_CLICK_TAP:'ПРОБЕЛ / КЛИК / КАСАНИЕ',
+      GAME_OVER:'ИГРА ОКОНЧЕНА', SCORE:'СЧЁТ', RANK:'РАНГ', NEW:'НОВЫЙ!',
+      RETRY:'ЗАНОВО', MENU:'МЕНЮ', GAMES:'ИГРЫ', FLAPS:'ВЗМАХИ',
+      FIRST_FLIGHT:'ПЕРВЫЙ ПОЛЁТ', FIRST_FLIGHT_DESC:'Завершите первую игру',
+      ROOKIE:'НОВИЧОК', ROOKIE_DESC:'Наберите 5 очков', PRO:'ПРОФИ', PRO_DESC:'Наберите 15 очков',
+      MASTER:'МАСТЕР', MASTER_DESC:'Наберите 30 очков', LEGEND:'ЛЕГЕНДА', LEGEND_DESC:'Наберите 50 очков',
+      PINK_PASSER:'РОЗОВЫЙ ПРОЛЁТ', PINK_PASSER_DESC:'Пролетите 5 движущихся труб за игру',
+      REGULAR:'ПОСТОЯННЫЙ ИГРОК', REGULAR_DESC:'Сыграйте 25 раз', FLAP_HAPPY:'МАСТЕР ВЗМАХОВ',
+      FLAP_HAPPY_DESC:'Сделайте 1000 взмахов', NIGHT_OWL:'НОЧНАЯ СОВА', NIGHT_OWL_DESC:'Наберите 10 очков ночью',
+      EARLY_BIRD:'РАННЯЯ ПТИЧКА', EARLY_BIRD_DESC:'Наберите 10 очков днём',
+      PAUSE_HINT:'P: ПАУЗА', MUTE:'ВКЛЮЧИТЬ ЗВУК', UNMUTE:'ВЫКЛЮЧИТЬ ЗВУК', FULLSCREEN_HINT:'F: ПОЛНЫЙ ЭКРАН',
+      ACHIEVEMENT_TOAST:'ДОСТИЖЕНИЕ'
+    },
+    ES: {
+      PLAY:'JUGAR', ACHIEVEMENTS:'LOGROS', SETTINGS:'AJUSTES', BEST:'RÉCORD', PAUSED:'EN PAUSA',
+      RESUME:'CONTINUAR', MAIN_MENU:'MENÚ PRINCIPAL', THEME:'TEMA', MUSIC:'MÚSICA', SOUND_FX:'EFECTOS',
+      COLOR_MODE:'MODO DE COLOR', REDUCE_EFFECTS:'REDUCIR EFECTOS', DIFFICULTY:'DIFICULTAD',
+      BIRD_SKIN:'ASPECTO DEL AVE', FULLSCREEN:'PANTALLA COMPLETA', LANGUAGE:'IDIOMA',
+      RESET_PROGRESS:'REINICIAR PROGRESO', PRESS_RESET:'PULSA OTRA VEZ', BACK:'VOLVER',
+      ON:'SÍ', OFF:'NO', NIGHT:'NOCHE', DAY:'DÍA', AUTO:'AUTO',
+      EASY:'FÁCIL', NORMAL:'NORMAL', HARD:'DIFÍCIL', CLASSIC:'CLÁSICO', RED:'ROJO',
+      BLUE:'AZUL', GHOST:'FANTASMA', NONE:'NO', RED_GREEN:'ROJO-VERDE',
+      BLUE_YELLOW:'AZUL-AMARILLO', HIGH_CONTRAST:'ALTO CONTRASTE',
+      SKIN_UNLOCK:'ASPECTO AL LOGRAR RÉCORD', SPACE_CLICK_TAP:'ESPACIO / CLIC / TOCAR',
+      GAME_OVER:'FIN DEL JUEGO', SCORE:'PUNTOS', RANK:'RANGO', NEW:'¡NUEVO!',
+      RETRY:'REINTENTAR', MENU:'MENÚ', GAMES:'PARTIDAS', FLAPS:'ALETEOS',
+      FIRST_FLIGHT:'PRIMER VUELO', FIRST_FLIGHT_DESC:'Termina tu primera partida',
+      ROOKIE:'NOVATO', ROOKIE_DESC:'Consigue 5 puntos', PRO:'PRO', PRO_DESC:'Consigue 15 puntos',
+      MASTER:'MAESTRO', MASTER_DESC:'Consigue 30 puntos', LEGEND:'LEYENDA', LEGEND_DESC:'Consigue 50 puntos',
+      PINK_PASSER:'PASO ROSA', PINK_PASSER_DESC:'Pasa 5 tuberías móviles en una partida',
+      REGULAR:'HABITUAL', REGULAR_DESC:'Juega 25 partidas', FLAP_HAPPY:'ALAS FELICES',
+      FLAP_HAPPY_DESC:'Aletea 1000 veces', NIGHT_OWL:'AVE NOCTURNA', NIGHT_OWL_DESC:'Consigue 10 puntos de noche',
+      EARLY_BIRD:'MADRUGADOR', EARLY_BIRD_DESC:'Consigue 10 puntos de día',
+      PAUSE_HINT:'P: PAUSA', MUTE:'ACTIVAR SONIDO', UNMUTE:'SILENCIAR', FULLSCREEN_HINT:'F: PANTALLA COMPLETA',
+      ACHIEVEMENT_TOAST:'LOGRO'
+    },
+    PT: {
+      PLAY:'JOGAR', ACHIEVEMENTS:'CONQUISTAS', SETTINGS:'CONFIGURAÇÕES', BEST:'RECORDE', PAUSED:'PAUSADO',
+      RESUME:'CONTINUAR', MAIN_MENU:'MENU PRINCIPAL', THEME:'TEMA', MUSIC:'MÚSICA', SOUND_FX:'EFEITOS SONOROS',
+      COLOR_MODE:'MODO DE COR', REDUCE_EFFECTS:'REDUZIR EFEITOS', DIFFICULTY:'DIFICULDADE',
+      BIRD_SKIN:'VISUAL DO PÁSSARO', FULLSCREEN:'TELA CHEIA', LANGUAGE:'IDIOMA',
+      RESET_PROGRESS:'REINICIAR PROGRESSO', PRESS_RESET:'PRESSIONE NOVAMENTE', BACK:'VOLTAR',
+      ON:'LIGADO', OFF:'DESLIGADO', NIGHT:'NOITE', DAY:'DIA', AUTO:'AUTO',
+      EASY:'FÁCIL', NORMAL:'NORMAL', HARD:'DIFÍCIL', CLASSIC:'CLÁSSICO', RED:'VERMELHO',
+      BLUE:'AZUL', GHOST:'FANTASMA', NONE:'DESLIGADO', RED_GREEN:'VERMELHO-VERDE',
+      BLUE_YELLOW:'AZUL-AMARELO', HIGH_CONTRAST:'ALTO CONTRASTE',
+      SKIN_UNLOCK:'VISUAL LIBERADO NO RECORDE', SPACE_CLICK_TAP:'ESPAÇO / CLIQUE / TOQUE',
+      GAME_OVER:'FIM DE JOGO', SCORE:'PONTUAÇÃO', RANK:'NÍVEL', NEW:'NOVO!',
+      RETRY:'TENTAR NOVAMENTE', MENU:'MENU', GAMES:'JOGOS', FLAPS:'BATIDAS',
+      FIRST_FLIGHT:'PRIMEIRO VOO', FIRST_FLIGHT_DESC:'Conclua sua primeira partida',
+      ROOKIE:'INICIANTE', ROOKIE_DESC:'Faça 5 pontos', PRO:'PROFISSIONAL', PRO_DESC:'Faça 15 pontos',
+      MASTER:'MESTRE', MASTER_DESC:'Faça 30 pontos', LEGEND:'LENDA', LEGEND_DESC:'Faça 50 pontos',
+      PINK_PASSER:'PASSAGEM ROSA', PINK_PASSER_DESC:'Passe por 5 canos móveis em uma partida',
+      REGULAR:'FREQUENTE', REGULAR_DESC:'Jogue 25 partidas', FLAP_HAPPY:'ASAS FELIZES',
+      FLAP_HAPPY_DESC:'Bata as asas 1000 vezes', NIGHT_OWL:'CORUJA NOTURNA', NIGHT_OWL_DESC:'Faça 10 pontos à noite',
+      EARLY_BIRD:'AVE MADRUGADORA', EARLY_BIRD_DESC:'Faça 10 pontos durante o dia',
+      PAUSE_HINT:'P: PAUSAR', MUTE:'ATIVAR SOM', UNMUTE:'MUTAR', FULLSCREEN_HINT:'F: TELA CHEIA',
+      ACHIEVEMENT_TOAST:'CONQUISTA'
+    }
+  };
+  const tr = key => (I18N[cfg.lang] || I18N.EN)[key] || I18N.EN[key] || key;
+  const displayValue = value => ({
+    NIGHT:tr('NIGHT'), DAY:tr('DAY'), AUTO:tr('AUTO'),
+    EASY:tr('EASY'), NORMAL:tr('NORMAL'), HARD:tr('HARD'),
+    CLASSIC:tr('CLASSIC'), RED:tr('RED'), BLUE:tr('BLUE'), GHOST:tr('GHOST'), ROOKIE:tr('ROOKIE'), PRO:tr('PRO'), MASTER:tr('MASTER'), LEGEND:tr('LEGEND'),
+    OFF:tr('NONE'), 'RED-GREEN':tr('RED_GREEN'), 'BLUE-YELLOW':tr('BLUE_YELLOW'),
+    'HIGH CONTRAST':tr('HIGH_CONTRAST'), ON:tr('ON')
+  }[value] || value);
+
   const skinOK = i => maxBest() >= SKINS[i].need;
 
   const bird = { x: 70, y: 200, w: 20, h: 16, vy: 0, rot: 0 };
@@ -133,7 +265,7 @@
   function unlock(id) {
     if (save.ach[id]) return;
     save.ach[id] = 1; saveGame();
-    toasts.push({ text: ACH.find(x => x.id === id).name, t: 180 });
+    toasts.push({ text: tr(({ first:'FIRST_FLIGHT', s5:'ROOKIE', s15:'PRO', s30:'MASTER', s50:'LEGEND', pink:'PINK_PASSER', reg:'REGULAR', flap:'FLAP_HAPPY', owl:'NIGHT_OWL', early:'EARLY_BIRD' })[id]), t: 180 });
     tone(660, 1320, 0.25, 'triangle', 0.08);
   }
   function onScore(p) {
@@ -479,66 +611,75 @@
     }
     const bw = 200, bx = Math.round(W / 2 - bw / 2), y0 = L ? 118 : 250, st = L ? 40 : 44;
     const got = ACH.filter(a => save.ach[a.id]).length;
-    btn(bx, y0, bw, 32, 'PLAY', startGame);
-    btn(bx, y0 + st, bw, 32, 'ACHIEVEMENTS ' + got + '/' + ACH.length, () => { screen = 'ACH'; focus = 0; });
-    btn(bx, y0 + st * 2, bw, 32, 'SETTINGS', () => { settingsFrom = 'MENU'; screen = 'SETTINGS'; focus = 0; });
-    txt('BEST ' + bestNow() + '  (' + cfg.diff + ')', W / 2, y0 + st * 3 + 12, 12);
+    btn(bx, y0, bw, 32, tr('PLAY'), startGame);
+    btn(bx, y0 + st, bw, 32, tr('ACHIEVEMENTS') + ' ' + got + '/' + ACH.length, () => { screen = 'ACH'; focus = 0; });
+    btn(bx, y0 + st * 2, bw, 32, tr('SETTINGS'), () => { settingsFrom = 'MENU'; screen = 'SETTINGS'; focus = 0; });
+    txt(tr('BEST') + ' ' + bestNow() + '  (' + displayValue(cfg.diff) + ')', W / 2, y0 + st * 3 + 12, 12);
   }
 
   function drawPause() {
     ctx.fillStyle = 'rgba(15,12,41,0.7)'; ctx.fillRect(0, 0, W, H);
-    title('PAUSED', W / 2, H / 2 - 70, 34, '#ffd23f', 'center');
+    title(tr('PAUSED'), W / 2, H / 2 - 70, 34, '#ffd23f', 'center');
     const bw = 200, bx = Math.round(W / 2 - bw / 2), y0 = Math.round(H / 2 - 30);
-    btn(bx, y0, bw, 32, 'RESUME', () => { screen = null; });
-    btn(bx, y0 + 42, bw, 32, 'SETTINGS', () => { settingsFrom = 'PAUSE'; screen = 'SETTINGS'; focus = 0; });
-    btn(bx, y0 + 84, bw, 32, 'MAIN MENU', toMenu);
+    btn(bx, y0, bw, 32, tr('RESUME'), () => { screen = null; });
+    btn(bx, y0 + 42, bw, 32, tr('SETTINGS'), () => { settingsFrom = 'PAUSE'; screen = 'SETTINGS'; focus = 0; });
+    btn(bx, y0 + 84, bw, 32, tr('MAIN_MENU'), toMenu);
   }
 
   function drawSettings() {
     ctx.fillStyle = 'rgba(15,12,41,0.85)'; ctx.fillRect(0, 0, W, H);
-    title('SETTINGS', W / 2, 34, 26, '#ffd23f', 'center');
+    title(tr('SETTINGS'), W / 2, 34, 26, '#ffd23f', 'center');
     const bw = Math.min(W - 40, 400), bx = Math.round((W - bw) / 2);
-    const rh = Math.min(34, Math.floor((H - 110) / 10)), h = rh - 4, fs = L ? 12 : 13;
+    const rh = Math.min(32, Math.floor((H - 110) / 10)), h = rh - 3, fs = L ? 11 : 12;
     const wrap = (n, v, d) => (v + d + n) % n;
     const rows = [
-      ['THEME', cfg.theme, d => { cfg.theme = cyc(['NIGHT', 'DAY', 'AUTO'], cfg.theme, d); }],
-      ['MUSIC', bars(cfg.music), d => { cfg.music = wrap(11, cfg.music, d); }],
-      ['SOUND FX', bars(cfg.sfx), d => { cfg.sfx = wrap(11, cfg.sfx, d); tone(500, 700, 0.08); }],
-      ['COLOR MODE', cfg.cb, d => { cfg.cb = cyc(Object.keys(PIPES), cfg.cb, d); }],
-      ['REDUCE EFFECTS', cfg.fx ? 'ON' : 'OFF', () => { cfg.fx = !cfg.fx; }]
+      [tr('LANGUAGE'), LANG_NAMES[cfg.lang], d => { cfg.lang = cyc(LANGS, cfg.lang, d); }],
+      [tr('THEME'), displayValue(cfg.theme), d => { cfg.theme = cyc(['NIGHT', 'DAY', 'AUTO'], cfg.theme, d); }],
+      [tr('MUSIC'), bars(cfg.music), d => { cfg.music = wrap(11, cfg.music, d); }],
+      [tr('SOUND_FX'), bars(cfg.sfx), d => { cfg.sfx = wrap(11, cfg.sfx, d); tone(500, 700, 0.08); }],
+      [tr('COLOR_MODE'), displayValue(cfg.cb), d => { cfg.cb = cyc(Object.keys(PIPES), cfg.cb, d); }],
+      [tr('REDUCE_EFFECTS'), cfg.fx ? tr('ON') : tr('OFF'), () => { cfg.fx = !cfg.fx; }]
     ];
-    if (settingsFrom === 'MENU') rows.push(['DIFFICULTY', cfg.diff, d => { cfg.diff = cyc(['EASY', 'NORMAL', 'HARD'], cfg.diff, d); }]);
+    if (settingsFrom === 'MENU') rows.push([tr('DIFFICULTY'), displayValue(cfg.diff), d => { cfg.diff = cyc(['EASY', 'NORMAL', 'HARD'], cfg.diff, d); }]);
     rows.push(
-      ['BIRD SKIN', SKINS[cfg.skin].name, d => { let i = cfg.skin; do { i = wrap(SKINS.length, i, d); } while (!skinOK(i)); cfg.skin = i; }],
-      ['FULLSCREEN', document.fullscreenElement ? 'ON' : 'OFF', toggleFS]
+      [tr('BIRD_SKIN'), displayValue(SKINS[cfg.skin].name), d => { let i = cfg.skin; do { i = wrap(SKINS.length, i, d); } while (!skinOK(i)); cfg.skin = i; }],
+      [tr('FULLSCREEN'), document.fullscreenElement ? tr('ON') : tr('OFF'), toggleFS]
     );
     rows.forEach((r, i) => btn(bx, 62 + i * rh, bw, h, r[0], d => { r[2](d); saveCfg(); }, { value: String(r[1]), adj: true, size: fs }));
     const ry = 62 + rows.length * rh;
-    btn(bx, ry, bw, h, resetArmed ? 'PRESS AGAIN TO RESET' : 'RESET PROGRESS', () => {
+    btn(bx, ry, bw, h, resetArmed ? tr('PRESS_RESET') : tr('RESET_PROGRESS'), () => {
       if (!resetArmed) { resetArmed = true; return; }
       Object.assign(save, { best: { EASY: 0, NORMAL: 0, HARD: 0 }, games: 0, flaps: 0, pipes: 0, ach: {} });
       cfg.skin = 0; saveGame(); saveCfg(); resetArmed = false;
     }, { id: 'reset', size: fs });
-    btn(bx, ry + rh, bw, h, 'BACK', back, { size: fs });
+    btn(bx, ry + rh, bw, h, tr('BACK'), back, { size: fs });
     const lk = SKINS.find(k => k.need > maxBest());
-    if (lk) txt(lk.name + ' SKIN UNLOCKS AT BEST SCORE ' + lk.need, W / 2, H - 28, 10, '#f3e3c7', 'center', false);
+    if (lk) txt(tr('SKIN_UNLOCK') + ' ' + lk.need, W / 2, H - 14, 9, '#f3e3c7', 'center', false);
   }
 
   function drawAch() {
     ctx.fillStyle = 'rgba(15,12,41,0.88)'; ctx.fillRect(0, 0, W, H);
     const got = ACH.filter(a => save.ach[a.id]).length;
-    title('ACHIEVEMENTS', W / 2, 30, 24, '#ffd23f', 'center');
-    txt(got + '/' + ACH.length + '   GAMES ' + save.games + '   FLAPS ' + save.flaps, W / 2, 56, 11, '#f3e3c7', 'center', false);
+    title(tr('ACHIEVEMENTS'), W / 2, 30, 24, '#ffd23f', 'center');
+    txt(got + '/' + ACH.length + '   ' + tr('GAMES') + ' ' + save.games + '   ' + tr('FLAPS') + ' ' + save.flaps, W / 2, 56, 11, '#f3e3c7', 'center', false);
     const cols = L ? 2 : 1, cw = L ? 300 : W - 40, rh = L ? 44 : 34, per = Math.ceil(ACH.length / cols);
+    const achKeys = {
+      first:['FIRST_FLIGHT','FIRST_FLIGHT_DESC'], s5:['ROOKIE','ROOKIE_DESC'],
+      s15:['PRO','PRO_DESC'], s30:['MASTER','MASTER_DESC'], s50:['LEGEND','LEGEND_DESC'],
+      pink:['PINK_PASSER','PINK_PASSER_DESC'], reg:['REGULAR','REGULAR_DESC'],
+      flap:['FLAP_HAPPY','FLAP_HAPPY_DESC'], owl:['NIGHT_OWL','NIGHT_OWL_DESC'],
+      early:['EARLY_BIRD','EARLY_BIRD_DESC']
+    };
     ACH.forEach((a, i) => {
       const c = Math.floor(i / per), r = i % per, ok = save.ach[a.id];
       const x = L ? (c ? W / 2 + 10 : W / 2 - cw - 10) : 20, y = 70 + r * rh;
+      const keys = achKeys[a.id];
       ctx.fillStyle = ok ? '#fff4d6' : '#2b2250'; ctx.fillRect(x, y, cw, rh - 4);
       ctx.fillStyle = ok ? '#ffd23f' : '#463a7a'; ctx.fillRect(x, y, 6, rh - 4);
-      txt((ok ? '* ' : '? ') + a.name, x + 14, y + 11, 12, ok ? BROWN : '#9d93c9', 'left', false);
-      txt(a.desc, x + 14, y + rh - 14, 10, ok ? '#6b4a1a' : '#7a70a8', 'left', false);
+      txt((ok ? '* ' : '? ') + tr(keys[0]), x + 14, y + 11, 12, ok ? BROWN : '#9d93c9', 'left', false);
+      txt(tr(keys[1]), x + 14, y + rh - 14, 10, ok ? '#6b4a1a' : '#7a70a8', 'left', false);
     });
-    btn(W / 2 - 60, L ? H - 40 : 70 + ACH.length * rh + 8, 120, 28, 'BACK', back);
+    btn(W / 2 - 60, L ? H - 40 : 70 + ACH.length * rh + 8, 120, 28, tr('BACK'), back);
   }
 
   function drawUI() {
@@ -549,8 +690,8 @@
 
     if (state === 'READY' && !screen) {
       const py = L ? 250 : 320;
-      if (blink) txt('SPACE / CLICK / TAP', W / 2, py, 16);
-      txt('BEST ' + bestNow(), W / 2, py + 30, 16);
+      if (blink) txt(tr('SPACE_CLICK_TAP'), W / 2, py, cfg.lang === 'EN' ? 16 : 12);
+      txt(tr('BEST') + ' ' + bestNow(), W / 2, py + 30, 16);
     }
 
     if (state === 'PLAYING' || state === 'DEAD') {
@@ -567,13 +708,13 @@
     if (state === 'GAMEOVER' && !screen) {
       const w = 230, h = 200, x = Math.round(W / 2 - w / 2), y = Math.round(H / 2 - 120);
       panel(x, y, w, h);
-      txt('GAME OVER', W / 2, y + 34, 24, BROWN, 'center', false);
-      txt('SCORE ' + score, W / 2, y + 68, 18, BROWN, 'center', false);
-      txt('BEST  ' + bestNow() + (newBest ? ' NEW!' : ''), W / 2, y + 92, 18, BROWN, 'center', false);
-      txt('RANK  ' + rank(), W / 2, y + 116, 18, BROWN, 'center', false);
+      txt(tr('GAME_OVER'), W / 2, y + 34, 20, BROWN, 'center', false);
+      txt(tr('SCORE') + ' ' + score, W / 2, y + 68, 16, BROWN, 'center', false);
+      txt(tr('BEST') + '  ' + bestNow() + (newBest ? ' ' + tr('NEW') : ''), W / 2, y + 92, 15, BROWN, 'center', false);
+      txt(tr('RANK') + '  ' + displayValue(rank()), W / 2, y + 116, 16, BROWN, 'center', false);
       if (performance.now() - overAt > 450) {
-        btn(x + 14, y + 148, 96, 30, 'RETRY', startGame, { size: 13 });
-        btn(x + w - 110, y + 148, 96, 30, 'MENU', toMenu, { size: 13 });
+        btn(x + 14, y + 148, 96, 30, tr('RETRY'), startGame, { size: 12 });
+        btn(x + w - 110, y + 148, 96, 30, tr('MENU'), toMenu, { size: 12 });
       }
     }
 
@@ -582,13 +723,13 @@
     if (screen === 'ACH') drawAch();
 
     if (screen !== 'SETTINGS' && screen !== 'ACH')
-      txt('P: PAUSE  M: ' + (cfg.muted ? 'UNMUTE' : 'MUTE') + '  F: FULLSCREEN', W / 2, H - 14, 10, '#f3e3c7', 'center', false);
+      txt(tr('PAUSE_HINT') + '  M: ' + (cfg.muted ? tr('UNMUTE') : tr('MUTE')) + '  ' + tr('FULLSCREEN_HINT'), W / 2, H - 14, 8, '#f3e3c7', 'center', false);
 
     if (toasts.length) {
       const t = toasts[0], k = Math.min(1, (180 - t.t) / 12, t.t / 12), w = 220, y = Math.round(H + 4 - 46 * k), x = Math.round(W / 2 - w / 2);
       ctx.fillStyle = BROWN; ctx.fillRect(x - 2, y - 2, w + 4, 28);
       ctx.fillStyle = '#ffd23f'; ctx.fillRect(x, y, w, 24);
-      txt('ACHIEVEMENT: ' + t.text, W / 2, y + 12, 11, BROWN, 'center', false);
+      txt(tr('ACHIEVEMENT_TOAST') + ': ' + t.text, W / 2, y + 12, 10, BROWN, 'center', false);
     }
     if (focus >= btns.length) focus = 0;
   }
