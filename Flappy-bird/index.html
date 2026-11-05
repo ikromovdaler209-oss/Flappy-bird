@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>Flappy Bird B/W</title>
+<title>Flying Bird</title>
 <style>
   html, body { margin:0; height:100%; background:#0b0b1a; overflow:hidden; touch-action:none; user-select:none; -webkit-user-select:none; }
   body { display:flex; justify-content:center; align-items:center; }
@@ -14,38 +14,43 @@
 <canvas id="c"></canvas>
 <script>
 (() => {
-  // ---------- Setup ----------
-  const W = 320, H = 480, GROUND = 430, PW = 52, CAP = 16, SPACING = 175;
-  const canvas = document.getElementById('c');
-  const ctx = canvas.getContext('2d');
-
-  let state = 'START';            // START | PLAYING | DEAD | GAMEOVER
-  let paused = false;
-  let score = 0, best = 0, newBest = false;
-  let shake = 0, flash = 0, pop = 0, overAt = 0;
-  let groundX = 0, bgX = 0, ticks = 0;
-  let pipes = [], particles = [];
-  try { best = +localStorage.getItem('flappyBW') || 0; } catch (e) {}
-
-  const bird = { x: 70, y: 200, w: 20, h: 16, vy: 0, rot: 0 };
-
-  // Background data: stars and skyline
-  const stars = Array.from({ length: 45 }, () => ({
-    x: Math.random() * W, y: Math.random() * (GROUND - 80),
-    s: Math.random() < 0.2 ? 2 : 1, t: Math.random() * 6.28
-  }));
-  const TW = 420;
-  const skyline = [];
-  for (let x = 0; x < TW; ) {
-    const w = 30 + Math.floor(Math.random() * 40), h = 40 + Math.floor(Math.random() * 90);
-    skyline.push({ x, w, h });
-    x += w + 4;
-  }
-
+  const PW = 52, CAP = 16;
   const GREEN = { main:'#4cd964', light:'#b6ffa8', dark:'#1e8a3c' };
   const PINK  = { main:'#ff7eb6', light:'#ffc2dc', dark:'#b3265f' };
   const INK = '#1a1033', BROWN = '#2b1b00';
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  // Two layouts: portrait 2:3 (phones, narrow windows) and landscape 16:9 (PC, laptops)
+  let L = null, W = 320, H = 480, GROUND = 430, SPACING = 175, GMAX = 150, GMIN = 105, TW = 420;
+  let state = 'START', paused = false, score = 0, best = 0, newBest = false;
+  let shake = 0, flash = 0, pop = 0, overAt = 0, groundX = 0, bgX = 0, ticks = 0;
+  let pipes = [], particles = [], stars = [], skyline = [], clouds = [];
+  try { best = +localStorage.getItem('flyingBird') || 0; } catch (e) {}
+
+  const bird = { x: 70, y: 200, w: 20, h: 16, vy: 0, rot: 0 };
   const speed = () => 2 + Math.min(score * 0.04, 1.4);
+
+  function layout(land) {
+    L = land;
+    W = land ? 640 : 320; H = land ? 360 : 480;
+    GROUND = H - (land ? 44 : 50);
+    SPACING = land ? 230 : 175;
+    GMAX = land ? 128 : 150; GMIN = land ? 95 : 105;
+    bird.x = land ? 120 : 70;
+    TW = W + 100;
+    stars = Array.from({ length: Math.round(W * H / 3400) }, () => ({
+      x: Math.random() * W, y: Math.random() * (GROUND - 80),
+      s: Math.random() < 0.2 ? 2 : 1, t: Math.random() * 6.28 }));
+    skyline = [];
+    for (let x = 0; x < TW; ) {
+      const w = 30 + Math.floor(Math.random() * 40), h = 40 + Math.floor(Math.random() * (land ? 70 : 90));
+      skyline.push({ x, w, h }); x += w + 4;
+    }
+    clouds = Array.from({ length: land ? 7 : 4 }, () => ({
+      x: Math.random() * W, y: 30 + Math.random() * GROUND * 0.45, w: 40 + Math.floor(Math.random() * 40) }));
+    reset();
+  }
 
   // ---------- Sound ----------
   let AC = null, muted = false;
@@ -69,7 +74,8 @@
   function burst(x, y, n, spd, life, cols = ['#fff']) {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * 6.28, s = Math.random() * spd;
-      particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life, col: cols[Math.floor(Math.random() * cols.length)], size: 1 + Math.floor(Math.random() * 3) });
+      particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life,
+        col: cols[Math.floor(Math.random() * cols.length)], size: 1 + Math.floor(Math.random() * 3) });
     }
   }
 
@@ -81,7 +87,7 @@
   }
 
   function spawnPipe() {
-    const gap = Math.max(105, 150 - score * 1.2);
+    const gap = Math.max(GMIN, GMAX - score * 1.2);
     const moving = score >= 10 && Math.random() < 0.45;
     const m = moving ? 22 : 0;
     const lo = 40 + m, hi = GROUND - gap - 40 - m;
@@ -96,7 +102,7 @@
     burst(bird.x + bird.w / 2, bird.y + bird.h / 2, 24, 4, 40, ['#ffd23f', '#ff9f1c', '#ff6b35', '#fff']);
     if (score > best) {
       best = score; newBest = true;
-      try { localStorage.setItem('flappyBW', best); } catch (e) {}
+      try { localStorage.setItem('flyingBird', best); } catch (e) {}
     }
     if (onGround) { state = 'GAMEOVER'; overAt = performance.now(); }
     else { state = 'DEAD'; bird.vy = -2.5; }
@@ -105,7 +111,7 @@
   function reset() {
     pipes = []; particles = [];
     score = 0; newBest = false;
-    bird.y = 200; bird.vy = 0; bird.rot = 0;
+    bird.y = H * 0.42; bird.vy = 0; bird.rot = 0;
     state = 'START';
   }
 
@@ -132,17 +138,15 @@
     particles = particles.filter(p => p.life > 0);
 
     if (paused) return;
-
     const spd = speed();
 
     if (state === 'START') {
-      bird.y = 200 + Math.sin(ticks / 12) * 6;
+      bird.y = H * 0.42 + Math.sin(ticks / 12) * 6;
       groundX += 2; bgX += 0.4;
     }
 
     if (state === 'PLAYING') {
       groundX += spd; bgX += 0.4;
-
       bird.vy = Math.min(bird.vy + 0.28, 8);
       bird.y += bird.vy;
       if (bird.y < 0) { bird.y = 0; bird.vy = 0; }
@@ -154,7 +158,6 @@
         p.x -= spd;
         p.phase += 0.04;
         p.top = p.base + Math.sin(p.phase) * p.amp;
-
         if (hx + hw > p.x - 4 && hx < p.x + PW + 4) {
           if (hy < p.top || hy + hh > p.top + p.gap) die(false);
         }
@@ -164,7 +167,6 @@
         }
       }
       pipes = pipes.filter(p => p.x + PW + 4 > 0);
-
       if (bird.y + bird.h >= GROUND) { bird.y = GROUND - bird.h; die(true); }
     }
     else if (state === 'DEAD') {
@@ -177,7 +179,6 @@
       }
     }
 
-    // Bird tilt
     const target = state === 'START' ? 0 : Math.max(-0.45, Math.min(1.3, bird.vy * 0.09));
     bird.rot += (target - bird.rot) * 0.25;
   }
@@ -192,25 +193,54 @@
     }
     ctx.fillStyle = color; ctx.fillText(s, x, y);
   }
+  function title(s, x, y, size, color, align) {
+    txt(s, x + 3, y + 4, size, '#5b1a4a', align);   // retro drop shadow
+    txt(s, x, y, size, color, align);
+  }
 
   function drawBackground() {
     const g = ctx.createLinearGradient(0, 0, 0, GROUND);
     g.addColorStop(0, '#0f0c29'); g.addColorStop(0.6, '#302b63'); g.addColorStop(1, '#d4638f');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(255,247,214,0.15)'; ctx.beginPath(); ctx.arc(250, 85, 34, 0, 6.28); ctx.fill();
-    ctx.fillStyle = '#fff7d6'; ctx.beginPath(); ctx.arc(250, 85, 22, 0, 6.28); ctx.fill();
+
+    // moon with craters
+    const mx = W - (L ? 110 : 70), my = L ? 65 : 85;
+    ctx.fillStyle = 'rgba(255,247,214,0.15)'; ctx.beginPath(); ctx.arc(mx, my, 34, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#fff7d6'; ctx.beginPath(); ctx.arc(mx, my, 22, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#e8dcae';
+    ctx.fillRect(mx - 9, my - 7, 5, 5); ctx.fillRect(mx + 5, my + 3, 6, 6); ctx.fillRect(mx - 4, my + 8, 4, 4);
 
     for (const s of stars) {
       const x = ((s.x - bgX * 0.3) % W + W) % W;
       ctx.fillStyle = 'rgba(255,255,255,' + (0.35 + 0.35 * Math.sin(ticks / 30 + s.t)) + ')';
-      ctx.fillRect(x, s.y, s.s, s.s);
+      ctx.fillRect(Math.floor(x), Math.floor(s.y), s.s, s.s);
     }
 
+    // pixel clouds
+    ctx.fillStyle = 'rgba(255,226,240,0.22)';
+    for (const c of clouds) {
+      const x = Math.floor(((c.x - bgX * 0.25) % (W + 120) + (W + 120)) % (W + 120)) - 60, y = Math.floor(c.y);
+      ctx.fillRect(x, y, c.w, 10);
+      ctx.fillRect(x + 8, y - 6, Math.floor(c.w * 0.5), 6);
+      ctx.fillRect(x + Math.floor(c.w * 0.4), y - 10, Math.floor(c.w * 0.35), 4);
+    }
+
+    // far mountains with snow caps
+    for (let x = 0; x < W; x += 4) {
+      const m = x + bgX * 0.12;
+      const h = Math.floor(85 + 35 * Math.sin(m * 0.021) + 20 * Math.sin(m * 0.057 + 1.3));
+      ctx.fillStyle = '#2a2468'; ctx.fillRect(x, GROUND - h, 4, h);
+      if (h > 118) { ctx.fillStyle = '#d8d4ff'; ctx.fillRect(x, GROUND - h, 4, 5); }
+    }
+
+    // city skyline with lit windows
     const off = -(bgX % TW);
     for (let k = 0; k < 2; k++) {
       for (const b of skyline) {
         const x = Math.floor(b.x + off + k * TW), y = GROUND - b.h;
+        if (x > W || x + b.w < 0) continue;
         ctx.fillStyle = INK; ctx.fillRect(x, y, b.w, b.h);
+        ctx.fillStyle = '#2b2250'; ctx.fillRect(x, y, b.w, 2);
         for (let wy = y + 8; wy < GROUND - 8; wy += 12)
           for (let wx = x + 6; wx < x + b.w - 6; wx += 10) {
             ctx.fillStyle = ((wx - x) * 3 + (wy - y) * 5 + b.w) % 7 < 2 ? '#ffd66b' : '#2b2250';
@@ -218,24 +248,36 @@
           }
       }
     }
+
+    // bushes along the ground
+    const sh = groundX * 0.8, first = Math.floor(sh / 56);
+    for (let i = first - 1; i < first + W / 56 + 2; i++) {
+      const x = Math.floor(i * 56 - sh), t = ((i % 3) + 3) % 3, w = 18 + t * 6;
+      ctx.fillStyle = '#1b6b2b'; ctx.fillRect(x, GROUND - 8, w, 8); ctx.fillRect(x + 3, GROUND - 12, w - 6, 4);
+      ctx.fillStyle = '#2f9e44'; ctx.fillRect(x + 2, GROUND - 8, w - 4, 6); ctx.fillRect(x + 5, GROUND - 11, w - 10, 3);
+      if (t === 2) { ctx.fillStyle = '#ff6b9d'; ctx.fillRect(x + 6, GROUND - 11, 2, 2); ctx.fillRect(x + w - 9, GROUND - 9, 2, 2); }
+    }
   }
 
   function drawPipe(p) {
     const x = Math.floor(p.x), top = Math.floor(p.top), bot = top + p.gap;
     const c = p.amp ? PINK : GREEN;   // moving pipes are pink
-    const block = (bx, by, bw, bh) => {
+    const block = (bx, by, bw, bh, cap) => {
       ctx.fillStyle = c.main; ctx.fillRect(bx, by, bw, bh);
       ctx.fillStyle = c.light; ctx.fillRect(bx + 4, by, 5, bh);
       ctx.fillStyle = c.dark; ctx.fillRect(bx + bw - 10, by, 10, bh);
+      if (!cap) { ctx.fillStyle = c.light; for (let y = by + 6; y < by + bh - 3; y += 14) ctx.fillRect(bx + 14, y, 2, 2); }
       ctx.fillStyle = INK; ctx.fillRect(bx, by, 2, bh); ctx.fillRect(bx + bw - 2, by, 2, bh);
     };
-    block(x, 0, PW, top - CAP);
-    block(x - 4, top - CAP, PW + 8, CAP);
-    block(x - 4, bot, PW + 8, CAP);
-    block(x, bot + CAP, PW, GROUND - bot - CAP);
+    block(x, 0, PW, top - CAP, false);
+    block(x - 4, top - CAP, PW + 8, CAP, true);
+    block(x - 4, bot, PW + 8, CAP, true);
+    block(x, bot + CAP, PW, GROUND - bot - CAP, false);
     ctx.fillStyle = INK;
     ctx.fillRect(x - 4, top - CAP, PW + 8, 2); ctx.fillRect(x - 4, top - 2, PW + 8, 2);
     ctx.fillRect(x - 4, bot, PW + 8, 2); ctx.fillRect(x - 4, bot + CAP - 2, PW + 8, 2);
+    ctx.fillStyle = c.light;
+    ctx.fillRect(x - 2, top - CAP + 2, PW + 4, 1); ctx.fillRect(x - 2, bot + 2, PW + 4, 1);
   }
 
   function drawGround() {
@@ -243,10 +285,16 @@
     ctx.fillStyle = '#7ed957'; ctx.fillRect(0, GROUND, W, 8);
     ctx.fillStyle = '#4fae35'; ctx.fillRect(0, GROUND + 8, W, 3);
     ctx.fillStyle = INK; ctx.fillRect(0, GROUND - 2, W, 2);
+    const gw = Math.floor(groundX);
+    for (let x = -(gw % 12); x < W; x += 12) {          // grass tufts and stones
+      const i = Math.floor((x + gw) / 12);
+      ctx.fillStyle = '#a8f27f'; ctx.fillRect(x + (i % 3) * 3, GROUND + 1, 2, 2 + (i % 2));
+      ctx.fillStyle = '#6e4420'; ctx.fillRect(x + 4, GROUND + 18 + (i % 2) * 9, 4, 3);
+    }
     ctx.strokeStyle = '#a06a38'; ctx.lineWidth = 3;
     const o = groundX % 16;
     ctx.beginPath();
-    for (let x = -16 - o; x < W + 16; x += 16) { ctx.moveTo(x + 16, GROUND + 16); ctx.lineTo(x, GROUND + 32); }
+    for (let x = -16 - o; x < W + 16; x += 16) { ctx.moveTo(x + 16, GROUND + 14); ctx.lineTo(x, GROUND + 28); }
     ctx.stroke();
   }
 
@@ -254,15 +302,35 @@
     ctx.save();
     ctx.translate(Math.floor(bird.x + bird.w / 2), Math.floor(bird.y + bird.h / 2));
     ctx.rotate(bird.rot);
-    ctx.fillStyle = BROWN; ctx.fillRect(-12, -10, 24, 20); ctx.fillRect(10, -3, 9, 9);   // outline
-    ctx.fillStyle = '#ffd23f'; ctx.fillRect(-10, -8, 20, 16);                             // body
-    ctx.fillStyle = '#ffe98a'; ctx.fillRect(-10, -8, 20, 4);                              // highlight
-    ctx.fillStyle = '#ff6b35'; ctx.fillRect(10, -1, 7, 6);                                // beak
-    ctx.fillStyle = BROWN; ctx.fillRect(10, 2, 7, 1);
-    ctx.fillStyle = '#fff'; ctx.fillRect(2, -7, 7, 7);                                    // eye
-    ctx.fillStyle = '#000'; ctx.fillRect(6, -5, 3, 4);
     const f = state === 'GAMEOVER' || state === 'DEAD' ? 1 : Math.floor(ticks / 5) % 3;
-    ctx.fillStyle = '#ff9f1c'; ctx.fillRect(-8, -2 + (f - 1) * 3, 10, 5);                 // wing
+    const wy = (f - 1) * 3;
+    // tail feathers
+    ctx.fillStyle = BROWN; ctx.fillRect(-16, -5, 7, 10);
+    ctx.fillStyle = '#ff9f1c'; ctx.fillRect(-15, -4, 6, 2); ctx.fillRect(-15, -1, 6, 2); ctx.fillRect(-15, 2, 6, 2);
+    // head crest
+    ctx.fillStyle = BROWN; ctx.fillRect(-3, -12, 8, 4);
+    ctx.fillStyle = '#ffd23f'; ctx.fillRect(-2, -11, 2, 3); ctx.fillRect(1, -12, 2, 4);
+    // body: outline, fill, highlight, belly, cheek
+    ctx.fillStyle = BROWN; ctx.fillRect(-12, -8, 24, 16); ctx.fillRect(-10, -10, 20, 20);
+    ctx.fillStyle = '#ffd23f'; ctx.fillRect(-10, -6, 20, 12); ctx.fillRect(-8, -8, 16, 16);
+    ctx.fillStyle = '#ffe98a'; ctx.fillRect(-8, -8, 16, 3);
+    ctx.fillStyle = '#fff4d6'; ctx.fillRect(-6, 3, 13, 4);
+    ctx.fillStyle = '#ffb3c6'; ctx.fillRect(3, 1, 4, 3);
+    // beak (two-tone)
+    ctx.fillStyle = BROWN; ctx.fillRect(9, -4, 10, 11);
+    ctx.fillStyle = '#ff6b35'; ctx.fillRect(10, -3, 8, 4);
+    ctx.fillStyle = '#d94a1e'; ctx.fillRect(10, 1, 7, 4);
+    ctx.fillStyle = BROWN; ctx.fillRect(10, 1, 7, 1);
+    // wing with feather line
+    ctx.fillStyle = BROWN; ctx.fillRect(-9, -3 + wy, 12, 8);
+    ctx.fillStyle = '#ff9f1c'; ctx.fillRect(-8, -2 + wy, 10, 6);
+    ctx.fillStyle = '#ffd23f'; ctx.fillRect(-8, -2 + wy, 10, 2);
+    ctx.fillStyle = '#d97a00'; ctx.fillRect(-8, 2 + wy, 10, 1);
+    // eye
+    ctx.fillStyle = BROWN; ctx.fillRect(2, -9, 8, 8);
+    ctx.fillStyle = '#fff'; ctx.fillRect(3, -8, 6, 6);
+    ctx.fillStyle = '#000'; ctx.fillRect(6, -6, 3, 4);
+    ctx.fillStyle = '#fff'; ctx.fillRect(7, -6, 1, 1);
     ctx.restore();
   }
 
@@ -289,10 +357,16 @@
     const blink = Math.floor(ticks / 30) % 2 === 0;
 
     if (state === 'START') {
-      txt('FLAPPY', W / 2, 110, 48, '#ffd23f');
-      txt('BIRD', W / 2, 155, 48, '#ff6b9d');
-      if (blink) txt('SPACE / CLICK / TAP', W / 2, 320, 16);
-      if (best > 0) txt('BEST ' + best, W / 2, 350, 16);
+      if (L) {
+        title('FLYING', W / 2 - 8, 70, 46, '#ffd23f', 'right');
+        title('BIRD', W / 2 + 8, 70, 46, '#ff6b9d', 'left');
+      } else {
+        title('FLYING', W / 2, 105, 48, '#ffd23f', 'center');
+        title('BIRD', W / 2, 155, 48, '#ff6b9d', 'center');
+      }
+      const py = L ? 250 : 320;
+      if (blink) txt('SPACE / CLICK / TAP', W / 2, py, 16);
+      if (best > 0) txt('BEST ' + best, W / 2, py + 30, 16);
     }
 
     if (state === 'PLAYING' || state === 'DEAD') {
@@ -303,7 +377,7 @@
     }
 
     if (state === 'GAMEOVER') {
-      const x = 45, y = 120, w = 230, h = 200;
+      const w = 230, h = 200, x = Math.round(W / 2 - w / 2), y = Math.round(H / 2 - 120);
       panel(x, y, w, h);
       txt('GAME OVER', W / 2, y + 34, 24, BROWN, 'center', false);
       txt('SCORE ' + score, W / 2, y + 74, 18, BROWN, 'center', false);
@@ -316,9 +390,9 @@
     txt('P: PAUSE   M: SOUND ' + (muted ? 'OFF' : 'ON'), W / 2, H - 14, 10, '#f3e3c7', 'center', false);
 
     if (paused) {
-      ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(0, 0, W, H);
-      txt('PAUSED', W / 2, 220, 36);
-      txt('P OR SPACE TO RESUME', W / 2, 262, 12);
+      ctx.fillStyle = 'rgba(15,12,41,0.7)'; ctx.fillRect(0, 0, W, H);
+      txt('PAUSED', W / 2, H / 2 - 20, 36);
+      txt('P OR SPACE TO RESUME', W / 2, H / 2 + 22, 12);
     }
   }
 
@@ -350,8 +424,10 @@
   canvas.addEventListener('touchstart', e => { e.preventDefault(); act(); }, { passive: false });
   window.addEventListener('blur', () => { if (state === 'PLAYING') paused = true; });
 
-  // ---------- Sizing (crisp on any screen) ----------
+  // ---------- Sizing: picks portrait or 16:9 by window shape ----------
   function fit() {
+    const land = innerWidth / innerHeight >= 1.15;
+    if (land !== L) layout(land);
     const s = Math.min(innerWidth / (W + 8), innerHeight / (H + 8));
     const r = Math.max(1, Math.round(s * (devicePixelRatio || 1)));
     canvas.width = W * r; canvas.height = H * r;
