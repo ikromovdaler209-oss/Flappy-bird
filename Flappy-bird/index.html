@@ -54,8 +54,23 @@
     { name: 'CLASSIC', need: 0,  body: '#ffd23f', hi: '#ffe98a', wing: '#ff9f1c', wingD: '#d97a00', belly: '#fff4d6' },
     { name: 'RED',     need: 15, body: '#ff5a4d', hi: '#ff9a8f', wing: '#b3261e', wingD: '#7a150f', belly: '#ffe0dc' },
     { name: 'BLUE',    need: 30, body: '#4da3ff', hi: '#9fd0ff', wing: '#1f5fbf', wingD: '#143f80', belly: '#e6f2ff' },
-    { name: 'GHOST',   need: 50, body: '#e8e8f5', hi: '#ffffff', wing: '#9aa0c8', wingD: '#6c7299', belly: '#ffffff' }
+    { name: 'GHOST',   need: 50, body: '#e8e8f5', hi: '#ffffff', wing: '#9aa0c8', wingD: '#6c7299', belly: '#ffffff' },
+    // Five themes, two shop skins each. All skins reuse the exact same pixel geometry.
+    { name: 'LEAF',    theme: 'NATURE', price: 200, body: '#78c850', hi: '#c7f58a', wing: '#3c9b45', wingD: '#236b32', belly: '#efffd5' },
+    { name: 'BLOOM',   theme: 'NATURE', price: 200, body: '#ff9acb', hi: '#ffd5e8', wing: '#d94d91', wingD: '#9e2866', belly: '#fff0f7' },
+    { name: 'NEBULA',  theme: 'SPACE',  price: 200, body: '#9b7bff', hi: '#d8caff', wing: '#6544c9', wingD: '#40278f', belly: '#f0eaff' },
+    { name: 'COSMIC',  theme: 'SPACE',  price: 200, body: '#42c9d8', hi: '#b5f8ff', wing: '#287cae', wingD: '#175274', belly: '#e6ffff' },
+    { name: 'EMBER',   theme: 'FIRE',   price: 200, body: '#ff8a3d', hi: '#ffd08a', wing: '#df452e', wingD: '#98251f', belly: '#fff0cf' },
+    { name: 'MAGMA',   theme: 'FIRE',   price: 200, body: '#e94b4b', hi: '#ffaaaa', wing: '#8e244f', wingD: '#571735', belly: '#ffe2d7' },
+    { name: 'AQUA',    theme: 'OCEAN',  price: 200, body: '#38c6c8', hi: '#b4ffff', wing: '#2386b8', wingD: '#155578', belly: '#e3ffff' },
+    { name: 'CORAL',   theme: 'OCEAN',  price: 200, body: '#ff806b', hi: '#ffd0b8', wing: '#d34d67', wingD: '#8d2948', belly: '#fff0df' },
+    { name: 'MINT',    theme: 'SWEETS', price: 200, body: '#a7e8c2', hi: '#e5ffdf', wing: '#56b9a0', wingD: '#317d79', belly: '#f4fff1' },
+    { name: 'BERRY',   theme: 'SWEETS', price: 200, body: '#c77dff', hi: '#edc9ff', wing: '#9149c5', wingD: '#5c2d8c', belly: '#fff0ff' }
   ];
+  const wallet = store.get('flyingBirdWallet', { coins: 0, owned: [] });
+  wallet.coins = Math.max(0, Math.floor(Number(wallet.coins) || 0));
+  wallet.owned = Array.isArray(wallet.owned) ? wallet.owned.filter(i => Number.isInteger(i) && i >= 4 && i < SKINS.length) : [];
+  const saveWallet = () => store.set('flyingBirdWallet', wallet);
   const ACH = [
     { id: 'first', name: 'FIRST FLIGHT', desc: 'Finish your first game' },
     { id: 's5',    name: 'ROOKIE',       desc: 'Score 5' },
@@ -154,7 +169,7 @@
       PROFILE:'PROFILE', PLAYER_ID:'PLAYER ID', EDIT_NICK:'EDIT NICKNAME', AVATAR:'AVATAR', AVATAR_BG:'BACKGROUND', COPY_ID:'COPY ID', COPIED:'COPIED!', NICKNAME_PH:'NICKNAME (3-12 CHARS)', NICK_SHORT:'NICKNAME TOO SHORT',
       FPS_LIMIT:'FPS LIMIT', SHOW_FPS:'SHOW FPS', MAX:'MAX',
       SELECT_MAP:'SELECT MAP', MAP_CITY:'CITY', MAP_MOUNTAINS:'MOUNTAINS', MAP_VOLCANO:'VOLCANO',
-      PLAY:'PLAY', ACHIEVEMENTS:'ACHIEVEMENTS', SETTINGS:'SETTINGS', BEST:'BEST', PAUSED:'PAUSED',
+      PLAY:'PLAY', SHOP:'SHOP', COINS:'COINS', BUY:'BUY', SELECT:'SELECT', SELECTED:'SELECTED', OWNED:'OWNED', NOT_ENOUGH:'NOT ENOUGH COINS', SKIN_BOUGHT:'SKIN UNLOCKED!', ACHIEVEMENTS:'ACHIEVEMENTS', SETTINGS:'SETTINGS', BEST:'BEST', PAUSED:'PAUSED',
       RESUME:'RESUME', MAIN_MENU:'MAIN MENU', THEME:'THEME', MUSIC:'MUSIC', SOUND_FX:'SOUND FX',
       COLOR_MODE:'COLOR MODE', REDUCE_EFFECTS:'REDUCE EFFECTS', DIFFICULTY:'DIFFICULTY',
       BIRD_SKIN:'BIRD SKIN', FULLSCREEN:'FULLSCREEN', LANGUAGE:'LANGUAGE',
@@ -180,7 +195,7 @@
       PROFILE:'个人资料', PLAYER_ID:'玩家ID', EDIT_NICK:'修改昵称', AVATAR:'头像', AVATAR_BG:'背景', COPY_ID:'复制ID', COPIED:'已复制！', NICKNAME_PH:'昵称（3-12个字符）', NICK_SHORT:'昵称太短',
       FPS_LIMIT:'帧率上限', SHOW_FPS:'显示帧率', MAX:'最大',
       SELECT_MAP:'选择地图', MAP_CITY:'城市', MAP_MOUNTAINS:'雪山', MAP_VOLCANO:'火山',
-      PLAY:'开始游戏', ACHIEVEMENTS:'成就', SETTINGS:'设置', BEST:'最高分', PAUSED:'已暂停',
+      PLAY:'开始游戏', SHOP:'商店', COINS:'金币', BUY:'购买', SELECT:'选择', SELECTED:'已选择', OWNED:'已拥有', NOT_ENOUGH:'金币不足', SKIN_BOUGHT:'外观已解锁！', ACHIEVEMENTS:'成就', SETTINGS:'设置', BEST:'最高分', PAUSED:'已暂停',
       RESUME:'继续游戏', MAIN_MENU:'主菜单', THEME:'主题', MUSIC:'音乐', SOUND_FX:'音效',
       COLOR_MODE:'色盲模式', REDUCE_EFFECTS:'减少特效', DIFFICULTY:'难度',
       BIRD_SKIN:'小鸟外观', FULLSCREEN:'全屏', LANGUAGE:'语言',
@@ -206,7 +221,7 @@
       PROFILE:'ПРОФИЛЬ', PLAYER_ID:'ID ИГРОКА', EDIT_NICK:'СМЕНИТЬ НИК', AVATAR:'АВАТАР', AVATAR_BG:'ФОН', COPY_ID:'КОПИРОВАТЬ ID', COPIED:'СКОПИРОВАНО!', NICKNAME_PH:'НИК (3-12 СИМВОЛОВ)', NICK_SHORT:'НИК СЛИШКОМ КОРОТКИЙ',
       FPS_LIMIT:'ЛИМИТ FPS', SHOW_FPS:'ПОКАЗАТЬ FPS', MAX:'МАКС',
       SELECT_MAP:'ВЫБОР КАРТЫ', MAP_CITY:'ГОРОД', MAP_MOUNTAINS:'ГОРЫ', MAP_VOLCANO:'ВУЛКАН',
-      PLAY:'ИГРАТЬ', ACHIEVEMENTS:'ДОСТИЖЕНИЯ', SETTINGS:'НАСТРОЙКИ', BEST:'РЕКОРД', PAUSED:'ПАУЗА',
+      PLAY:'ИГРАТЬ', SHOP:'МАГАЗИН', COINS:'МОНЕТЫ', BUY:'КУПИТЬ', SELECT:'ВЫБРАТЬ', SELECTED:'ВЫБРАН', OWNED:'КУПЛЕН', NOT_ENOUGH:'НЕ ХВАТАЕТ МОНЕТ', SKIN_BOUGHT:'СКИН КУПЛЕН!', ACHIEVEMENTS:'ДОСТИЖЕНИЯ', SETTINGS:'НАСТРОЙКИ', BEST:'РЕКОРД', PAUSED:'ПАУЗА',
       RESUME:'ПРОДОЛЖИТЬ', MAIN_MENU:'ГЛАВНОЕ МЕНЮ', THEME:'ТЕМА', MUSIC:'МУЗЫКА', SOUND_FX:'ЗВУКИ',
       COLOR_MODE:'РЕЖИМ ЦВЕТА', REDUCE_EFFECTS:'МЕНЬШЕ ЭФФЕКТОВ', DIFFICULTY:'СЛОЖНОСТЬ',
       BIRD_SKIN:'ВНЕШНИЙ ВИД', FULLSCREEN:'ПОЛНЫЙ ЭКРАН', LANGUAGE:'ЯЗЫК',
@@ -232,7 +247,7 @@
       PROFILE:'PERFIL', PLAYER_ID:'ID DE JUGADOR', EDIT_NICK:'EDITAR APODO', AVATAR:'AVATAR', AVATAR_BG:'FONDO', COPY_ID:'COPIAR ID', COPIED:'¡COPIADO!', NICKNAME_PH:'APODO (3-12 CARACTERES)', NICK_SHORT:'APODO MUY CORTO',
       FPS_LIMIT:'LÍMITE DE FPS', SHOW_FPS:'MOSTRAR FPS', MAX:'MÁX',
       SELECT_MAP:'ELEGIR MAPA', MAP_CITY:'CIUDAD', MAP_MOUNTAINS:'MONTAÑAS', MAP_VOLCANO:'VOLCÁN',
-      PLAY:'JUGAR', ACHIEVEMENTS:'LOGROS', SETTINGS:'AJUSTES', BEST:'RÉCORD', PAUSED:'EN PAUSA',
+      PLAY:'JUGAR', SHOP:'TIENDA', COINS:'MONEDAS', BUY:'COMPRAR', SELECT:'ELEGIR', SELECTED:'ELEGIDO', OWNED:'COMPRADO', NOT_ENOUGH:'FALTAN MONEDAS', SKIN_BOUGHT:'¡ASPECTO DESBLOQUEADO!', ACHIEVEMENTS:'LOGROS', SETTINGS:'AJUSTES', BEST:'RÉCORD', PAUSED:'EN PAUSA',
       RESUME:'CONTINUAR', MAIN_MENU:'MENÚ PRINCIPAL', THEME:'TEMA', MUSIC:'MÚSICA', SOUND_FX:'EFECTOS',
       COLOR_MODE:'MODO DE COLOR', REDUCE_EFFECTS:'REDUCIR EFECTOS', DIFFICULTY:'DIFICULTAD',
       BIRD_SKIN:'ASPECTO DEL AVE', FULLSCREEN:'PANTALLA COMPLETA', LANGUAGE:'IDIOMA',
@@ -258,7 +273,7 @@
       PROFILE:'PERFIL', PLAYER_ID:'ID DO JOGADOR', EDIT_NICK:'EDITAR APELIDO', AVATAR:'AVATAR', AVATAR_BG:'FUNDO', COPY_ID:'COPIAR ID', COPIED:'COPIADO!', NICKNAME_PH:'APELIDO (3-12 CARACTERES)', NICK_SHORT:'APELIDO MUITO CURTO',
       FPS_LIMIT:'LIMITE DE FPS', SHOW_FPS:'MOSTRAR FPS', MAX:'MÁX',
       SELECT_MAP:'ESCOLHER MAPA', MAP_CITY:'CIDADE', MAP_MOUNTAINS:'MONTANHAS', MAP_VOLCANO:'VULCÃO',
-      PLAY:'JOGAR', ACHIEVEMENTS:'CONQUISTAS', SETTINGS:'CONFIGURAÇÕES', BEST:'RECORDE', PAUSED:'PAUSADO',
+      PLAY:'JOGAR', SHOP:'LOJA', COINS:'MOEDAS', BUY:'COMPRAR', SELECT:'ESCOLHER', SELECTED:'SELECIONADO', OWNED:'COMPRADO', NOT_ENOUGH:'MOEDAS INSUFICIENTES', SKIN_BOUGHT:'VISUAL DESBLOQUEADO!', ACHIEVEMENTS:'CONQUISTAS', SETTINGS:'CONFIGURAÇÕES', BEST:'RECORDE', PAUSED:'PAUSADO',
       RESUME:'CONTINUAR', MAIN_MENU:'MENU PRINCIPAL', THEME:'TEMA', MUSIC:'MÚSICA', SOUND_FX:'EFEITOS SONOROS',
       COLOR_MODE:'MODO DE COR', REDUCE_EFFECTS:'REDUZIR EFEITOS', DIFFICULTY:'DIFICULDADE',
       BIRD_SKIN:'VISUAL DO PÁSSARO', FULLSCREEN:'TELA CHEIA', LANGUAGE:'IDIOMA',
@@ -290,7 +305,8 @@
     'HIGH CONTRAST':tr('HIGH_CONTRAST'), ON:tr('ON')
   }[value] || value);
 
-  const skinOK = i => maxBest() >= SKINS[i].need;
+  const skinOK = i => !!SKINS[i] && (i < 4 ? maxBest() >= SKINS[i].need : wallet.owned.includes(i));
+  if (!skinOK(cfg.skin)) cfg.skin = 0;
 
   const bird = { x: 70, y: 200, w: 20, h: 16, vy: 0, rot: 0 };
   const speed = () => (2 + Math.min(score * 0.04, 1.4)) * DIFF[cfg.diff].spd;
@@ -389,7 +405,7 @@
     const m = moving ? 22 : 0;
     const lo = 40 + m, hi = GROUND - gap - 40 - m;
     const base = lo + Math.random() * (hi - lo);
-    pipes.push({ x: W + 10, base, top: base, gap, amp: m, phase: Math.random() * 6.28, scored: false });
+    pipes.push({ x: W + 10, base, top: base, gap, amp: m, phase: Math.random() * 6.28, scored: false, coinTaken: false });
   }
 
   function die(onGround) {
@@ -464,6 +480,16 @@
         p.top = p.base + Math.sin(p.phase) * p.amp;
         if (hx + hw > p.x - 4 && hx < p.x + PW + 4) {
           if (hy < p.top || hy + hh > p.top + p.gap) die(false);
+        }
+        // One collectible coin sits in the centre of every pipe gap.
+        const coinX = p.x + PW / 2, coinY = p.top + p.gap / 2;
+        const birdCX = bird.x + bird.w / 2, birdCY = bird.y + bird.h / 2;
+        if (state === 'PLAYING' && !p.coinTaken && Math.abs(birdCX - coinX) < 15 && Math.abs(birdCY - coinY) < 17) {
+          p.coinTaken = true;
+          wallet.coins++;
+          saveWallet();
+          tone(1040, 1560, 0.13, 'square', 0.07);
+          burst(coinX, coinY, 10, 2, 24, ['#fff2a6', '#ffd23f', '#ff9f1c']);
         }
         if (!p.scored && p.x + PW < bird.x) {
           p.scored = true; score++; pop = cfg.fx ? 0 : 1;
@@ -570,6 +596,88 @@
       if (t === 2) { ctx.fillStyle = '#ff6b9d'; ctx.fillRect(x + 6, GROUND - 11, 2, 2); ctx.fillRect(x + w - 9, GROUND - 9, 2, 2); }
     }
   }
+
+  function drawCoin(cx, cy, opts = {}) {
+  const R = 11;                                        // радиус лицевой части
+  const spin = opts.static ? 0 : Math.floor(ticks / 5) % 4;
+  const edge = spin === 1 || spin === 3;               // "поворот" монеты
+  const rx = edge ? R * 0.45 : R;
+  const ry = R;
+  const x = Math.floor(cx), y = Math.floor(cy);
+
+  // 1) Внешний тёмный контур
+  ctx.fillStyle = BROWN;
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx + 3, ry + 3, 0, 0, 6.2832);
+  ctx.fill();
+
+  // 2) Рубцы по краю (reeded edge)
+  const nRidges = 24;
+  for (let i = 0; i < nRidges; i++) {
+    const a = (i / nRidges) * 6.2832;
+    const cos = Math.cos(a), sin = Math.sin(a);
+    const px = x + cos * (rx + 1.5);
+    const py = y + sin * (ry + 1.5);
+    const lit = cos < 0 && sin < 0;                    // свет падает с верхнего левого
+    ctx.fillStyle = i % 2 === 0
+      ? (lit ? '#fff2a6' : '#a45a10')
+      : (lit ? '#ffd23f' : '#6b3a08');
+    ctx.fillRect(Math.round(px) - 1, Math.round(py) - 1, 2, 2);
+  }
+
+  // 3) Тёмное золото под лицевой частью (ободок)
+  ctx.fillStyle = '#e99b19';
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx + 1, ry + 1, 0, 0, 6.2832);
+  ctx.fill();
+
+  // 4) Золотой диск
+  ctx.fillStyle = '#ffd23f';
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx, ry, 0, 0, 6.2832);
+  ctx.fill();
+
+  // 5) Внутренняя канавка
+  ctx.strokeStyle = '#c47a10';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx * 0.75, ry * 0.75, 0, 0, 6.2832);
+  ctx.stroke();
+
+  // 6) Внутреннее светлое поле
+  ctx.fillStyle = '#ffe066';
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx * 0.68, ry * 0.68, 0, 0, 6.2832);
+  ctx.fill();
+
+  if (!edge) {
+    // 7a) Эмблема-звезда в центре (пиксельная)
+    ctx.fillStyle = '#b86b12';
+    ctx.fillRect(x - 1, y - 3, 2, 7);
+    ctx.fillRect(x - 3, y - 1, 7, 2);
+    ctx.fillStyle = '#8a4a0a';
+    ctx.fillRect(x + 2, y - 1, 1, 2);
+    ctx.fillRect(x - 1, y + 2, 2, 1);
+
+    // 8a) Блик сверху-слева
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.beginPath();
+    ctx.ellipse(x - rx * 0.35, y - ry * 0.42, rx * 0.22, ry * 0.16, -0.6, 0, 6.2832);
+    ctx.fill();
+
+    // 9a) Мягкая тень снизу-справа
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.beginPath();
+    ctx.ellipse(x + rx * 0.4, y + ry * 0.35, rx * 0.15, ry * 0.1, 0, 0, 6.2832);
+    ctx.fill();
+  } else {
+    // 7b) Монета "в профиль" — светлая вертикальная полоса
+    ctx.fillStyle = '#fff2a6';
+    ctx.fillRect(x - 1, y - Math.floor(ry * 0.68), 2, Math.floor(ry * 1.36));
+    ctx.fillStyle = '#ffd23f';
+    ctx.fillRect(x + 1, y - Math.floor(ry * 0.68), 1, Math.floor(ry * 1.36));
+  }
+}
 
   function drawPipe(p) {
     const x = Math.floor(p.x), top = Math.floor(p.top), bot = top + p.gap;
@@ -929,7 +1037,7 @@
     if (screen === 'SETTINGS') { screen = settingsFrom; resetArmed = false; focus = 0; }
     else if (screen === 'ACH') { screen = 'MENU'; focus = 0; }
     else if (screen === 'MAPS') { screen = 'MENU'; focus = 0; }
-    else if (screen === 'PROFILE') { screen = 'MENU'; focus = 0; }
+    else if (screen === 'PROFILE' || screen === 'SHOP') { screen = 'MENU'; focus = 0; }
     else if (screen === 'PAUSE') screen = null;
   }
   function toggleFS() {
@@ -946,13 +1054,58 @@
     }
     drawAvatar(8, 8, 22, profile.av);
     txtFit(profile.nick, 36, 19, 11, 140, '#fff', 'left');
-    const bw = 200, bx = Math.round(W / 2 - bw / 2), y0 = L ? 108 : 240, st = L ? 38 : 42;
+    const bw = 200, bx = Math.round(W / 2 - bw / 2), y0 = L ? 100 : 215, st = L ? 36 : 40;
     const got = ACH.filter(a => save.ach[a.id]).length;
-    btn(bx, y0, bw, 32, tr('PLAY'), () => { screen = 'MAPS'; focus = Math.max(0, MAP_KEYS.indexOf(cfg.map)); });
-    btn(bx, y0 + st, bw, 32, tr('PROFILE'), () => { screen = 'PROFILE'; focus = 0; });
-    btn(bx, y0 + st * 2, bw, 32, tr('ACHIEVEMENTS') + ' ' + got + '/' + ACH.length, () => { screen = 'ACH'; focus = 0; });
-    btn(bx, y0 + st * 3, bw, 32, tr('SETTINGS'), () => { settingsFrom = 'MENU'; screen = 'SETTINGS'; focus = 0; });
-    txt(tr('BEST') + ' ' + bestNow() + '  (' + displayValue(cfg.diff) + ')', W / 2, y0 + st * 4 + 6, 12);
+    btn(bx, y0, bw, 30, tr('PLAY'), () => { screen = 'MAPS'; focus = Math.max(0, MAP_KEYS.indexOf(cfg.map)); });
+    btn(bx, y0 + st, bw, 30, tr('PROFILE'), () => { screen = 'PROFILE'; focus = 0; });
+    btn(bx, y0 + st * 2, bw, 30, tr('ACHIEVEMENTS') + ' ' + got + '/' + ACH.length, () => { screen = 'ACH'; focus = 0; }, { size: 12 });
+    btn(bx, y0 + st * 3, bw, 30, tr('SHOP'), () => { screen = 'SHOP'; focus = 0; });
+    btn(bx, y0 + st * 4, bw, 30, tr('SETTINGS'), () => { settingsFrom = 'MENU'; screen = 'SETTINGS'; focus = 0; });
+    txt(tr('BEST') + ' ' + bestNow() + '  (' + displayValue(cfg.diff) + ')', W / 2, y0 + st * 5 + 4, 11);
+  }
+
+  function drawShop() {
+    ctx.fillStyle = 'rgba(15,12,41,0.90)'; ctx.fillRect(0, 0, W, H);
+    title(tr('SHOP'), W / 2, 30, 25, '#ffd23f', 'center');
+    txt(tr('COINS') + ': ' + wallet.coins, W / 2, 51, 11, '#fff2a6', 'center', false);
+
+    const items = SKINS.map((skin, i) => ({ skin, i })).filter(v => v.i >= 4);
+    const cols = L ? 5 : 2, rows = Math.ceil(items.length / cols);
+    const gapX = 6, gapY = L ? 8 : 6;
+    const cw = Math.floor((W - 24 - gapX * (cols - 1)) / cols);
+    const ch = L ? 112 : 62;
+    const startY = L ? 78 : 68;
+    items.forEach(({ skin, i }, n) => {
+      const col = n % cols, row = Math.floor(n / cols);
+      const x = 12 + col * (cw + gapX), y = startY + row * (ch + gapY);
+      const owned = wallet.owned.includes(i), selected = cfg.skin === i;
+      const focused = btns.length === focus;
+      btns.push({ x, y, w: cw, h: ch, fn: () => {
+        if (owned) {
+          cfg.skin = i; saveCfg();
+          toasts.push({ text: skin.name, plain: true, t: 65 });
+        } else if (wallet.coins >= skin.price) {
+          wallet.coins -= skin.price; wallet.owned.push(i); saveWallet();
+          cfg.skin = i; saveCfg();
+          toasts.push({ text: tr('SKIN_BOUGHT'), plain: true, t: 90 });
+          tone(660, 1320, 0.2, 'triangle', 0.08);
+        } else {
+          toasts.push({ text: tr('NOT_ENOUGH'), plain: true, t: 90 });
+          tone(180, 120, 0.16, 'square', 0.05);
+        }
+      }});
+      ctx.fillStyle = BROWN; ctx.fillRect(x - 2, y - 2, cw + 4, ch + 4);
+      ctx.fillStyle = selected ? '#ffd23f' : (owned ? '#fff4d6' : '#d8d0bd');
+      ctx.fillRect(x, y, cw, ch);
+      ctx.strokeStyle = focused ? '#ff6b9d' : selected ? '#ff9f1c' : '#8a6a3c'; ctx.lineWidth = focused ? 3 : 2; ctx.strokeRect(x + 2, y + 2, cw - 4, ch - 4);
+      birdIcon(skin, x + cw / 2, y + (L ? 31 : 19), L ? 1.05 : 0.72);
+      const small = L ? 9 : 9;
+      txt(skin.name, x + cw / 2, y + (L ? 60 : 38), small, BROWN, 'center', false);
+      txt(skin.theme, x + cw / 2, y + (L ? 76 : 49), L ? 8 : 7, '#6b4a1a', 'center', false);
+      const status = selected ? tr('SELECTED') : owned ? tr('SELECT') : skin.price + ' ' + tr('COINS');
+      txt(status, x + cw / 2, y + (L ? 96 : 57), L ? 8 : 7, selected ? '#8b4c00' : BROWN, 'center', false);
+    });
+    btn(W / 2 - 58, H - 34, 116, 26, tr('BACK'), back, { size: 11 });
   }
 
   function drawPause() {
@@ -992,7 +1145,7 @@
     btn(q.x, q.y, bw, h, resetArmed ? tr('PRESS_RESET') : tr('RESET_PROGRESS'), () => {
       if (!resetArmed) { resetArmed = true; return; }
       Object.assign(save, { best: { EASY: 0, NORMAL: 0, HARD: 0 }, games: 0, flaps: 0, pipes: 0, ach: {} });
-      cfg.skin = 0; saveGame(); saveCfg(); resetArmed = false;
+      cfg.skin = 0; profile.av.skin = 0; wallet.coins = 0; wallet.owned = []; saveProfile(); saveWallet(); saveGame(); saveCfg(); resetArmed = false;
     }, { id: 'reset', size: fs });
     q = pos(rows.length + 1);
     btn(q.x, q.y, bw, h, tr('BACK'), back, { size: fs });
@@ -1066,6 +1219,7 @@
     if (screen === 'ACH') drawAch();
     if (screen === 'MAPS') drawMaps();
     if (screen === 'PROFILE') drawProfile();
+    if (screen === 'SHOP') drawShop();
 
     if (screen !== 'SETTINGS' && screen !== 'ACH')
       txt(tr('PAUSE_HINT') + '  M: ' + (cfg.muted ? tr('UNMUTE') : tr('MUTE')) + '  ' + tr('FULLSCREEN_HINT'), W / 2, H - 14, 8, '#f3e3c7', 'center', false);
@@ -1076,7 +1230,10 @@
       ctx.fillStyle = '#ffd23f'; ctx.fillRect(x, y, w, 24);
       txt((t.plain ? '' : tr('ACHIEVEMENT_TOAST') + ': ') + t.text, W / 2, y + 12, 10, BROWN, 'center', false);
     }
-    if (cfg.showFps) txt('FPS ' + fpsShown, W - 8, 12, 10, '#9fe870', 'right');
+    // Persistent wallet counter in the upper-right corner on every screen.
+    drawCoin(W - 63, 18, {static: true});
+    txt(String(wallet.coins), W - 10, 18, 12, '#fff2a6', 'right');
+    if (cfg.showFps) txt('FPS ' + fpsShown, W - 8, 34, 10, '#9fe870', 'right');
     if (focus >= btns.length) focus = 0;
   }
 
@@ -1084,7 +1241,10 @@
     ctx.save();
     if (shake > 0.3) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
     drawBackground();
-    for (const p of pipes) drawPipe(p);
+    for (const p of pipes) {
+      drawPipe(p);
+      if (!p.coinTaken) drawCoin(p.x + PW / 2, p.top + p.gap / 2);
+    }
     drawGround();
     drawParticles();
     drawBird();
