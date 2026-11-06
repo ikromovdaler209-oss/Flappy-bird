@@ -36,7 +36,7 @@ body.mobile canvas {
   #accountBtn[hidden] {display:none!important}
   #accountBtn:hover {filter:brightness(1.07)}
   #accountBtn:focus-visible,#authBox button:focus-visible,#authBox input:focus-visible {outline:3px solid #ff7eb6;outline-offset:2px}
-  #authPanel[hidden],#authFields[hidden],#authLogout[hidden] {display:none!important}
+  #authPanel[hidden],#authFields[hidden],#authLogout[hidden],#authChoices[hidden],#authBack[hidden],#authLogin[hidden],#authRegister[hidden],#authReset[hidden] {display:none!important}
   #authPanel {position:fixed;inset:0;z-index:30;background:rgba(9,8,28,.83); -webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;overflow-y:auto}
   #authBox {position:relative;width:min(410px,100%);max-height:min(94dvh,760px);overflow-y:auto;background:#fff9e9;border:3px solid #2b1b00;border-radius:16px;box-shadow:7px 8px 0 #ffd23f;padding:26px;box-sizing:border-box;color:#2b1b00;font:14px 'Courier New',monospace}
   #authBox h2 {margin:0 0 5px;font-size:25px;letter-spacing:1px}
@@ -56,6 +56,11 @@ body.mobile canvas {
   #authBox #authLogout {width:100%;background:#ffe0dc}
   #authBox #authClose {position:absolute;right:14px;top:12px;background:transparent;border:0;font-size:22px;padding:4px 8px;line-height:1}
   #authBox #authError {font-size:12px;color:#a12121;min-height:16px;line-height:1.5;overflow-wrap:anywhere;margin:14px 0 0}
+  #authChoices {display:grid;gap:10px;margin-top:16px}
+  #authChoices button {width:100%;min-height:46px}
+  #authChoices #authChooseGoogle {display:flex;align-items:center;justify-content:center;gap:10px;background:#fff}
+  #authBox #authBack {margin:0 0 13px;padding:5px 0;background:transparent;border:0;color:#83531d;font-size:12px}
+  #authFields .authModeTitle {font-weight:bold;font-size:15px;margin:0 0 12px}
   @media(max-width:380px) {#authBox {padding:20px 17px}#authBox h2 {font-size:21px}}
 </style>
 <canvas id="c"></canvas>
@@ -67,15 +72,20 @@ body.mobile canvas {
     <h2 id="authTitle">FLYING BIRD</h2>
     <p class="authSubtitle">YOUR CLOUD ACCOUNT</p>
     <p id="authStatus">Войдите, чтобы сохранить профиль в облаке.</p>
-    <div id="authFields">
+    <div id="authChoices">
+      <button id="authChooseGoogle" type="button"><span aria-hidden="true" style="font:bold 19px Arial;color:#4285f4">G</span> ПРОДОЛЖИТЬ С GOOGLE</button>
+      <button id="authChooseLogin" type="button">ВОЙТИ ЧЕРЕЗ EMAIL</button>
+      <button id="authChooseRegister" type="button">СОЗДАТЬ АККАУНТ</button>
+    </div>
+    <div id="authFields" hidden>
+      <button id="authBack" type="button">← НАЗАД</button>
+      <p id="authModeTitle" class="authModeTitle"></p>
       <label for="authEmail">EMAIL</label>
       <input id="authEmail" type="email" placeholder="name@example.com" autocomplete="email">
       <label for="authPassword">ПАРОЛЬ</label>
       <input id="authPassword" type="password" placeholder="Не менее 6 символов" autocomplete="current-password">
-      <button id="authLogin" class="authPrimary" type="button">ВОЙТИ В АККАУНТ</button>
-      <button id="authRegister" class="authSecondary" type="button">СОЗДАТЬ АККАУНТ</button>
-      <div class="authDivider">ИЛИ</div>
-      <button id="authGoogle" type="button"><span aria-hidden="true" style="font:bold 19px Arial;color:#4285f4">G</span> ПРОДОЛЖИТЬ С GOOGLE</button>
+      <button id="authLogin" class="authPrimary" type="button" hidden>ВОЙТИ В АККАУНТ</button>
+      <button id="authRegister" class="authPrimary" type="button" hidden>ЗАРЕГИСТРИРОВАТЬСЯ</button>
       <button id="authReset" type="button">Забыли пароль?</button>
     </div>
     <button id="authLogout" type="button" hidden>ВЫЙТИ ИЗ АККАУНТА</button>
@@ -1671,8 +1681,25 @@ fit();
   const error = el('authError');
   const status = el('authStatus');
   const fields = el('authFields');
+  const choices = el('authChoices');
+  let authMode = 'choice';
+  let signedIn = false;
+  const setAuthMode = mode => {
+    authMode = mode;
+    choices.hidden = signedIn || mode !== 'choice';
+    fields.hidden = signedIn || mode === 'choice';
+    el('authLogin').hidden = mode !== 'login';
+    el('authRegister').hidden = mode !== 'register';
+    el('authReset').hidden = mode !== 'login';
+    el('authModeTitle').textContent = mode === 'register' ? 'СОЗДАТЬ АККАУНТ' : 'ВОЙТИ ЧЕРЕЗ EMAIL';
+    el('authPassword').autocomplete = mode === 'register' ? 'new-password' : 'current-password';
+    error.textContent = '';
+  };
+  el('authChooseLogin').onclick = () => setAuthMode('login');
+  el('authChooseRegister').onclick = () => setAuthMode('register');
+  el('authBack').onclick = () => setAuthMode('choice');
   const logout = el('authLogout');
-  const show = () => { panel.hidden = false; error.textContent = ''; };
+  const show = () => { panel.hidden = false; setAuthMode('choice'); };
   // Keep the button immediately below the avatar/name HUD, not at viewport edge.
   const placeAccountButton = () => {
     const canvas = el('c');
@@ -1702,7 +1729,7 @@ fit();
   }, true);
   if (firebaseConfig.apiKey.startsWith('PASTE_')) {
     status.textContent = 'Firebase ещё не настроен. Вставьте firebaseConfig в HTML.';
-    fields.hidden = true;
+    fields.hidden = true; choices.hidden = true;
   } else {
   try {
     const app = initializeApp(firebaseConfig);
@@ -1761,7 +1788,7 @@ fit();
     // Validate inputs before sending them to Firebase, and show useful errors.
     const emailInput = el('authEmail');
     const passwordInput = el('authPassword');
-    const actionButtons = ['authLogin', 'authRegister', 'authGoogle', 'authReset'].map(el);
+    const actionButtons = ['authLogin', 'authRegister', 'authChooseGoogle', 'authReset', 'authChooseLogin', 'authChooseRegister', 'authBack'].map(el);
     let authBusy = false;
     const getEmail = () => emailInput.value.trim();
     const getPassword = () => passwordInput.value;
@@ -1815,7 +1842,7 @@ fit();
       if (pass.length < 6) { passwordInput.focus(); throw new Error('Пароль должен содержать минимум 6 символов.'); }
       return createUserWithEmailAndPassword(auth, mail, pass);
     });
-    el('authGoogle').onclick = () => report(() => signInWithPopup(auth, new GoogleAuthProvider()));
+    el('authChooseGoogle').onclick = () => report(() => signInWithPopup(auth, new GoogleAuthProvider()));
     el('authReset').onclick = () => report(async () => {
       const mail = requireEmail();
       await sendPasswordResetEmail(auth, mail);
@@ -1823,7 +1850,8 @@ fit();
     });
     logout.onclick = () => report(() => signOut(auth));
     onAuthStateChanged(auth, async user => {
-      fields.hidden = !!user;
+      signedIn = !!user;
+      setAuthMode('choice');
       logout.hidden = !user;
       status.textContent = user ? 'Вход выполнен: ' + (user.email || user.uid) : 'Войдите через Google или email/пароль.';
       el('accountBtn').textContent = user ? '✓ ' + (user.displayName || user.email || 'ACCOUNT') : 'ACCOUNT / ВХОД';
