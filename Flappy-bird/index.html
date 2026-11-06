@@ -31,33 +31,53 @@ body.mobile canvas {
   canvas { display:block; background:#000; outline:4px solid #ffd23f; box-shadow:0 0 40px rgba(255,107,157,.35); image-rendering:pixelated; }
   #nick { display:none; position:fixed; z-index:5; box-sizing:border-box; background:#fff4d6; color:#2b1b00; border:3px solid #2b1b00; outline:3px solid #ffd23f; border-radius:0; text-align:center; padding:0 8px; font:bold 18px 'Courier New', monospace; user-select:text; -webkit-user-select:text; }
 
-  #accountBtn {position:fixed;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:20;border:2px solid #2b1b00;background:#ffd23f;color:#2b1b00;padding:8px 12px;font:bold 12px 'Courier New',monospace;cursor:pointer;max-width:48vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  #authPanel[hidden] {display:none!important}
-  #authPanel {position:fixed;inset:0;z-index:30;background:rgba(10,8,25,.85);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
-  #authBox {width:min(360px,100%);background:#fff4d6;border:4px solid #2b1b00;box-shadow:7px 7px 0 #ffd23f;padding:22px;box-sizing:border-box;color:#2b1b00;font:14px 'Courier New',monospace}
-  #authBox h2 {margin:0 0 15px;font-size:22px}
-  #authBox input {box-sizing:border-box;width:100%;margin:5px 0;padding:10px;font:14px 'Courier New',monospace;border:2px solid #2b1b00;background:white}
-  #authBox button {padding:10px;margin:5px 3px 5px 0;border:2px solid #2b1b00;background:#ffd23f;font:bold 12px 'Courier New',monospace;cursor:pointer}
-  #authBox #authError {font-size:12px;color:#a12121;min-height:16px;overflow-wrap:anywhere}
+  /* Account shortcut: aligned with the game's avatar and nickname. */
+  #accountBtn {position:fixed;left:12px;top:58px;z-index:20;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:2px solid #2b1b00;border-radius:8px;background:#ffd23f;color:#2b1b00;padding:6px 10px;font:bold 11px 'Courier New',monospace;box-shadow:3px 3px 0 #2b1b00;cursor:pointer;transition:filter .15s}
+  #accountBtn:hover {filter:brightness(1.07)}
+  #accountBtn:focus-visible,#authBox button:focus-visible,#authBox input:focus-visible {outline:3px solid #ff7eb6;outline-offset:2px}
+  #authPanel[hidden],#authFields[hidden],#authLogout[hidden] {display:none!important}
+  #authPanel {position:fixed;inset:0;z-index:30;background:rgba(9,8,28,.83); backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;overflow-y:auto}
+  #authBox {position:relative;width:min(410px,100%);max-height:min(94dvh,760px);overflow-y:auto;background:#fff9e9;border:3px solid #2b1b00;border-radius:16px;box-shadow:7px 8px 0 #ffd23f;padding:26px;box-sizing:border-box;color:#2b1b00;font:14px 'Courier New',monospace}
+  #authBox h2 {margin:0 0 5px;font-size:25px;letter-spacing:1px}
+  #authBox .authSubtitle {font-size:11px;letter-spacing:1.5px;color:#855c28;margin:0 0 18px;font-weight:bold}
+  #authBox #authStatus {font-size:12px;line-height:1.55;color:#66503a;margin:0 0 17px;overflow-wrap:anywhere}
+  #authBox label {display:block;margin:12px 0 5px;font-size:11px;font-weight:bold;letter-spacing:.7px}
+  #authBox input {box-sizing:border-box;width:100%;margin:0;padding:12px 13px;font:14px 'Courier New',monospace;border:2px solid #bca781;border-radius:8px;background:#fff;color:#2b1b00}
+  #authBox button {padding:12px 10px;border:2px solid #2b1b00;border-radius:8px;background:#ffd23f;color:#2b1b00;font:bold 12px 'Courier New',monospace;cursor:pointer}
+  #authBox button:hover {filter:brightness(.97)}
+  #authBox .authPrimary {width:100%;margin-top:16px;background:#ffd23f}
+  #authBox .authSecondary {width:100%;margin-top:9px;background:#fff}
+  #authBox .authDivider {display:flex;align-items:center;gap:12px;margin:17px 0;color:#87725b;font-size:11px}
+  #authBox .authDivider:before,#authBox .authDivider:after {content:'';flex:1;border-top:1px solid #d8cbb6}
+  #authBox #authGoogle {width:100%;background:#fff;display:flex;align-items:center;justify-content:center;gap:10px}
+  #authBox #authReset {display:block;margin:12px auto 0;border:0;background:transparent;color:#83531d;padding:6px;font-size:11px;text-decoration:underline}
+  #authBox #authLogout {width:100%;background:#ffe0dc}
+  #authBox #authClose {position:absolute;right:14px;top:12px;background:transparent;border:0;font-size:22px;padding:4px 8px;line-height:1}
+  #authBox #authError {font-size:12px;color:#a12121;min-height:16px;line-height:1.5;overflow-wrap:anywhere;margin:14px 0 0}
+  @media(max-width:380px) {#authBox {padding:20px 17px}#authBox h2 {font-size:21px}}
 </style>
 <canvas id="c"></canvas>
 <input id="nick" maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false">
 <button id="accountBtn" type="button">ACCOUNT / ВХОД</button>
-<div id="authPanel" hidden role="dialog" aria-modal="true" aria-label="Flying Bird account">
+<div id="authPanel" hidden role="dialog" aria-modal="true" aria-labelledby="authTitle">
   <div id="authBox">
-    <h2>FLYING BIRD</h2>
-    <p id="authStatus">Войдите, чтобы создать облачный аккаунт.</p>
+    <button id="authClose" type="button" aria-label="Закрыть">×</button>
+    <h2 id="authTitle">FLYING BIRD</h2>
+    <p class="authSubtitle">YOUR CLOUD ACCOUNT</p>
+    <p id="authStatus">Войдите, чтобы сохранить профиль в облаке.</p>
     <div id="authFields">
-      <input id="authEmail" type="email" placeholder="Email" autocomplete="email">
-      <input id="authPassword" type="password" placeholder="Пароль (от 6 символов)" autocomplete="current-password">
-      <button id="authLogin" type="button">ВОЙТИ</button>
-      <button id="authRegister" type="button">РЕГИСТРАЦИЯ</button>
-      <button id="authGoogle" type="button">GOOGLE</button>
-      <button id="authReset" type="button">ЗАБЫЛИ ПАРОЛЬ?</button>
+      <label for="authEmail">EMAIL</label>
+      <input id="authEmail" type="email" placeholder="name@example.com" autocomplete="email">
+      <label for="authPassword">ПАРОЛЬ</label>
+      <input id="authPassword" type="password" placeholder="Не менее 6 символов" autocomplete="current-password">
+      <button id="authLogin" class="authPrimary" type="button">ВОЙТИ В АККАУНТ</button>
+      <button id="authRegister" class="authSecondary" type="button">СОЗДАТЬ АККАУНТ</button>
+      <div class="authDivider">ИЛИ</div>
+      <button id="authGoogle" type="button"><span aria-hidden="true" style="font:bold 19px Arial;color:#4285f4">G</span> ПРОДОЛЖИТЬ С GOOGLE</button>
+      <button id="authReset" type="button">Забыли пароль?</button>
     </div>
     <button id="authLogout" type="button" hidden>ВЫЙТИ ИЗ АККАУНТА</button>
-    <button id="authClose" type="button">ЗАКРЫТЬ</button>
-    <p id="authError" role="status"></p>
+    <p id="authError" role="status" aria-live="polite"></p>
   </div>
 </div>
 <script>
@@ -173,7 +193,15 @@ body.mobile canvas {
   profile.nick = cleanNick(profile.nick);
   if (Array.from(profile.nick).length < 3) profile.nick = 'BIRD' + (1000 + Math.floor(Math.random() * 9000));
   profile.av = { skin: Math.max(0, (profile.av && profile.av.skin) | 0), bg: (((profile.av && profile.av.bg) | 0) % AV_BG.length + AV_BG.length) % AV_BG.length };
-  const saveProfile = () => store.set('flyingBirdProfile', profile);
+  window.addEventListener('flyingbird:cloud-profile', e => {
+    if (!e.detail) return;
+    Object.assign(profile, e.detail);
+    store.set('flyingBirdProfile', profile);
+  });
+  const saveProfile = () => {
+    store.set('flyingBirdProfile', profile);
+    window.dispatchEvent(new CustomEvent('flyingbird:profile-changed'));
+  };
   saveProfile();
 
   const nickEl = document.getElementById('nick');
@@ -1620,6 +1648,7 @@ fit();
   import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup,
     createUserWithEmailAndPassword, signInWithEmailAndPassword,
     sendPasswordResetEmail, signOut } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+  import { getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
   const firebaseConfig = {
     apiKey: 'AIzaSyBXhPjfPGPjD6SX6ISyd9UIGcwIGDir2IE',
@@ -1629,13 +1658,29 @@ fit();
     messagingSenderId: '824302202629',
     appId: '1:824302202629:web:885e30d34fb1ddaa56516c',
     measurementId: 'G-SQPGSFFX1R'
-  };  const el = id => document.getElementById(id);
+  };
+  const el = id => document.getElementById(id);
   const panel = el('authPanel');
   const error = el('authError');
   const status = el('authStatus');
   const fields = el('authFields');
   const logout = el('authLogout');
   const show = () => { panel.hidden = false; error.textContent = ''; };
+  // Keep the button immediately below the avatar/name HUD, not at viewport edge.
+  const placeAccountButton = () => {
+    const canvas = el('c');
+    const rect = canvas.getBoundingClientRect();
+    const scale = rect.width / (window.innerWidth > window.innerHeight ? 640 : 320);
+    const button = el('accountBtn');
+    button.style.left = Math.max(5, rect.left + 8 * scale) + 'px';
+    button.style.top = Math.max(5, rect.top + 33 * scale) + 'px';
+    button.style.maxWidth = Math.max(90, Math.min(190, 175 * scale)) + 'px';
+    button.style.fontSize = Math.max(9, Math.min(12, 10 * scale)) + 'px';
+    button.style.padding = Math.max(3, 5 * scale) + 'px ' + Math.max(6, 9 * scale) + 'px';
+  };
+  placeAccountButton();
+  window.addEventListener('resize', placeAccountButton);
+  window.addEventListener('orientationchange', () => requestAnimationFrame(placeAccountButton));
   el('accountBtn').onclick = show;
   el('authClose').onclick = () => { panel.hidden = true; };
   panel.addEventListener('click', e => { if (e.target === panel) panel.hidden = true; });
@@ -1649,6 +1694,57 @@ fit();
   try {
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    const db = getFirestore(app);
+    let profileOwner = null;
+    let loadingProfile = false;
+    let pendingProfileSave = Promise.resolve();
+    const localProfileKey = 'flyingBirdProfile';
+    const guestBackup = localStorage.getItem(localProfileKey);
+    const safeNick = v => Array.from(String(v || '').replace(/[^\p{L}\p{N} _.-]/gu, '').replace(/\s+/g, ' ').trim()).slice(0, 12).join('');
+    const applyCloudProfile = data => {
+      const local = JSON.parse(localStorage.getItem(localProfileKey) || '{}');
+      local.id = data.id;
+      local.nick = safeNick(data.nick) || 'BIRD';
+      local.av = { skin: Math.max(0, Math.floor(Number(data.avatar?.skin) || 0)), bg: Math.max(0, Math.floor(Number(data.avatar?.bg) || 0)) % 8 };
+      localStorage.setItem(localProfileKey, JSON.stringify(local));
+      // The Canvas game owns a separate in-memory profile object.
+      window.dispatchEvent(new CustomEvent('flyingbird:cloud-profile', { detail: local }));
+    };
+    const syncProfile = async user => {
+      loadingProfile = true;
+      profileOwner = null;
+      status.textContent = 'Синхронизация профиля…';
+      try {
+        const ref = doc(db, 'players', user.uid);
+        const snapshot = await getDoc(ref);
+        if (auth.currentUser?.uid !== user.uid) return;
+        if (snapshot.exists()) {
+          applyCloudProfile(snapshot.data());
+        } else {
+          const local = JSON.parse(localStorage.getItem(localProfileKey) || '{}');
+          const id = typeof local.id === 'string' ? local.id : '';
+          const nick = safeNick(local.nick) || 'BIRD';
+          const avatar = { skin: Math.max(0, Math.floor(Number(local.av?.skin) || 0)), bg: Math.max(0, Math.floor(Number(local.av?.bg) || 0)) % 8 };
+          await setDoc(ref, { id, nick, avatar, createdAt: serverTimestamp() });
+        }
+        profileOwner = user.uid;
+        status.textContent = 'Профиль синхронизирован: ' + (user.email || user.uid);
+      } catch (e) {
+        error.textContent = 'Firestore: ' + (e.code || e.message);
+        status.textContent = 'Вход выполнен, но облачный профиль не синхронизирован.';
+      } finally { loadingProfile = false; }
+    };
+    window.addEventListener('flyingbird:profile-changed', () => {
+      if (loadingProfile || !profileOwner || auth.currentUser?.uid !== profileOwner) return;
+      const userId = profileOwner;
+      const local = JSON.parse(localStorage.getItem(localProfileKey) || '{}');
+      const nick = safeNick(local.nick) || 'BIRD';
+      const avatar = { skin: Math.max(0, Math.floor(Number(local.av?.skin) || 0)), bg: Math.max(0, Math.floor(Number(local.av?.bg) || 0)) % 8 };
+      pendingProfileSave = pendingProfileSave.catch(() => {}).then(async () => {
+        if (auth.currentUser?.uid !== userId) return;
+        await updateDoc(doc(db, 'players', userId), { nick, avatar });
+      }).catch(e => { error.textContent = 'Ошибка сохранения профиля: ' + (e.code || e.message); });
+    });
     const report = async action => {
       error.textContent = '';
       try { await action(); }
@@ -1665,13 +1761,19 @@ fit();
       status.textContent = 'Если адрес зарегистрирован, письмо для сброса пароля отправлено.';
     });
     logout.onclick = () => report(() => signOut(auth));
-    onAuthStateChanged(auth, user => {
+    onAuthStateChanged(auth, async user => {
       fields.hidden = !!user;
       logout.hidden = !user;
       status.textContent = user ? 'Вход выполнен: ' + (user.email || user.uid) : 'Войдите через Google или email/пароль.';
       el('accountBtn').textContent = user ? '✓ ' + (user.displayName || user.email || 'ACCOUNT') : 'ACCOUNT / ВХОД';
-      // Account authentication is working. Cloud progress sync is a separate, later step.
-      window.flyingBirdAuth = { auth, user };
+      window.flyingBirdAuth = { auth, user, db };
+      if (user) await syncProfile(user);
+      else {
+        profileOwner = null;
+        if (guestBackup) {
+          try { window.dispatchEvent(new CustomEvent('flyingbird:cloud-profile', { detail: JSON.parse(guestBackup) })); } catch (e) {}
+        }
+      }
     });
   } catch (e) {
     error.textContent = 'Firebase initialization failed: ' + e.message;
