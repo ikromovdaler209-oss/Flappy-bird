@@ -2,18 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>Flying Bird</title>
 </head>
 <body>
 <style>
-  html, body { margin:0; height:100%; background:#0b0b1a; overflow:hidden; touch-action:none; user-select:none; -webkit-user-select:none; }
-  body { display:flex; justify-content:center; align-items:center; }
+  html, body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  height: 100%;
+  height: 100dvh;
+  padding:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+
+body.mobile canvas {
+  outline: none;
+  box-shadow: none;
+}
   canvas { display:block; background:#000; outline:4px solid #ffd23f; box-shadow:0 0 40px rgba(255,107,157,.35); image-rendering:pixelated; }
   #nick { display:none; position:fixed; z-index:5; box-sizing:border-box; background:#fff4d6; color:#2b1b00; border:3px solid #2b1b00; outline:3px solid #ffd23f; border-radius:0; text-align:center; padding:0 8px; font:bold 18px 'Courier New', monospace; user-select:text; -webkit-user-select:text; }
 </style>
-</head>
-<body>
 <canvas id="c"></canvas>
 <input id="nick" maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false">
 <script>
@@ -311,9 +328,18 @@
   const bird = { x: 70, y: 200, w: 20, h: 16, vy: 0, rot: 0 };
   const speed = () => (2 + Math.min(score * 0.04, 1.4)) * DIFF[cfg.diff].spd;
 
-  function layout(land) {
-    L = land;
-    W = land ? 640 : 320; H = land ? 360 : 480;
+  function layout(
+  land,
+  width = land ? 640 : 320,
+  height = land ? 360 : 480
+) {
+  const oldGround = GROUND;
+  const oldBirdX = bird.x;
+  const initialized = L !== null;
+
+  L = land;
+  W = width;
+  H = height;
     GROUND = H - (land ? 44 : 50);
     SPACING = land ? 230 : 175;
     GMAX = land ? 128 : 150; GMIN = land ? 95 : 105;
@@ -329,9 +355,39 @@
     }
     clouds = Array.from({ length: land ? 7 : 4 }, () => ({
       x: Math.random() * W, y: 30 + Math.random() * GROUND * 0.45, w: 40 + Math.floor(Math.random() * 40) }));
-    if (screen === 'PAUSE' || (screen === 'SETTINGS' && settingsFrom === 'PAUSE')) screen = 'MENU';
     initWeather();
-    reset();
+
+if (!initialized) {
+  reset();
+} else {
+  // Сохраняем текущую партию при повороте и изменении экрана.
+  const sy = GROUND / oldGround;
+  const dx = bird.x - oldBirdX;
+
+  bird.y = Math.min(GROUND - bird.h, bird.y * sy);
+
+  for (const p of pipes) {
+    p.x += dx;
+    p.base *= sy;
+    p.top *= sy;
+    p.gap *= sy;
+    p.amp *= sy;
+    p.px = p.x;
+    p.pt = p.top;
+  }
+
+  for (const p of particles) {
+    p.x += dx;
+    p.y *= sy;
+    p.ox = p.x;
+    p.oy = p.y;
+  }
+
+  prev.by = bird.y;
+  prev.br = bird.rot;
+  prev.gx = groundX;
+  prev.bx = bgX;
+}
   }
 
   // ---------- Sound + procedural music ----------
@@ -1049,10 +1105,48 @@
     else if (screen === 'PROFILE' || screen === 'SHOP' || screen === 'INVENTORY') { screen = 'MENU'; focus = 0; }
     else if (screen === 'PAUSE') screen = null;
   }
-  function toggleFS() {
-    try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); } catch (e) {}
+  const fullscreenNow = () =>
+  !!(document.fullscreenElement || document.webkitFullscreenElement);
+
+function fullscreenUnavailable() {
+  const messages = {
+    EN: 'Use Add to Home Screen for fullscreen',
+    RU: 'Для полного экрана: «На экран Домой»',
+    ZH: '添加到主屏幕以全屏运行',
+    ES: 'Añade a inicio para pantalla completa',
+    PT: 'Adicione à tela inicial para tela cheia'
+  };
+
+  toasts.push({
+    text: messages[cfg.lang] || messages.EN,
+    plain: true,
+    t: 240
+  });
+}
+
+function toggleFS() {
+  const root = document.documentElement;
+  const active = fullscreenNow();
+
+  const action = active
+    ? (document.exitFullscreen || document.webkitExitFullscreen)
+    : (root.requestFullscreen || root.webkitRequestFullscreen);
+
+  if (!action) {
+    fullscreenUnavailable();
+    return;
   }
 
+  try {
+    const result = action.call(active ? document : root);
+
+    if (result && result.catch) {
+      result.catch(fullscreenUnavailable);
+    }
+  } catch (e) {
+    fullscreenUnavailable();
+  }
+}
   function drawMenu() {
     if (L) {
       title('FLYING', W / 2 - 8, 70, 46, '#ffd23f', 'right');
@@ -1180,7 +1274,15 @@
     if (settingsFrom === 'MENU') rows.push([tr('DIFFICULTY'), displayValue(cfg.diff), d => { cfg.diff = cyc(['EASY', 'NORMAL', 'HARD'], cfg.diff, d); }]);
     rows.push(
       [tr('BIRD_SKIN'), displayValue(SKINS[cfg.skin].name), d => { let i = cfg.skin; do { i = wrap(SKINS.length, i, d); } while (!skinOK(i)); cfg.skin = i; }],
-      [tr('FULLSCREEN'), onoff(document.fullscreenElement), toggleFS]
+      [
+  tr('FULLSCREEN'),
+  onoff(
+    fullscreenNow() ||
+    navigator.standalone ||
+    window.matchMedia('(display-mode: standalone)').matches
+  ),
+  toggleFS
+]
     );
     const total = rows.length + 2, cols = L ? 2 : 1, per = Math.ceil(total / cols);
     const bw = L ? 300 : Math.min(W - 40, 400), gx = 20, bx0 = Math.round((W - (cols * bw + (cols - 1) * gx)) / 2);
@@ -1272,7 +1374,7 @@
       txt(tr('PAUSE_HINT') + '  M: ' + (cfg.muted ? tr('UNMUTE') : tr('MUTE')) + '  ' + tr('FULLSCREEN_HINT'), W / 2, H - 14, 8, '#f3e3c7', 'center', false);
 
     if (toasts.length) {
-      const t = toasts[0], k = Math.min(1, (180 - t.t) / 12, t.t / 12), w = 220, y = Math.round(H + 4 - 46 * k), x = Math.round(W / 2 - w / 2);
+      const t = toasts[0], k = Math.min(1, ((t.duration || (t.duration = t.t)) - t.t) / 12, t.t / 12), w = 220, y = Math.round(H + 4 - 46 * k), x = Math.round(W / 2 - w / 2);
       ctx.fillStyle = BROWN; ctx.fillRect(x - 2, y - 2, w + 4, 28);
       ctx.fillStyle = '#ffd23f'; ctx.fillRect(x, y, w, 24);
       txt((t.plain ? '' : tr('ACHIEVEMENT_TOAST') + ': ') + t.text, W / 2, y + 12, 10, BROWN, 'center', false);
@@ -1349,17 +1451,95 @@
 
   // ---------- Sizing: picks portrait or 16:9 by window shape ----------
   function fit() {
-    const land = innerWidth / innerHeight >= 1.15;
-    if (L === null || (land !== L && !editing)) layout(land);
-    const s = Math.min(innerWidth / (W + 8), innerHeight / (H + 8));
-    const r = Math.max(1, Math.round(s * (devicePixelRatio || 1)));
-    canvas.width = W * r; canvas.height = H * r;
-    canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
-    ctx.setTransform(r, 0, 0, r, 0, 0);
-    ctx.imageSmoothingEnabled = false;
+  const viewport = window.visualViewport;
+  const css = getComputedStyle(document.body);
+
+  const left = parseFloat(css.paddingLeft) || 0;
+  const right = parseFloat(css.paddingRight) || 0;
+  const top = parseFloat(css.paddingTop) || 0;
+  const bottom = parseFloat(css.paddingBottom) || 0;
+
+  const vw = Math.max(
+    1,
+    (viewport ? viewport.width : innerWidth) - left - right
+  );
+
+  const vh = Math.max(
+    1,
+    (viewport ? viewport.height : innerHeight) - top - bottom
+  );
+
+  const mobile = window.matchMedia('(pointer: coarse)').matches;
+  document.body.classList.toggle('mobile', mobile);
+
+  const land = vw / vh >= 1.15;
+
+  let width = land ? 640 : 320;
+  let height = land ? 360 : 480;
+  let scale;
+
+  if (mobile) {
+    // Подстраиваем игровую область под пропорции телефона.
+    scale = Math.min(vw / width, vh / height);
+    width = vw / scale;
+    height = vh / scale;
+  } else {
+    scale = Math.min(vw / (width + 8), vh / (height + 8));
   }
-  window.addEventListener('resize', fit);
-  fit();
+
+  if (
+    !editing &&
+    (
+      L === null ||
+      land !== L ||
+      Math.abs(W - width) > 0.01 ||
+      Math.abs(H - height) > 0.01
+    )
+  ) {
+    layout(land, width, height);
+  }
+
+  // Экранная клавиатура не должна менять геометрию мира.
+  if (editing) {
+    scale = Math.min(vw / W, vh / H);
+  }
+
+  const r = Math.max(
+    1,
+    Math.round(scale * (devicePixelRatio || 1))
+  );
+
+  canvas.width = Math.round(W * r);
+  canvas.height = Math.round(H * r);
+  canvas.style.width = W * scale + 'px';
+  canvas.style.height = H * scale + 'px';
+
+  ctx.setTransform(r, 0, 0, r, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+
+  if (editing) {
+    const rect = canvas.getBoundingClientRect();
+    const k = rect.width / W;
+
+    Object.assign(nickEl.style, {
+      left: (rect.left + (W / 2 - 130) * k) + 'px',
+      top: (rect.top + (H / 2 - 20) * k) + 'px',
+      width: 260 * k + 'px',
+      height: 40 * k + 'px',
+      fontSize: 18 * k + 'px'
+    });
+  }
+}
+
+window.addEventListener('resize', fit);
+document.addEventListener('fullscreenchange', fit);
+document.addEventListener('webkitfullscreenchange', fit);
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', fit);
+}
+
+fit();
 
   // ---------- Loop ----------
   // The simulation always runs at a fixed 60 updates/sec (same physics for everyone, which multiplayer needs).
