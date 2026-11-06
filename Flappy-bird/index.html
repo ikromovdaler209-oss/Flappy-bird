@@ -30,9 +30,36 @@ body.mobile canvas {
 }
   canvas { display:block; background:#000; outline:4px solid #ffd23f; box-shadow:0 0 40px rgba(255,107,157,.35); image-rendering:pixelated; }
   #nick { display:none; position:fixed; z-index:5; box-sizing:border-box; background:#fff4d6; color:#2b1b00; border:3px solid #2b1b00; outline:3px solid #ffd23f; border-radius:0; text-align:center; padding:0 8px; font:bold 18px 'Courier New', monospace; user-select:text; -webkit-user-select:text; }
+
+  #accountBtn {position:fixed;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:20;border:2px solid #2b1b00;background:#ffd23f;color:#2b1b00;padding:8px 12px;font:bold 12px 'Courier New',monospace;cursor:pointer;max-width:48vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #authPanel[hidden] {display:none!important}
+  #authPanel {position:fixed;inset:0;z-index:30;background:rgba(10,8,25,.85);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
+  #authBox {width:min(360px,100%);background:#fff4d6;border:4px solid #2b1b00;box-shadow:7px 7px 0 #ffd23f;padding:22px;box-sizing:border-box;color:#2b1b00;font:14px 'Courier New',monospace}
+  #authBox h2 {margin:0 0 15px;font-size:22px}
+  #authBox input {box-sizing:border-box;width:100%;margin:5px 0;padding:10px;font:14px 'Courier New',monospace;border:2px solid #2b1b00;background:white}
+  #authBox button {padding:10px;margin:5px 3px 5px 0;border:2px solid #2b1b00;background:#ffd23f;font:bold 12px 'Courier New',monospace;cursor:pointer}
+  #authBox #authError {font-size:12px;color:#a12121;min-height:16px;overflow-wrap:anywhere}
 </style>
 <canvas id="c"></canvas>
 <input id="nick" maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false">
+<button id="accountBtn" type="button">ACCOUNT / ВХОД</button>
+<div id="authPanel" hidden role="dialog" aria-modal="true" aria-label="Flying Bird account">
+  <div id="authBox">
+    <h2>FLYING BIRD</h2>
+    <p id="authStatus">Войдите, чтобы создать облачный аккаунт.</p>
+    <div id="authFields">
+      <input id="authEmail" type="email" placeholder="Email" autocomplete="email">
+      <input id="authPassword" type="password" placeholder="Пароль (от 6 символов)" autocomplete="current-password">
+      <button id="authLogin" type="button">ВОЙТИ</button>
+      <button id="authRegister" type="button">РЕГИСТРАЦИЯ</button>
+      <button id="authGoogle" type="button">GOOGLE</button>
+      <button id="authReset" type="button">ЗАБЫЛИ ПАРОЛЬ?</button>
+    </div>
+    <button id="authLogout" type="button" hidden>ВЫЙТИ ИЗ АККАУНТА</button>
+    <button id="authClose" type="button">ЗАКРЫТЬ</button>
+    <p id="authError" role="status"></p>
+  </div>
+</div>
 <script>
 (() => {
   const PW = 52, CAP = 16;
@@ -1585,6 +1612,71 @@ fit();
   }
   requestAnimationFrame(loop);
 })();
+</script>
+
+<!-- Configure Firebase below after registering your web app in Firebase Console. -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
+  import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup,
+    createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    sendPasswordResetEmail, signOut } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyBXhPjfPGPjD6SX6ISyd9UIGcwIGDir2IE',
+    authDomain: 'flying-bird-d6832.firebaseapp.com',
+    projectId: 'flying-bird-d6832',
+    storageBucket: 'flying-bird-d6832.firebasestorage.app',
+    messagingSenderId: '824302202629',
+    appId: '1:824302202629:web:885e30d34fb1ddaa56516c',
+    measurementId: 'G-SQPGSFFX1R'
+  };  const el = id => document.getElementById(id);
+  const panel = el('authPanel');
+  const error = el('authError');
+  const status = el('authStatus');
+  const fields = el('authFields');
+  const logout = el('authLogout');
+  const show = () => { panel.hidden = false; error.textContent = ''; };
+  el('accountBtn').onclick = show;
+  el('authClose').onclick = () => { panel.hidden = true; };
+  panel.addEventListener('click', e => { if (e.target === panel) panel.hidden = true; });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !panel.hidden) { e.stopImmediatePropagation(); panel.hidden = true; }
+  }, true);
+  if (firebaseConfig.apiKey.startsWith('PASTE_')) {
+    status.textContent = 'Firebase ещё не настроен. Вставьте firebaseConfig в HTML.';
+    fields.hidden = true;
+  } else {
+  try {
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const report = async action => {
+      error.textContent = '';
+      try { await action(); }
+      catch (e) { error.textContent = (e.code || 'Ошибка') + ': ' + (e.message || 'Попробуйте ещё раз'); }
+    };
+    const email = () => el('authEmail').value.trim();
+    const password = () => el('authPassword').value;
+    el('authLogin').onclick = () => report(() => signInWithEmailAndPassword(auth,email(),password()));
+    el('authRegister').onclick = () => report(() => createUserWithEmailAndPassword(auth,email(),password()));
+    el('authGoogle').onclick = () => report(() => signInWithPopup(auth,new GoogleAuthProvider()));
+    el('authReset').onclick = () => report(async () => {
+      if (!email()) throw new Error('Сначала введите email');
+      await sendPasswordResetEmail(auth,email());
+      status.textContent = 'Если адрес зарегистрирован, письмо для сброса пароля отправлено.';
+    });
+    logout.onclick = () => report(() => signOut(auth));
+    onAuthStateChanged(auth, user => {
+      fields.hidden = !!user;
+      logout.hidden = !user;
+      status.textContent = user ? 'Вход выполнен: ' + (user.email || user.uid) : 'Войдите через Google или email/пароль.';
+      el('accountBtn').textContent = user ? '✓ ' + (user.displayName || user.email || 'ACCOUNT') : 'ACCOUNT / ВХОД';
+      // Account authentication is working. Cloud progress sync is a separate, later step.
+      window.flyingBirdAuth = { auth, user };
+    });
+  } catch (e) {
+    error.textContent = 'Firebase initialization failed: ' + e.message;
+  }
+  }
 </script>
 </body>
 </html>
