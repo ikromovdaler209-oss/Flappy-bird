@@ -1243,13 +1243,13 @@ if (!initialized) {
     ctx.fillStyle=g;ctx.fillRect(x,y,w,h);
     const floor=y+h-11;
     for(let i=0;i<3;i++){
-      const cx=x+w*(.18+i*.34)-((ticks*.12)*(i+1)%(w+40));
+      const cx=x+w*(.18+i*.34); // Static scenery; only the bird animates.
       ctx.fillStyle='rgba(255,255,255,.24)';ctx.fillRect(cx,floor-34-i*8,30+i*10,10);
       ctx.fillRect(cx+8,floor-42-i*8,18+i*6,8);
     }
     ctx.fillStyle='#43639b';
     for(let i=0;i<Math.ceil(w/18)+1;i++){
-      const hx=x+(i*18-(ticks*.35)%18);
+      const hx=x+i*18;
       const hh=16+(i%3)*6;
       ctx.fillRect(hx,floor-hh,14,hh);
       if(i%2===0){ctx.fillStyle='rgba(255,237,153,.6)';ctx.fillRect(hx+4,floor-hh+4,2,3);ctx.fillStyle='#43639b';}
@@ -1258,9 +1258,9 @@ if (!initialized) {
     ctx.fillStyle='#54b247';ctx.fillRect(x,floor+4,w,7);
     ctx.fillStyle=INK;ctx.fillRect(x,floor-2,w,2);
     const pal=MAPS[cfg.map]?.pipes?.[0]||GREEN;
-    const center=y+h*.48+Math.sin(ticks*.07)*Math.min(4,h*.03);
+    const center=y+h*.48;
     const gap=Math.max(40,Math.min(72,h*.42));
-    const pipeX=x+w*.73+Math.sin(ticks*.04)*Math.min(6,w*.02);
+    const pipeX=x+w*.73;
     drawPreviewPipePair(pal,x,y,w,h,center,gap,pipeX,Math.max(18,Math.min(28,w*.09)));
     const birdX=x+w*.34+Math.sin(ticks*.08)*Math.min(10,w*.03);
     const birdY=center+Math.cos(ticks*.1)*Math.min(6,h*.035);
@@ -1516,10 +1516,10 @@ if (!initialized) {
     for (let r = 0; r < hgt; r += 2) ctx.fillRect(Math.floor(cx - r * 0.8), base - hgt + r, Math.floor(r * 1.6) + 2, 2);
   }
 
-  function mapPreview(key, x, y, w, h) {
+  function mapPreview(key, x, y, w, h, drawActors = true) {
     ctx.save();
     ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
-    if (SHOP_MAPS.some(m => m.id === key)) { premiumArt(key,x,y,w,h,false); }
+    if (SHOP_MAPS.some(m => m.id === key)) { premiumArt(key,x,y,w,h,true); }
     else {
       const C = { CITY: ['#302b63', '#d4638f'], MOUNTAINS: ['#16285a', '#5a7fc0'], VOLCANO: ['#4a0f10', '#ff5a1f'] }[key];
       const g = ctx.createLinearGradient(0, y, 0, y + h);
@@ -1528,7 +1528,7 @@ if (!initialized) {
       const gy = y + h - 12;
       if (key === 'CITY') {
         for (let i = 0; i < w; i += 14) {
-          const drift=(ticks*.18)%(w+14);
+          const drift=0;
           const xx=x+((i-drift+w+14)%(w+14));
           const bh = 14 + (i * 7) % 26;
           ctx.fillStyle = INK; ctx.fillRect(xx, gy - bh, 12, bh);
@@ -1536,27 +1536,29 @@ if (!initialized) {
         }
         ctx.fillStyle = '#7ed957';
       } else if (key === 'MOUNTAINS') {
-        for (let i = 0; i < 3; i++) { const cx = x + w * (0.2 + i * 0.3) + Math.sin(ticks*.015+i)*2; const hh = 34 + (i % 2) * 14; tri(cx, gy, hh, '#1d2c5e'); tri(cx, gy - hh + 12, 12, '#fff'); }
+        for (let i = 0; i < 3; i++) { const cx = x + w * (0.2 + i * 0.3) + 0; const hh = 34 + (i % 2) * 14; tri(cx, gy, hh, '#1d2c5e'); tri(cx, gy - hh + 12, 12, '#fff'); }
         ctx.fillStyle = '#f4fbff';
-        for(let i=0;i<7;i++){ctx.fillRect(x+((i*19+ticks*.4)%(w+8)),y+8+(i*13%(Math.max(10,h-28))),2,2);}
+        for(let i=0;i<7;i++){ctx.fillRect(x+((i*19)%(w+8)),y+8+(i*13%(Math.max(10,h-28))),2,2);}
       } else {
         const cx = x + w * 0.5;
         tri(cx, gy, 50, '#2b1214'); ctx.fillStyle = '#ff7b2e'; ctx.fillRect(cx - 7, gy - 50, 14, 3); ctx.fillRect(cx - 2, gy - 47, 2, 22);
         ctx.fillStyle = '#241519';
-        for(let i=0;i<6;i++){ctx.fillStyle=i%2?'#ffb135':'#ff7b2e';ctx.fillRect(x+((i*23-ticks*.5)%(w+18)+w+18)%(w+18),y+10+((i*17+ticks*.25)%(Math.max(12,h-24))),2,3);}
+        for(let i=0;i<6;i++){ctx.fillStyle=i%2?'#ffb135':'#ff7b2e';ctx.fillRect(x+((i*23)%(w+18)+w+18)%(w+18),y+10+((i*17)%(Math.max(12,h-24))),2,3);}
       }
       ctx.fillRect(x, gy, w, 12);
       if (key === 'VOLCANO') { ctx.fillStyle = '#ff7b2e'; ctx.fillRect(x, gy, w, 2); }
     }
-    const floor = y + h - 11;
+    if (drawActors) {
+      // One fixed pipe pair and one animated bird per compact card.
     const gap = Math.max(24, Math.min(44, h * .38));
-    const center = y + h * .5 + Math.sin(ticks*.05 + w*.01) * Math.min(3, h*.04);
+    const center = y + h * .5;
     const pipeW = Math.max(12, Math.min(18, w*.11));
     const pipeX = x + w * .72;
     const pal = MAPS[key]?.pipes?.[0] || GREEN;
     drawPreviewPipePair(pal,x,y,w,h,center,gap,pipeX,pipeW);
     const sk = key==='CITY'?SKINS[0]:SKINS[Math.min(3, key==='MOUNTAINS'?2:key==='VOLCANO'?1:3)];
     animatedBirdIcon(sk,x+w*.3,center,Math.min(.88,Math.max(.5,h/60)),{phase:x*.03,drift:2});
+    }
     ctx.restore();
   }
 
@@ -1951,12 +1953,12 @@ function toggleFS() {
   function detailedMapPreview(key,x,y,w,h){
     ctx.save();
     ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();
-    mapPreview(key,x,y,w,h);
+    mapPreview(key,x,y,w,h,false); // Background only: avoid duplicate bird and pipes.
     const floor=y+h-12;
     // Foreground environment details stay strictly within the preview viewport.
     if(key==='NEON'||key==='CITY'){
       for(let i=0;i<Math.ceil(w/34);i++){
-        const bx=x+((i*34-ticks*.28)%(w+40)+w+40)%(w+40)-12,by=floor-19-(i*17%24);
+        const bx=x+((i*34)%(w+40))-12,by=floor-19-(i*17%24);
         ctx.fillStyle=key==='NEON'?'#14234c':'#282045';ctx.fillRect(bx,by,20,floor-by);
         ctx.fillStyle=key==='NEON'?'#ff75d5':'#ffcf75';
         for(let k=0;k<3;k++)ctx.fillRect(bx+4+k*5,by+5,2,4);
@@ -1971,13 +1973,13 @@ function toggleFS() {
           ctx.beginPath();ctx.arc(tx+(j%3-1)*10,floor-43+Math.floor(j/3)*9,10,0,Math.PI*2);ctx.fill();
         }
       }
-      for(let i=0;i<14;i++){ctx.fillStyle=i%2?'#fff1f7':'#ffb7d7';ctx.fillRect(x+((i*31-ticks*.7)%(w+12)+w+12)%(w+12),y+14+((i*17+ticks*.4)%(Math.max(18,h-34))),3,2);}
+      for(let i=0;i<14;i++){ctx.fillStyle=i%2?'#fff1f7':'#ffb7d7';ctx.fillRect(x+((i*31)%(w+12)+w+12)%(w+12),y+14+((i*17)%(Math.max(18,h-34))),3,2);}
     }else if(key==='OCEAN'){
       for(let i=0;i<Math.ceil(w/29);i++){
         const bx=x+10+i*29;
         ctx.fillStyle=i%2?'#46d9ac':'#ff9cad';ctx.fillRect(bx,floor-18,5,18);
         ctx.fillRect(bx-4,floor-14,4,5);ctx.fillRect(bx+5,floor-11,4,5);
-        ctx.fillStyle='#b3f8ff';ctx.beginPath();ctx.arc(bx+9+Math.sin(ticks*.06+i)*3,y+15+((i*17-ticks*.55)%(Math.max(12,h-40))+Math.max(12,h-40))%(Math.max(12,h-40)),3,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#b3f8ff';ctx.beginPath();ctx.arc(bx+9+Math.sin(i)*3,y+15+((i*17)%(Math.max(12,h-40))+Math.max(12,h-40))%(Math.max(12,h-40)),3,0,Math.PI*2);ctx.fill();
       }
     }else if(key==='VOLCANO'||key==='VOLCANO_PLUS'){
       for(let i=0;i<Math.ceil(w/24);i++){
@@ -1985,13 +1987,13 @@ function toggleFS() {
         ctx.fillStyle='#26131e';ctx.fillRect(bx,floor-7-(i*7%10),12,18);
         ctx.fillStyle='#ff852e';ctx.fillRect(bx+3,floor-4,3,2);
       }
-      for(let i=0;i<16;i++){ctx.fillStyle=i%2?'#ffbc47':'#ff6c29';ctx.fillRect(x+((i*41-ticks*.8)%(w+15)+w+15)%(w+15),y+((i*17-ticks*.7)%(h+15)+h+15)%(h+15),2,3);}
+      for(let i=0;i<16;i++){ctx.fillStyle=i%2?'#ffbc47':'#ff6c29';ctx.fillRect(x+((i*41)%(w+15)+w+15)%(w+15),y+((i*17)%(h+15)+h+15)%(h+15),2,3);}
     }else if(key==='COSMIC'){
       for(let i=0;i<Math.ceil(w/42);i++){
         const sx=x+12+i*42,sy=y+18+(i*19)%Math.max(12,h-48);
         ctx.fillStyle='#f9d9ff';ctx.fillRect(sx,sy-3,2,8);ctx.fillRect(sx-3,sy,8,2);
       }
-      for(let i=0;i<10;i++){const sx=x+((i*47+ticks*.25)%(w+12));const sy=y+10+((i*23)%(Math.max(10,h-30)));ctx.fillStyle='#ffe6a8';ctx.fillRect(sx-2,sy,5,1);ctx.fillRect(sx,sy-2,1,5);}
+      for(let i=0;i<10;i++){const sx=x+((i*47)%(w+12));const sy=y+10+((i*23)%(Math.max(10,h-30)));ctx.fillStyle='#ffe6a8';ctx.fillRect(sx-2,sy,5,1);ctx.fillRect(sx,sy-2,1,5);}
     }else if(key==='MOUNTAINS'){
       for(let i=0;i<Math.ceil(w/30);i++){
         const px=x+i*30+8;
@@ -1999,14 +2001,14 @@ function toggleFS() {
         ctx.fillRect(px-5,floor-17,13,5);ctx.fillRect(px-3,floor-24,9,6);
         ctx.fillStyle='#f5faff';ctx.fillRect(px-3,floor-24,9,2);
       }
-      for(let i=0;i<18;i++){ctx.fillStyle='rgba(255,255,255,.9)';ctx.fillRect(x+((i*27+ticks*.55)%(w+14)),y+10+((i*19+ticks*.3)%(Math.max(10,h-28))),2,2);}
+      for(let i=0;i<18;i++){ctx.fillStyle='rgba(255,255,255,.9)';ctx.fillRect(x+((i*27)%(w+14)),y+10+((i*19)%(Math.max(10,h-28))),2,2);}
     }
     const pal=MAPS[key]?.pipes?.[0]||GREEN;
     const gap=Math.max(42,Math.min(90,h*.43));
-    const center=y+h*.49+Math.sin(ticks*.06)*Math.min(6,h*.03);
-    const pipeX=x+w*.7+Math.sin(ticks*.04)*Math.min(10,w*.03);
+    const center=y+h*.49;
+    const pipeX=x+w*.7;
     drawPreviewPipePair(pal,x,y,w,h,center,gap,pipeX,Math.max(17,Math.min(34,w*.095)));
-    animatedBirdIcon(SKINS[skinOK(cfg.skin)?cfg.skin:0],x+w*.29+Math.sin(ticks*.07)*Math.min(12,w*.03),center,Math.min(1.08,Math.max(.58,h/150)),{trailId:cfg.trail,drift:4,phase:h*.01});
+    animatedBirdIcon(SKINS[skinOK(cfg.skin)?cfg.skin:0],x+w*.29+Math.sin(ticks*.07)*Math.min(12,w*.03),center+Math.sin(ticks*.09)*Math.min(6,h*.035),Math.min(1.08,Math.max(.58,h/150)),{trailId:cfg.trail,drift:4,phase:h*.01});
     ctx.restore();
   }
   function itemArt(item,x,y,w,h){
