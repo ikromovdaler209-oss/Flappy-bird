@@ -158,7 +158,7 @@ body.mobile canvas {
   let state = 'READY', screen = 'MENU', settingsFrom = 'MENU', focus = 0, btns = [], toasts = [];
   let resetArmed = false, runPink = 0, score = 0, newBest = false;
   let shake = 0, flash = 0, pop = 0, overAt = 0, groundX = 0, bgX = 0, ticks = 0;
-  let pipes = [], particles = [], stars = [], skyline = [], clouds = [], weather = [];
+  let pipes = [], particles = [], stars = [], skyline = [], clouds = [], weather = [], trailParticles = [];
 
   const store = {
     get(k, d) { try { return Object.assign({}, d, JSON.parse(localStorage.getItem(k))); } catch (e) { return d; } },
@@ -193,11 +193,35 @@ body.mobile canvas {
     { name: 'AQUA',    theme: 'OCEAN',  price: 200, body: '#38c6c8', hi: '#b4ffff', wing: '#2386b8', wingD: '#155578', belly: '#e3ffff' },
     { name: 'CORAL',   theme: 'OCEAN',  price: 200, body: '#ff806b', hi: '#ffd0b8', wing: '#d34d67', wingD: '#8d2948', belly: '#fff0df' },
     { name: 'MINT',    theme: 'SWEETS', price: 200, body: '#a7e8c2', hi: '#e5ffdf', wing: '#56b9a0', wingD: '#317d79', belly: '#f4fff1' },
-    { name: 'BERRY',   theme: 'SWEETS', price: 200, body: '#c77dff', hi: '#edc9ff', wing: '#9149c5', wingD: '#5c2d8c', belly: '#fff0ff' }
+    { name: 'BERRY',   theme: 'SWEETS', price: 200, body: '#c77dff', hi: '#edc9ff', wing: '#9149c5', wingD: '#5c2d8c', belly: '#fff0ff' },
+    { name: 'PHOENIX', theme: 'FIRE', price: 250, rarity:'EPIC', body:'#ff6335',hi:'#ffd067',wing:'#f33526',wingD:'#9c2428',belly:'#ffe0aa' },
+    { name: 'FROSTWING', theme:'ICE', price:200, rarity:'RARE', body:'#7be0ff',hi:'#e2ffff',wing:'#43a8ed',wingD:'#3779bb',belly:'#f3ffff' },
+    { name: 'CYBER BIRD', theme:'CYBER', price:275, rarity:'EPIC', body:'#5c5b87',hi:'#64f4ff',wing:'#a14ce8',wingD:'#4c248b',belly:'#d2eaff' },
+    { name: 'GALAXY BIRD', theme:'SPACE', price:300, rarity:'LEGENDARY', body:'#5933a8',hi:'#d4a7ff',wing:'#8b53e9',wingD:'#38216f',belly:'#f6d8ff' },
+    { name: 'FOREST SPIRIT', theme:'NATURE', price:225, rarity:'RARE', body:'#56b96c',hi:'#c8f5a0',wing:'#2d9054',wingD:'#22603e',belly:'#e8ffb9' }
   ];
-  const wallet = store.get('flyingBirdWallet', { coins: 0, owned: [] });
+  const SHOP_MAPS = [
+    {id:'SAKURA',name:'SAKURA GARDEN',price:250,rarity:'RARE'},
+    {id:'NEON',name:'NEON CITY',price:300,rarity:'EPIC'},
+    {id:'OCEAN',name:'OCEAN DEPTHS',price:275,rarity:'RARE'},
+    {id:'VOLCANO_PLUS',name:'VOLCANO CORE',price:300,rarity:'EPIC'},
+    {id:'COSMIC',name:'COSMIC VOYAGE',price:300,rarity:'LEGENDARY'}
+  ];
+  const TRAILS = [
+    {id:'FIRE',name:'FIRE',price:150,rarity:'RARE',colors:['#ffba35','#ff5127','#ffe279']},
+    {id:'WATER',name:'WATER',price:150,rarity:'RARE',colors:['#65d9ff','#2b8fff','#c5f8ff']},
+    {id:'LIGHTNING',name:'LIGHTNING',price:200,rarity:'EPIC',colors:['#ad76ff','#f2dbff','#6e9bff']},
+    {id:'RAINBOW',name:'RAINBOW',price:250,rarity:'EPIC',colors:['#ff5d79','#ffe166','#66f5ad','#7cc9ff','#bd83ff']},
+    {id:'NATURE',name:'NATURE',price:175,rarity:'RARE',colors:['#62d477','#a9ed5c','#d4ff98']},
+    {id:'GOLDEN',name:'GOLDEN',price:300,rarity:'LEGENDARY',colors:['#ffca35','#fff4aa','#ff9c29']}
+  ];
+  const wallet = store.get('flyingBirdWallet', { coins: 0, owned: [], maps: [], trails: [] });
   wallet.coins = Math.max(0, Math.floor(Number(wallet.coins) || 0));
   wallet.owned = Array.isArray(wallet.owned) ? wallet.owned.filter(i => Number.isInteger(i) && i >= 4 && i < SKINS.length) : [];
+  wallet.maps = Array.isArray(wallet.maps) ? [...new Set(wallet.maps.filter(id => SHOP_MAPS.some(m => m.id === id)))] : [];
+  wallet.trails = Array.isArray(wallet.trails) ? [...new Set(wallet.trails.filter(id => TRAILS.some(t => t.id === id)))] : [];
+  cfg.trail = TRAILS.some(t => t.id === cfg.trail) && wallet.trails.includes(cfg.trail) ? cfg.trail : 'NONE';
+  cfg.particleQuality = ['AUTO','HIGH','LOW','OFF'].includes(cfg.particleQuality) ? cfg.particleQuality : 'AUTO';
   const saveWallet = () => { store.set('flyingBirdWallet', wallet); window.dispatchEvent(new Event('flyingbird:progress-changed')); };
   // Apply a cloud save to the game's live objects (not just localStorage).
   window.addEventListener('flyingbird:apply-progress', e => {
@@ -208,6 +232,7 @@ body.mobile canvas {
       if (!['EN','ZH','RU','ES','PT'].includes(cfg.lang)) cfg.lang = 'EN';
       if (!MAPS[cfg.map]) cfg.map = 'CITY';
       if (!['60','90','120','MAX'].includes(String(cfg.fps))) cfg.fps = 'MAX';
+      if (!['AUTO','HIGH','LOW','OFF'].includes(cfg.particleQuality)) cfg.particleQuality = 'AUTO';
     }
     if (data.save && typeof data.save === 'object') {
       const x = data.save;
@@ -221,8 +246,12 @@ body.mobile canvas {
     if (data.wallet && typeof data.wallet === 'object') {
       wallet.coins = Math.max(0,Math.floor(Number(data.wallet.coins)||0));
       wallet.owned = Array.isArray(data.wallet.owned) ? [...new Set(data.wallet.owned.filter(i => Number.isInteger(i) && i >= 4 && i < SKINS.length))] : [];
+      wallet.maps = Array.isArray(data.wallet.maps) ? [...new Set(data.wallet.maps.filter(id => SHOP_MAPS.some(m => m.id === id)))] : [];
+      wallet.trails = Array.isArray(data.wallet.trails) ? [...new Set(data.wallet.trails.filter(id => TRAILS.some(t => t.id === id)))] : [];
     }
     if (!skinOK(cfg.skin)) cfg.skin = 0;
+    if (!mapOK(cfg.map)) cfg.map = 'CITY';
+    if (!wallet.trails.includes(cfg.trail)) cfg.trail = 'NONE';
     store.set('flyingBirdCfg',cfg); store.set('flyingBirdSave',save); store.set('flyingBirdWallet',wallet);
     initWeather();
   });
@@ -246,11 +275,16 @@ body.mobile canvas {
   };
 
   // ---------- Maps ----------
-  const MAP_KEYS = ['CITY', 'MOUNTAINS', 'VOLCANO'];
+  const MAP_KEYS = ['CITY', 'MOUNTAINS', 'VOLCANO', 'SAKURA', 'NEON', 'OCEAN', 'VOLCANO_PLUS', 'COSMIC'];
   const MAPS = {
     CITY: { pipes: [GREEN, PINK] },
     MOUNTAINS: { pipes: [{ main: '#8fd3ff', light: '#e6f8ff', dark: '#4a90c2' }, { main: '#b9a0ff', light: '#e6dcff', dark: '#6d4fc0' }] },
-    VOLCANO: { pipes: [{ main: '#4a3d44', light: '#8a7780', dark: '#2a1f25' }, { main: '#ff7b2e', light: '#ffc27a', dark: '#b8400f' }] }
+    VOLCANO: { pipes: [{ main: '#4a3d44', light: '#8a7780', dark: '#2a1f25' }, { main: '#ff7b2e', light: '#ffc27a', dark: '#b8400f' }] },
+    SAKURA: { pipes: [{main:'#7bb47a',light:'#d5ffb9',dark:'#3c7556'},{main:'#e977ae',light:'#ffd6e9',dark:'#a84878'}] },
+    NEON: { pipes: [{main:'#26b4c7',light:'#91faff',dark:'#126179'},{main:'#b36aff',light:'#efc7ff',dark:'#6936a2'}] },
+    OCEAN: { pipes: [{main:'#21a9b2',light:'#b3faff',dark:'#146179'},{main:'#d97a9b',light:'#ffd2df',dark:'#9b4968'}] },
+    VOLCANO_PLUS: { pipes: [{main:'#6c4051',light:'#c28798',dark:'#342334'},{main:'#ff792b',light:'#ffce64',dark:'#a63d1e'}] },
+    COSMIC: { pipes: [{main:'#7464da',light:'#cbc1ff',dark:'#393385'},{main:'#e16bb6',light:'#ffbce5',dark:'#84386c'}] }
   };
   if (!MAPS[cfg.map]) cfg.map = 'CITY';
   cfg.fps = String(cfg.fps);
@@ -465,6 +499,14 @@ body.mobile canvas {
       ACHIEVEMENT_TOAST:'CONQUISTA'
     }
   };
+  const COSMETIC_TEXT = {
+    EN:{BIRDS:'BIRDS',MAPS_TAB:'MAPS',TRAILS:'TRAILS',PREVIEW:'PREVIEW',EQUIP:'EQUIP',EQUIPPED:'EQUIPPED',LOCKED:'LOCKED',PARTICLE_QUALITY:'PARTICLE QUALITY',NONE_TRAIL:'NO TRAIL',RARITY_COMMON:'COMMON',RARITY_RARE:'RARE',RARITY_EPIC:'EPIC',RARITY_LEGENDARY:'LEGENDARY'},
+    RU:{BIRDS:'ПТИЦЫ',MAPS_TAB:'КАРТЫ',TRAILS:'СЛЕДЫ',PREVIEW:'ПРОСМОТР',EQUIP:'НАДЕТЬ',EQUIPPED:'ВЫБРАНО',LOCKED:'ЗАКРЫТО',PARTICLE_QUALITY:'КАЧЕСТВО ЧАСТИЦ',NONE_TRAIL:'БЕЗ СЛЕДА',RARITY_COMMON:'ОБЫЧНЫЙ',RARITY_RARE:'РЕДКИЙ',RARITY_EPIC:'ЭПИЧЕСКИЙ',RARITY_LEGENDARY:'ЛЕГЕНДАРНЫЙ'},
+    ZH:{BIRDS:'小鸟',MAPS_TAB:'地图',TRAILS:'尾迹',PREVIEW:'预览',EQUIP:'装备',EQUIPPED:'已装备',LOCKED:'未解锁',PARTICLE_QUALITY:'粒子质量',NONE_TRAIL:'无尾迹',RARITY_COMMON:'普通',RARITY_RARE:'稀有',RARITY_EPIC:'史诗',RARITY_LEGENDARY:'传说'},
+    ES:{BIRDS:'AVES',MAPS_TAB:'MAPAS',TRAILS:'ESTELAS',PREVIEW:'VISTA PREVIA',EQUIP:'EQUIPAR',EQUIPPED:'EQUIPADO',LOCKED:'BLOQUEADO',PARTICLE_QUALITY:'CALIDAD PARTÍCULAS',NONE_TRAIL:'SIN ESTELA',RARITY_COMMON:'COMÚN',RARITY_RARE:'RARO',RARITY_EPIC:'ÉPICO',RARITY_LEGENDARY:'LEGENDARIO'},
+    PT:{BIRDS:'AVES',MAPS_TAB:'MAPAS',TRAILS:'RASTROS',PREVIEW:'PRÉVIA',EQUIP:'EQUIPAR',EQUIPPED:'EQUIPADO',LOCKED:'BLOQUEADO',PARTICLE_QUALITY:'QUALIDADE PARTÍCULAS',NONE_TRAIL:'SEM RASTRO',RARITY_COMMON:'COMUM',RARITY_RARE:'RARO',RARITY_EPIC:'ÉPICO',RARITY_LEGENDARY:'LENDÁRIO'}
+  };
+  for (const lang of LANGS) Object.assign(I18N[lang], COSMETIC_TEXT[lang]);
   const tr = key => (I18N[cfg.lang] || I18N.EN)[key] || I18N.EN[key] || key;
   const displayValue = value => ({
     NIGHT:tr('NIGHT'), DAY:tr('DAY'), AUTO:tr('AUTO'),
@@ -474,8 +516,11 @@ body.mobile canvas {
     'HIGH CONTRAST':tr('HIGH_CONTRAST'), ON:tr('ON')
   }[value] || value);
 
+  const mapOK = id => !!MAPS[id] && (!SHOP_MAPS.some(m => m.id === id) || wallet.maps.includes(id));
+  const trailOK = id => id === 'NONE' || wallet.trails.includes(id);
   const skinOK = i => !!SKINS[i] && (i < 4 ? maxBest() >= SKINS[i].need : wallet.owned.includes(i));
   if (!skinOK(cfg.skin)) cfg.skin = 0;
+  if (!mapOK(cfg.map)) cfg.map = 'CITY';
 
   const bird = { x: 70, y: 200, w: 20, h: 16, vy: 0, rot: 0 };
   const speed = () => (2 + Math.min(score * 0.04, 1.4)) * DIFF[cfg.diff].spd;
@@ -633,7 +678,7 @@ if (!initialized) {
   }
 
   function reset() {
-    pipes = []; particles = [];
+    pipes = []; particles = []; trailParticles = [];
     score = 0; newBest = false; runPink = 0;
     bird.y = H * 0.42; bird.vy = 0; bird.rot = 0;
     state = 'READY';
@@ -648,6 +693,7 @@ if (!initialized) {
 
   function update() {
     ticks++;
+    if (shopAnim > 0) shopAnim--;
     if (shake > 0) shake *= 0.9;
     if (flash > 0) flash = Math.max(0, flash - 0.05);
     if (pop > 0) pop = Math.max(0, pop - 0.08);
@@ -655,6 +701,15 @@ if (!initialized) {
 
     for (const p of particles) { p.x += p.vx; p.y += p.vy; p.vy += 0.06; p.life--; }
     particles = particles.filter(p => p.life > 0);
+    for(const p of trailParticles){p.x+=p.vx;p.y+=p.vy;p.life--;}
+    trailParticles=trailParticles.filter(p=>p.life>0);
+    if(state==='PLAYING'&&!screen&&cfg.trail!=='NONE'&&cfg.particleQuality!=='OFF'&&!cfg.fx){
+      const t=TRAILS.find(t=>t.id===cfg.trail);
+      if(t){const count=cfg.particleQuality==='HIGH'?3:cfg.particleQuality==='LOW'?1:(W<450?1:2);
+        for(let i=0;i<count;i++)trailParticles.push({x:bird.x-4,y:bird.y+bird.h/2+(Math.random()-.5)*9,vx:-1.3-Math.random()*1.5,vy:(Math.random()-.5)*1.2,life:17+Math.random()*16,max:33,col:t.colors[Math.floor(Math.random()*t.colors.length)],size:2+Math.random()*3});
+        if(trailParticles.length>120)trailParticles.splice(0,trailParticles.length-120);
+      }
+    }
 
     if (state === 'PLAYING' && screen) return;   // paused or in a menu
     const spd = speed();
@@ -995,6 +1050,23 @@ if (!initialized) {
     ctx.fillStyle = '#fff'; ctx.fillRect(3, -8, 6, 6);
     ctx.fillStyle = '#000'; ctx.fillRect(6, -6, 3, 4);
     ctx.fillStyle = '#fff'; ctx.fillRect(7, -6, 1, 1);
+    // Distinctive details for the five new premium birds; same collision geometry.
+    if (sk.name === 'PHOENIX') {
+      ctx.fillStyle='#ffbd35';ctx.fillRect(-5,-16,4,5);ctx.fillRect(-1,-19,3,8);
+      ctx.fillStyle='#ff6633';ctx.fillRect(-15,4,5,8);ctx.fillRect(-19,8,4,6);
+    } else if (sk.name === 'FROSTWING') {
+      ctx.fillStyle='#eaffff';ctx.fillRect(-6,-14,4,5);ctx.fillRect(-2,-17,3,6);
+      ctx.fillStyle='#b5f8ff';ctx.fillRect(-14,5,5,4);
+    } else if (sk.name === 'CYBER BIRD') {
+      ctx.fillStyle='#47f8ff';ctx.fillRect(2,-10,8,2);ctx.fillRect(-12,-5,3,11);
+      ctx.fillStyle='#f074ff';ctx.fillRect(-15,5,5,3);
+    } else if (sk.name === 'GALAXY BIRD') {
+      ctx.fillStyle='#f7d6ff';ctx.fillRect(-6,-4,2,2);ctx.fillRect(-3,2,2,2);ctx.fillRect(0,-7,2,2);
+      ctx.fillStyle='#ffe8a1';ctx.fillRect(-13,-12,3,3);
+    } else if (sk.name === 'FOREST SPIRIT') {
+      ctx.fillStyle='#a7e977';ctx.fillRect(-5,-15,4,6);ctx.fillRect(-1,-13,5,4);
+      ctx.fillStyle='#346b42';ctx.fillRect(-16,4,5,4);
+    }
   }
 
   function birdIcon(sk, cx, cy, k) {
@@ -1029,8 +1101,109 @@ if (!initialized) {
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   }
 
+  const PREMIUM_COLORS={
+    SAKURA:['#5e91d8','#f9b5d8','#9c6eb4','#f4a3c5','#6aab7e'],
+    NEON:['#0c163d','#56317e','#28356a','#8a3bd0','#22c9d5'],
+    OCEAN:['#05456d','#2bafc5','#0a779b','#43c7b0','#ffc6ad'],
+    VOLCANO_PLUS:['#1d091c','#e05b25','#4c1c2b','#9e3529','#ffb135'],
+    COSMIC:['#080d2e','#5a3c99','#252258','#6942aa','#e0a8ff']
+  };
+  function premiumArt(key,x,y,w,h,staticCard=false){
+    ctx.save();
+    ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();
+    const c=PREMIUM_COLORS[key],g=ctx.createLinearGradient(0,y,0,y+h);
+    g.addColorStop(0,c[0]);g.addColorStop(1,c[1]);ctx.fillStyle=g;ctx.fillRect(x,y,w,h);
+    const far=staticCard?0:bgX*.08,mid=staticCard?0:bgX*.25,near=staticCard?0:groundX*.6;
+    const artTicks=staticCard?0:ticks;
+    if(key==='COSMIC'||key==='NEON'){
+      for(let i=0;i<36;i++){
+        const sx=x+((i*79-far*.3)%(w+20)+w+20)%(w+20),sy=y+((i*41)%Math.max(15,h*.7));
+        ctx.fillStyle=i%3?'#d6e6ff':'#f6a4f9';ctx.fillRect(sx,sy,i%5?1:2,i%5?1:2);
+      }
+      if(key==='COSMIC'){
+        ctx.fillStyle='#c39ce9';ctx.beginPath();ctx.arc(x+w*.75,y+h*.3,Math.min(20,h*.18),0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='#f2c7ff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(x+w*.75,y+h*.3,Math.min(29,h*.25),Math.min(9,h*.08),-.3,0,Math.PI*2);ctx.stroke();
+      }
+    }
+    const floor=y+h-12;
+    if(key==='NEON'){
+      for(let i=-1;i<w/22+2;i++){
+        const bx=x+((i*22-mid)%(w+44)+w+44)%(w+44)-22,bh=20+((i*19+900)%36);
+        ctx.fillStyle=c[2];ctx.fillRect(bx,floor-bh,18,bh);
+        ctx.fillStyle=i%2?'#f55ec6':'#62f2ff';ctx.fillRect(bx+5,floor-bh+7,3,5);
+      }
+    }else if(key==='SAKURA'){
+      for(let i=-1;i<w/52+2;i++){
+        const tx=x+((i*52-mid)%(w+100)+w+100)%(w+100)-50;
+        ctx.fillStyle='#785477';ctx.fillRect(tx,floor-36,6,36);
+        ctx.fillStyle=i%2?'#ffbbdb':'#f394c7';
+        for(let a=0;a<5;a++){ctx.beginPath();ctx.arc(tx+3+Math.cos(a*1.25)*13,floor-40+Math.sin(a*1.25)*9,10,0,Math.PI*2);ctx.fill();}
+      }
+      for(let i=0;i<10;i++){ctx.fillStyle='#ffe4ee';ctx.fillRect(x+((i*43-near*.4)%(w+10)+w+10)%(w+10),y+(i*31+artTicks*.3)%(h-12),3,2);}
+    }else if(key==='OCEAN'){
+      for(let i=0;i<12;i++){
+        const cx=x+((i*37-mid)%(w+25)+w+25)%(w+25),cy=floor-8-(i*13)%25;
+        ctx.fillStyle=i%2?'#41c9a3':'#f39aaf';ctx.fillRect(cx,cy,5,20);
+        ctx.fillStyle='#a7f5ee';ctx.beginPath();ctx.arc(cx+Math.sin(artTicks*.03+i)*4,y+((i*27-artTicks*.5)%(h+10)+h+10)%(h+10),2+i%3,0,Math.PI*2);ctx.fill();
+      }
+    }else if(key==='VOLCANO_PLUS'){
+      for(let i=-1;i<w/65+2;i++){
+        const px=x+((i*65-mid)%(w+130)+w+130)%(w+130)-65;
+        ctx.fillStyle='#371923';ctx.beginPath();ctx.moveTo(px,floor);ctx.lineTo(px+32,floor-57);ctx.lineTo(px+65,floor);ctx.fill();
+        ctx.fillStyle='#ff852d';ctx.fillRect(px+29,floor-51,6,9);
+      }
+      for(let i=0;i<16;i++){ctx.fillStyle=i%2?'#ffbc47':'#ff6c29';ctx.fillRect(x+((i*41-near*.3)%(w+15)+w+15)%(w+15),y+((i*17-artTicks*.7)%(h+15)+h+15)%(h+15),2,3);}
+    }else{
+      for(let i=0;i<w/40+2;i++){const px=x+((i*40-mid)%(w+80)+w+80)%(w+80)-40;
+        ctx.fillStyle=c[2];ctx.fillRect(px,floor-(20+i%4*9),33,30+i%4*9);}
+    }
+    ctx.fillStyle=c[3];ctx.fillRect(x,floor,w,12);
+    ctx.fillStyle=c[4];ctx.fillRect(x,floor,w,3);
+    // Small deterministic pixel-art details make shop thumbnails readable at a glance.
+    if(staticCard){
+      if(key==='NEON'){
+        for(let i=0;i<Math.ceil(w/15);i++){
+          const bx=x+3+i*15,by=floor-16-(i*11%27);
+          ctx.fillStyle=i%2?'#62eaff':'#ff72d1';
+          ctx.fillRect(bx,by,2,4);ctx.fillRect(bx+5,by+8,2,3);
+          if(i%3===0){ctx.fillStyle='#fbd86d';ctx.fillRect(bx-1,by-7,9,2);}
+        }
+      }else if(key==='SAKURA'){
+        for(let i=0;i<Math.ceil(w/13);i++){
+          const px=x+5+i*13,py=y+7+(i*19)%Math.max(8,h-24);
+          ctx.fillStyle=i%2?'#fff1f7':'#ffb4d3';ctx.fillRect(px,py,3,2);
+        }
+      }else if(key==='OCEAN'){
+        for(let i=0;i<Math.ceil(w/20);i++){
+          const px=x+8+i*20,py=y+12+(i*13)%Math.max(8,h-34);
+          ctx.fillStyle='#b4faff';ctx.fillRect(px,py,2,2);ctx.fillRect(px+3,py-6,1,1);
+          ctx.fillStyle=i%2?'#ffd5a3':'#ff9cae';ctx.fillRect(px+4,floor-8,5,5);
+        }
+      }else if(key==='VOLCANO_PLUS'){
+        for(let i=0;i<Math.ceil(w/17);i++){
+          const px=x+6+i*17,py=y+8+(i*23)%Math.max(8,h-26);
+          ctx.fillStyle=i%2?'#ffcc64':'#ff733a';ctx.fillRect(px,py,2,3);
+        }
+      }else if(key==='COSMIC'){
+        for(let i=0;i<Math.ceil(w/26);i++){
+          const px=x+12+i*26,py=y+9+(i*17)%Math.max(8,h-29);
+          ctx.fillStyle=i%2?'#ffe5a5':'#c9eaff';ctx.fillRect(px-2,py,5,1);ctx.fillRect(px,py-2,1,5);
+        }
+      }
+    }
+    ctx.restore();
+  }
+  function drawPremiumMapBg(){premiumArt(cfg.map,0,0,W,GROUND);}
+  function drawPremiumGround(){
+    const c=PREMIUM_COLORS[cfg.map];ctx.fillStyle=c[3];ctx.fillRect(0,GROUND,W,H-GROUND);
+    ctx.fillStyle=c[4];ctx.fillRect(0,GROUND,W,6);
+    for(let x=-(Math.floor(groundX)%24);x<W;x+=24){ctx.fillStyle='rgba(255,255,255,.13)';ctx.fillRect(x+5,GROUND+14,9,3);}
+    ctx.fillStyle=INK;ctx.fillRect(0,GROUND-2,W,2);
+  }
+  function mapLabel(id){return SHOP_MAPS.find(m=>m.id===id)?.name||tr('MAP_'+id);}
   function drawMapBg() {
     const mx = W - (L ? 110 : 70), my = L ? 65 : 85;
+    if (SHOP_MAPS.some(m => m.id === cfg.map)) { drawPremiumMapBg(); return; }
     if (cfg.map === 'MOUNTAINS') {
       const day = themeName() === 'DAY';
       skyGrad(day ? ['#4aa8ff', '#8fd8ff', '#e8f8ff'] : ['#070b24', '#16285a', '#5a7fc0']);
@@ -1103,6 +1276,7 @@ if (!initialized) {
 
   function drawMapGround() {
     const gw = Math.floor(groundX);
+    if (SHOP_MAPS.some(m => m.id === cfg.map)) { drawPremiumGround(); return; }
     if (cfg.map === 'MOUNTAINS') {
       ctx.fillStyle = '#7d93b8'; ctx.fillRect(0, GROUND, W, H - GROUND);
       ctx.fillStyle = '#f4fbff'; ctx.fillRect(0, GROUND, W, 8);
@@ -1144,6 +1318,9 @@ if (!initialized) {
   }
 
   function mapPreview(key, x, y, w, h) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+    if (SHOP_MAPS.some(m => m.id === key)) { premiumArt(key,x,y,w,h,true); ctx.restore(); return; }
     const C = { CITY: ['#302b63', '#d4638f'], MOUNTAINS: ['#16285a', '#5a7fc0'], VOLCANO: ['#4a0f10', '#ff5a1f'] }[key];
     const g = ctx.createLinearGradient(0, y, 0, y + h);
     g.addColorStop(0, C[0]); g.addColorStop(1, C[1]);
@@ -1166,26 +1343,34 @@ if (!initialized) {
     }
     ctx.fillRect(x, gy, w, 12);
     if (key === 'VOLCANO') { ctx.fillStyle = '#ff7b2e'; ctx.fillRect(x, gy, w, 2); }
+    ctx.restore();
   }
 
+  let mapPage = 0;
   function drawMaps() {
-    ctx.fillStyle = 'rgba(15,12,41,0.88)'; ctx.fillRect(0, 0, W, H);
-    title(tr('SELECT_MAP'), W / 2, 32, L ? 28 : 24, '#ffd23f', 'center');
-    const n = MAP_KEYS.length, cw = L ? 190 : W - 40, ch = L ? 190 : 96, gap = L ? 15 : 8;
-    const x0 = L ? Math.round((W - (n * cw + (n - 1) * gap)) / 2) : 20;
-    MAP_KEYS.forEach((k, i) => {
-      const x = L ? x0 + i * (cw + gap) : x0, y = L ? 70 : 62 + i * (ch + gap), on = btns.length === focus;
-      btns.push({ x, y, w: cw, h: ch, adj: true, fn: (d, adj) => {
-        if (adj) focus = Math.max(0, Math.min(n - 1, i + d));
-        else { cfg.map = k; saveCfg(); initWeather(); startGame(); }
-      } });
-      ctx.fillStyle = on ? '#ffd23f' : BROWN; ctx.fillRect(x - 3, y - 3, cw + 6, ch + 6);
-      mapPreview(k, x, y, cw, ch);
-      ctx.fillStyle = 'rgba(15,12,41,0.75)'; ctx.fillRect(x, y + ch - 26, cw, 26);
-      txt(tr('MAP_' + k), x + 10, y + ch - 13, 13, '#fff', 'left', false);
-      if (cfg.map === k) txt('*', x + cw - 12, y + ch - 13, 13, '#ffd23f', 'center', false);
+    ctx.fillStyle='rgba(15,12,41,.91)';ctx.fillRect(0,0,W,H);
+    title(tr('SELECT_MAP'),W/2,30,24,'#ffd23f','center');
+    const per=L?4:3, pages=Math.ceil(MAP_KEYS.length/per); mapPage=Math.min(mapPage,pages-1);
+    const visible=MAP_KEYS.slice(mapPage*per,(mapPage+1)*per);
+    const cw=L?Math.min(170,(W-60)/4):W-42, ch=L?165:Math.min(100,(H-150)/3),gap=8;
+    const x0=L?(W-(visible.length*cw+(visible.length-1)*gap))/2:21;
+    visible.forEach((k,i)=>{
+      const x=L?x0+i*(cw+gap):x0,y=L?67:65+i*(ch+gap),owned=mapOK(k);
+      btns.push({x,y,w:cw,h:ch,fn:()=>{
+        if (!owned){screen='SHOP';shopTab='MAPS';shopPage=0;previewItem=null;focus=0;return;}
+        cfg.map=k;saveCfg();initWeather();startGame();
+      }});
+      ctx.fillStyle='#2b1b00';ctx.fillRect(x-2,y-2,cw+4,ch+4);
+      mapPreview(k,x,y,cw,ch);
+      ctx.fillStyle='rgba(15,12,41,.78)';ctx.fillRect(x,y+ch-27,cw,27);
+      txtFit(mapLabel(k),x+8,y+ch-14,11,cw-22,'#fff','left');
+      if(!owned)txt('X',x+cw-13,y+ch-14,11,'#fff','center',false);
+      else if(cfg.map===k)txt('★',x+cw-13,y+ch-14,12,'#ffd23f','center',false);
     });
-    btn(W / 2 - 60, L ? 272 : 62 + n * (ch + gap) + 6, 120, 28, tr('BACK'), back);
+    btn(20,H-69,76,25,'◀',()=>{mapPage=(mapPage+pages-1)%pages;focus=0;},{size:11});
+    txt((mapPage+1)+' / '+pages,W/2,H-56,11,'#fff','center',false);
+    btn(W-96,H-69,76,25,'▶',()=>{mapPage=(mapPage+1)%pages;focus=0;},{size:11});
+    btn(W/2-58,H-35,116,26,tr('BACK'),back,{size:11});
   }
 
   // ---------- Profile screen ----------
@@ -1255,6 +1440,7 @@ if (!initialized) {
     if (screen === 'SETTINGS') { screen = settingsFrom; resetArmed = false; focus = 0; }
     else if (screen === 'ACH') { screen = 'MENU'; focus = 0; }
     else if (screen === 'MAPS') { screen = 'MENU'; focus = 0; }
+    else if (screen === 'PREVIEW') { screen=previewReturn; focus=0; }
     else if (screen === 'PROFILE' || screen === 'SHOP' || screen === 'INVENTORY') { screen = 'MENU'; focus = 0; }
     else if (screen === 'PAUSE') screen = null;
   }
@@ -1321,85 +1507,187 @@ function toggleFS() {
     txt(tr('BEST') + ' ' + bestNow() + '  (' + displayValue(cfg.diff) + ')', W / 2, y0 + st * 6 + 4, 11);
   }
 
-  function drawShop() {
-    ctx.fillStyle = 'rgba(15,12,41,0.90)'; ctx.fillRect(0, 0, W, H);
-    title(tr('SHOP'), W / 2, 30, 25, '#ffd23f', 'center');
-    txt(tr('COINS') + ': ' + wallet.coins, W / 2, 51, 11, '#fff2a6', 'center', false);
-
-    const items = SKINS.map((skin, i) => ({ skin, i })).filter(v => v.i >= 4);
-    const cols = L ? 5 : 2, rows = Math.ceil(items.length / cols);
-    const gapX = 6, gapY = L ? 8 : 6;
-    const cw = Math.floor((W - 24 - gapX * (cols - 1)) / cols);
-    const ch = L ? 112 : 62;
-    const startY = L ? 78 : 68;
-    items.forEach(({ skin, i }, n) => {
-      const col = n % cols, row = Math.floor(n / cols);
-      const x = 12 + col * (cw + gapX), y = startY + row * (ch + gapY);
-      const owned = wallet.owned.includes(i), selected = cfg.skin === i;
-      const focused = btns.length === focus;
-      btns.push({ x, y, w: cw, h: ch, fn: () => {
-        if (owned) {
-          cfg.skin = i; saveCfg();
-          toasts.push({ text: skin.name, plain: true, t: 65 });
-        } else if (wallet.coins >= skin.price) {
-          wallet.coins -= skin.price; wallet.owned.push(i); saveWallet();
-          cfg.skin = i; saveCfg();
-          toasts.push({ text: tr('SKIN_BOUGHT'), plain: true, t: 90 });
-          tone(660, 1320, 0.2, 'triangle', 0.08);
-        } else {
-          toasts.push({ text: tr('NOT_ENOUGH'), plain: true, t: 90 });
-          tone(180, 120, 0.16, 'square', 0.05);
-        }
-      }});
-      ctx.fillStyle = BROWN; ctx.fillRect(x - 2, y - 2, cw + 4, ch + 4);
-      ctx.fillStyle = selected ? '#ffd23f' : (owned ? '#fff4d6' : '#d8d0bd');
-      ctx.fillRect(x, y, cw, ch);
-      ctx.strokeStyle = focused ? '#ff6b9d' : selected ? '#ff9f1c' : '#8a6a3c'; ctx.lineWidth = focused ? 3 : 2; ctx.strokeRect(x + 2, y + 2, cw - 4, ch - 4);
-      birdIcon(skin, x + cw / 2, y + (L ? 31 : 19), L ? 1.05 : 0.72);
-      const small = L ? 9 : 9;
-      txt(skin.name, x + cw / 2, y + (L ? 60 : 38), small, BROWN, 'center', false);
-      txt(skin.theme, x + cw / 2, y + (L ? 76 : 49), L ? 8 : 7, '#6b4a1a', 'center', false);
-      const status = selected ? tr('SELECTED') : owned ? tr('SELECT') : skin.price + ' ' + tr('COINS');
-      txt(status, x + cw / 2, y + (L ? 96 : 57), L ? 8 : 7, selected ? '#8b4c00' : BROWN, 'center', false);
-    });
-    btn(W / 2 - 58, H - 34, 116, 26, tr('BACK'), back, { size: 11 });
+  // Unified cosmetics catalogue. The legacy numeric skin indices are preserved for cloud-save compatibility.
+  let shopTab='BIRDS', inventoryTab='BIRDS', shopPage=0, inventoryPage=0, previewItem=null, shopAnim=0;
+  // Rarity metadata is retained for save compatibility, but not shown in the shop UI.
+  function cosmeticLabel(str,x,y,size,maxW,color){
+    ctx.save();ctx.font='500 '+size+'px Arial, sans-serif';
+    while(size>8&&ctx.measureText(str).width>maxW){size--;ctx.font='500 '+size+'px Arial, sans-serif';}
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=color;ctx.fillText(str,x,y);ctx.restore();
   }
-
-  // Inventory contains only unlocked skins. Purchases remain exclusive to Shop.
-  function drawInventory() {
-    ctx.fillStyle = 'rgba(15,12,41,0.92)'; ctx.fillRect(0, 0, W, H);
-    title(tr('INVENTORY'), W / 2, 30, L ? 26 : 23, '#ffd23f', 'center');
-    const owned = SKINS.map((skin, i) => ({ skin, i })).filter(({ i }) => skinOK(i));
-    txt(owned.length + ' / ' + SKINS.length, W / 2, 53, 12, '#fff2a6', 'center', false);
-    const cols = L ? 7 : 2, gapX = 6, gapY = L ? 8 : 5;
-    const cw = Math.floor((W - 24 - gapX * (cols - 1)) / cols);
-    const ch = L ? 91 : 44, startY = L ? 74 : 68;
-    owned.forEach(({ skin, i }, n) => {
-      const x = 12 + (n % cols) * (cw + gapX);
-      const y = startY + Math.floor(n / cols) * (ch + gapY);
-      const selected = cfg.skin === i, focused = btns.length === focus;
-      btns.push({ x, y, w: cw, h: ch, fn: () => {
-        cfg.skin = i;
-        saveCfg();
-        toasts.push({ text: skin.name, plain: true, t: 65 });
-      }});
-      ctx.fillStyle = BROWN; ctx.fillRect(x - 2, y - 2, cw + 4, ch + 4);
-      ctx.fillStyle = selected ? '#ffd23f' : '#fff4d6'; ctx.fillRect(x, y, cw, ch);
-      ctx.strokeStyle = focused ? '#ff6b9d' : selected ? '#ff9f1c' : '#8a6a3c';
-      ctx.lineWidth = focused ? 3 : 2;
-      ctx.strokeRect(x + 2, y + 2, cw - 4, ch - 4);
-      birdIcon(skin, x + (L ? cw / 2 : 28), y + (L ? 27 : ch / 2), L ? 0.85 : 0.7);
-      if (L) {
-        txt(skin.name, x + cw / 2, y + 52, 9, BROWN, 'center', false);
-        txt(selected ? tr('SELECTED') : tr('SELECT'), x + cw / 2, y + 72, 8, '#8b4c00', 'center', false);
-      } else {
-        txt(skin.name, x + 51, y + 15, 10, BROWN, 'left', false);
-        txt(selected ? tr('SELECTED') : tr('SELECT'), x + 51, y + 30, 8, '#8b4c00', 'left', false);
+  function catalog(tab,inventory=false){
+    const all=tab==='BIRDS'?SKINS.map((v,i)=>({id:i,name:v.name,price:v.price||0,rarity:v.rarity||(i<4?'COMMON':'RARE'),kind:'BIRDS',skin:v})):tab==='MAPS'?[...MAP_KEYS.map(id=>({id,name:mapLabel(id),price:SHOP_MAPS.find(m=>m.id===id)?.price||0,rarity:SHOP_MAPS.find(m=>m.id===id)?.rarity||'COMMON',kind:'MAPS'}))]:[{id:'NONE',name:tr('NONE_TRAIL'),price:0,rarity:'COMMON',kind:'TRAILS'},...TRAILS.map(t=>({...t,kind:'TRAILS'}))];
+    return inventory?all.filter(item=>itemOwned(item)):all.filter(item=>tab!=='BIRDS'||item.id>=4);
+  }
+  function itemOwned(item){return item.kind==='BIRDS'?skinOK(item.id):item.kind==='MAPS'?mapOK(item.id):trailOK(item.id);}
+  function itemEquipped(item){return item.kind==='BIRDS'?cfg.skin===item.id:item.kind==='MAPS'?cfg.map===item.id:cfg.trail===item.id;}
+  function equipItem(item){
+    if(!itemOwned(item))return;
+    if(item.kind==='BIRDS')cfg.skin=item.id;
+    else if(item.kind==='MAPS'){cfg.map=item.id;initWeather();}
+    else cfg.trail=item.id;
+    saveCfg();shopAnim=22;tone(520,850,.13,'triangle',.06);
+    toasts.push({text:tr('EQUIPPED')+' '+item.name,plain:true,t:70});
+  }
+  function buyItem(item){
+    if(itemOwned(item)){equipItem(item);return;}
+    if(wallet.coins<item.price){toasts.push({text:tr('NOT_ENOUGH'),plain:true,t:85});tone(180,120,.16,'square',.05);return;}
+    wallet.coins-=item.price;
+    if(item.kind==='BIRDS')wallet.owned.push(item.id);
+    else if(item.kind==='MAPS')wallet.maps.push(item.id);
+    else wallet.trails.push(item.id);
+    saveWallet();shopAnim=35;tone(660,1320,.2,'triangle',.08);
+    toasts.push({text:tr('SKIN_BOUGHT')+' '+item.name,plain:true,t:90});
+  }
+  function drawTrailIcon(id,x,y,w,h){
+    const t=TRAILS.find(t=>t.id===id);if(!t){birdIcon(SKINS[0],x+w*.65,y+h/2,.65);return;}
+    for(let i=0;i<16;i++){
+      const px=x+w*.65-i*w*.036,py=y+h*.5+Math.sin(i*.9+ticks*.11)*h*.16;
+      ctx.globalAlpha=Math.max(.2,1-i/17);ctx.fillStyle=t.colors[i%t.colors.length];
+      ctx.fillRect(px,py,Math.max(2,5-i*.16),Math.max(2,5-i*.16));
+    }
+    ctx.globalAlpha=1;birdIcon(SKINS[skinOK(cfg.skin)?cfg.skin:0],x+w*.75,y+h*.5,.72);
+  }
+  // Large map preview: detailed static scenery with the actual map-specific obstacle palette.
+  // The shop thumbnails intentionally continue to use the compact mapPreview renderer.
+  function detailedMapPreview(key,x,y,w,h){
+    ctx.save();
+    ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();
+    mapPreview(key,x,y,w,h);
+    const floor=y+h-12;
+    // Foreground environment details stay strictly within the preview viewport.
+    if(key==='NEON'||key==='CITY'){
+      for(let i=0;i<Math.ceil(w/34);i++){
+        const bx=x+i*34+7,by=floor-19-(i*17%24);
+        ctx.fillStyle=key==='NEON'?'#14234c':'#282045';ctx.fillRect(bx,by,20,floor-by);
+        ctx.fillStyle=key==='NEON'?'#ff75d5':'#ffcf75';
+        for(let k=0;k<3;k++)ctx.fillRect(bx+4+k*5,by+5,2,4);
+        if(i%3===0){ctx.fillStyle='#5ee9ef';ctx.fillRect(bx+3,by-3,14,2);}
       }
-    });
-    if (!owned.length) txt(tr('EMPTY_INVENTORY'), W / 2, H / 2, 12);
-    btn(W / 2 - 58, H - 36, 116, 26, tr('BACK'), back, { size: 11 });
+    }else if(key==='SAKURA'){
+      for(let i=0;i<Math.ceil(w/55);i++){
+        const tx=x+i*55+15;
+        ctx.fillStyle='#73506d';ctx.fillRect(tx,floor-34,5,34);
+        for(let j=0;j<5;j++){
+          ctx.fillStyle=j%2?'#ffd1e5':'#ff9bc9';
+          ctx.beginPath();ctx.arc(tx+(j%3-1)*10,floor-43+Math.floor(j/3)*9,10,0,Math.PI*2);ctx.fill();
+        }
+      }
+    }else if(key==='OCEAN'){
+      for(let i=0;i<Math.ceil(w/29);i++){
+        const bx=x+10+i*29;
+        ctx.fillStyle=i%2?'#46d9ac':'#ff9cad';ctx.fillRect(bx,floor-18,5,18);
+        ctx.fillRect(bx-4,floor-14,4,5);ctx.fillRect(bx+5,floor-11,4,5);
+        ctx.fillStyle='#b3f8ff';ctx.fillRect(bx+9,y+15+(i*17)%Math.max(12,h-40),3,3);
+      }
+    }else if(key==='VOLCANO'||key==='VOLCANO_PLUS'){
+      for(let i=0;i<Math.ceil(w/24);i++){
+        const bx=x+i*24+7;
+        ctx.fillStyle='#26131e';ctx.fillRect(bx,floor-7-(i*7%10),12,18);
+        ctx.fillStyle='#ff852e';ctx.fillRect(bx+3,floor-4,3,2);
+      }
+    }else if(key==='COSMIC'){
+      for(let i=0;i<Math.ceil(w/42);i++){
+        const sx=x+12+i*42,sy=y+18+(i*19)%Math.max(12,h-48);
+        ctx.fillStyle='#f9d9ff';ctx.fillRect(sx,sy-3,2,8);ctx.fillRect(sx-3,sy,8,2);
+      }
+    }else if(key==='MOUNTAINS'){
+      for(let i=0;i<Math.ceil(w/30);i++){
+        const px=x+i*30+8;
+        ctx.fillStyle='#194f4b';ctx.fillRect(px,floor-20,3,20);
+        ctx.fillRect(px-5,floor-17,13,5);ctx.fillRect(px-3,floor-24,9,6);
+        ctx.fillStyle='#f5faff';ctx.fillRect(px-3,floor-24,9,2);
+      }
+    }
+    // A sample obstacle pair is drawn in the same colors as the real pipes for this map.
+    const pal=MAPS[key]?.pipes?.[0]||GREEN;
+    const pw=Math.max(17,Math.min(34,w*.095));
+    const cap=Math.max(5,Math.min(10,pw*.26));
+    const gap=Math.max(42,Math.min(90,h*.43));
+    const center=y+h*.49;
+    const top=center-gap/2,bot=center+gap/2;
+    function segment(px,py,ph,capAtBottom){
+      if(ph<=0)return;
+      ctx.fillStyle=pal.main;ctx.fillRect(px,py,pw,ph);
+      ctx.fillStyle=pal.light;ctx.fillRect(px+3,py,Math.max(3,pw*.16),ph);
+      ctx.fillStyle=pal.dark;ctx.fillRect(px+pw-6,py,6,ph);
+      ctx.fillStyle='#1a1033';ctx.fillRect(px,py,2,ph);ctx.fillRect(px+pw-2,py,2,ph);
+      const cy=capAtBottom?py+ph-cap:py;
+      ctx.fillStyle=pal.main;ctx.fillRect(px-4,cy,pw+8,cap);
+      ctx.fillStyle=pal.light;ctx.fillRect(px-2,cy+2,pw+4,2);
+      ctx.fillStyle='#1a1033';ctx.fillRect(px-4,cy,pw+8,2);
+    }
+    // Keep one clear pair, so scenery and the actual gap remain visible.
+    const pipeX=x+w*.70;
+    segment(pipeX,y,Math.max(cap,top-y),true);
+    segment(pipeX,bot,Math.max(cap,floor-bot),false);
+    // Small playable bird gives the preview scale and depth.
+    birdIcon(SKINS[skinOK(cfg.skin)?cfg.skin:0],x+w*.29,center,Math.min(.82,Math.max(.42,h/170)));
+    ctx.restore();
   }
+  function itemArt(item,x,y,w,h){
+    if(item.kind==='MAPS')mapPreview(item.id,x,y,w,h);
+    else if(item.kind==='TRAILS'){ctx.fillStyle='#172642';ctx.fillRect(x,y,w,h);drawTrailIcon(item.id,x,y,w,h);}
+    else {ctx.fillStyle='#263655';ctx.fillRect(x,y,w,h);birdIcon(item.skin,x+w/2,y+h/2,Math.min(1.1,h/43));}
+  }
+  function drawCosmetics(inventory){
+    const tab=inventory?inventoryTab:shopTab, page=inventory?inventoryPage:shopPage;
+    ctx.fillStyle='rgba(15,12,41,.94)';ctx.fillRect(0,0,W,H);
+    title(tr(inventory?'INVENTORY':'SHOP'),W/2,25,L?23:22,'#ffd23f','center');
+    txt(tr('COINS')+': '+wallet.coins,W/2,44,10,'#fff2a6','center',false);
+    const tabs=['BIRDS','MAPS','TRAILS'],tw=(W-24-12)/3;
+    tabs.forEach((t,i)=>{
+      const x=12+i*(tw+6),y=53;
+      btns.push({x,y,w:tw,h:25,fn:()=>{if(inventory){inventoryTab=t;inventoryPage=0;}else{shopTab=t;shopPage=0;}focus=0;}});
+      ctx.fillStyle=t===tab?'#ffd23f':'#d2c4ac';ctx.fillRect(x,y,tw,25);
+      txt(tr(t==='MAPS'?'MAPS_TAB':t),x+tw/2,y+13,Math.min(10,tw/11),BROWN,'center',false);
+    });
+    const items=catalog(tab,inventory), per=L?6:4, pages=Math.max(1,Math.ceil(items.length/per));
+    const pg=Math.min(page,pages-1);if(inventory)inventoryPage=pg;else shopPage=pg;
+    const visible=items.slice(pg*per,(pg+1)*per),cols=L?3:2,gap=8,cw=(W-24-gap*(cols-1))/cols;
+    const top=87,navY=H-65,ch=Math.max(68,Math.min(L?102:126,(navY-top-12)/Math.ceil(per/cols)-gap));
+    visible.forEach((item,n)=>{
+      const x=12+(n%cols)*(cw+gap),y=top+Math.floor(n/cols)*(ch+gap),owned=itemOwned(item),equipped=itemEquipped(item);
+      ctx.fillStyle=equipped?'#ffe08a':'#f8eedc';ctx.fillRect(x,y,cw,ch);
+      ctx.strokeStyle=equipped?'#e5b548':'#cbbda8';ctx.lineWidth=2;ctx.strokeRect(x+1,y+1,cw-2,ch-2);
+      const artH=Math.max(26,ch*.42);itemArt(item,x+5,y+5,cw-10,artH);
+      cosmeticLabel(item.name,x+cw/2,y+artH+14,11,cw-12,BROWN);
+      const bY=y+ch-23,bW=(cw-12)/2;
+      btns.push({x:x+4,y:bY,w:bW,h:19,fn:()=>{previewItem=item;previewReturn=inventory?'INVENTORY':'SHOP';screen='PREVIEW';focus=0;}});
+      ctx.fillStyle='#405c78';ctx.fillRect(x+4,bY,bW,19);
+      txt(tr('PREVIEW'),x+4+bW/2,bY+10,8,'#fff','center',false);
+      btns.push({x:x+8+bW,y:bY,w:bW,h:19,fn:()=>{if(inventory) equipItem(item);else buyItem(item);}});
+      ctx.fillStyle=equipped?'#c9d8a0':owned?'#ffe08a':'#ffd23f';ctx.fillRect(x+8+bW,bY,bW,19);
+      const status=equipped?tr('EQUIPPED'):owned?tr('EQUIP'):String(item.price);
+      txt(status,x+8+bW+bW/2,bY+10,8,BROWN,'center',false);
+    });
+    if(!items.length)txt(tr('EMPTY_INVENTORY'),W/2,H/2,12);
+    btn(15,navY,72,25,'◀',()=>{if(inventory)inventoryPage=(pg+pages-1)%pages;else shopPage=(pg+pages-1)%pages;focus=0;},{size:11});
+    txt((pg+1)+' / '+pages,W/2,navY+13,11,'#fff','center',false);
+    btn(W-87,navY,72,25,'▶',()=>{if(inventory)inventoryPage=(pg+1)%pages;else shopPage=(pg+1)%pages;focus=0;},{size:11});
+    btn(W/2-57,H-34,114,26,tr('BACK'),back,{size:11});
+    if(shopAnim>0){ctx.fillStyle='rgba(255,220,90,'+(shopAnim/35*.12)+')';ctx.fillRect(0,0,W,H);}
+  }
+  function drawShop(){drawCosmetics(false);}
+  function drawInventory(){drawCosmetics(true);}
+  function drawPreview(){
+    if(!previewItem){screen='SHOP';return;}
+    ctx.fillStyle='rgba(15,12,41,.95)';ctx.fillRect(0,0,W,H);
+    title(tr('PREVIEW'),W/2,32,24,'#ffd23f','center');
+    cosmeticLabel(previewItem.name,W/2,62,16,W-28,'#fff');
+    const x=20,y=82,w=W-40;
+    const bottomBackY=H-39, actionY=bottomBackY-41;
+    const h=Math.max(50,Math.min(H*.46,actionY-y-15));
+    if(previewItem.kind==='MAPS')detailedMapPreview(previewItem.id,x,y,w,h);
+    else itemArt(previewItem,x,y,w,h);
+    ctx.strokeStyle='#b7a6c8';ctx.lineWidth=2;ctx.strokeRect(x+1,y+1,w-2,h-2);
+    const owned=itemOwned(previewItem);
+    btn(W/2-90,actionY,180,29,itemEquipped(previewItem)?tr('EQUIPPED'):owned?tr('EQUIP'):tr('BUY')+' '+previewItem.price,()=>{
+      if(owned)equipItem(previewItem);else buyItem(previewItem);
+    },{size:11});
+    btn(W/2-60,bottomBackY,120,27,tr('BACK'),()=>{screen=previewReturn;focus=0;},{size:11});
+  }
+  let previewReturn='SHOP';
 
   function drawPause() {
     ctx.fillStyle = 'rgba(15,12,41,0.7)'; ctx.fillRect(0, 0, W, H);
@@ -1421,6 +1709,7 @@ function toggleFS() {
       [tr('SOUND_FX'), bars(cfg.sfx), d => { cfg.sfx = wrap(11, cfg.sfx, d); tone(500, 700, 0.08); }],
       [tr('COLOR_MODE'), displayValue(cfg.cb), d => { cfg.cb = cyc(Object.keys(PIPES), cfg.cb, d); }],
       [tr('REDUCE_EFFECTS'), onoff(cfg.fx), () => { cfg.fx = !cfg.fx; }],
+      [tr('PARTICLE_QUALITY'), cfg.particleQuality, d => { cfg.particleQuality = cyc(['AUTO','HIGH','LOW','OFF'], cfg.particleQuality, d); }],
       [tr('FPS_LIMIT'), cfg.fps === 'MAX' ? tr('MAX') : cfg.fps, d => { cfg.fps = cyc(['60', '90', '120', 'MAX'], cfg.fps, d); }],
       [tr('SHOW_FPS'), onoff(cfg.showFps), () => { cfg.showFps = !cfg.showFps; }]
     ];
@@ -1446,7 +1735,7 @@ function toggleFS() {
     btn(q.x, q.y, bw, h, resetArmed ? tr('PRESS_RESET') : tr('RESET_PROGRESS'), () => {
       if (!resetArmed) { resetArmed = true; return; }
       Object.assign(save, { best: { EASY: 0, NORMAL: 0, HARD: 0 }, games: 0, flaps: 0, pipes: 0, earnedCoins: 0, ach: {} });
-      cfg.skin = 0; profile.av.skin = 0; wallet.coins = 0; wallet.owned = []; saveProfile(); saveWallet(); saveGame(); saveCfg(); resetArmed = false;
+      cfg.skin = 0; profile.av.skin = 0; wallet.coins = 0; wallet.owned = []; wallet.maps=[];wallet.trails=[];cfg.map='CITY';cfg.trail='NONE';saveProfile(); saveWallet(); saveGame(); saveCfg(); resetArmed = false;
     }, { id: 'reset', size: fs });
     q = pos(rows.length + 1);
     btn(q.x, q.y, bw, h, tr('BACK'), back, { size: fs });
@@ -1527,6 +1816,7 @@ function toggleFS() {
     if (screen === 'PROFILE') drawProfile();
     if (screen === 'SHOP') drawShop();
     if (screen === 'INVENTORY') drawInventory();
+    if (screen === 'PREVIEW') drawPreview();
 
     if (screen !== 'SETTINGS' && screen !== 'ACH')
       txt(tr('PAUSE_HINT') + '  M: ' + (cfg.muted ? tr('UNMUTE') : tr('MUTE')) + '  ' + tr('FULLSCREEN_HINT'), W / 2, H - 14, 8, '#f3e3c7', 'center', false);
@@ -1554,6 +1844,8 @@ function toggleFS() {
     }
     drawGround();
     drawParticles();
+    for(const p of trailParticles){ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=p.col;ctx.fillRect(p.x,p.y,p.size,p.size);}
+    ctx.globalAlpha=1;
     drawBird();
     drawWeather();
     ctx.restore();
