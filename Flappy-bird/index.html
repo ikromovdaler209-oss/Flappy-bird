@@ -37,7 +37,7 @@ body.mobile canvas {
   body.nick-editing { overflow:hidden; }
   body.nick-editing #nick { z-index:100; }
   /* Account shortcut: aligned with the game's avatar and nickname. */
-  #accountBtn {position:fixed;left:12px;top:58px;z-index:20;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:2px solid #2b1b00;border-radius:8px;background:#ffd23f;color:#2b1b00;padding:6px 10px;font:bold 11px 'Courier New',monospace;box-shadow:3px 3px 0 #2b1b00;cursor:pointer;transition:filter .15s}
+  #accountBtn {position:fixed;left:auto;right:12px;top:12px;z-index:20;max-width:136px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:2px solid #2b1b00;border-radius:8px;background:#ffd23f;color:#2b1b00;padding:6px 10px;font:bold 11px 'Courier New',monospace;box-shadow:3px 3px 0 #2b1b00;cursor:pointer;transition:filter .15s}
   #accountBtn[hidden] {display:none!important}
   #accountBtn:hover {filter:brightness(1.07)}
   #accountBtn:focus-visible,#authBox button:focus-visible,#authBox input:focus-visible {outline:3px solid #ff7eb6;outline-offset:2px}
@@ -78,7 +78,7 @@ body.mobile canvas {
   #accountDetails .detail span:first-child {color:#855c28}
   #accountDetails .detail span:last-child {text-align:right}
   #accountStats {width:100%;margin:12px 0 9px}
-  #syncIndicator {position:fixed;z-index:21;padding:4px 8px;border:2px solid #2b1b00;border-radius:7px;background:#fff9e9;color:#2b1b00;font:bold 10px 'Courier New',monospace;pointer-events:none;max-width:190px}
+  #syncIndicator {position:fixed;right:12px;top:52px;z-index:21;padding:4px 8px;border:2px solid #2b1b00;border-radius:7px;background:#fff9e9;color:#2b1b00;font:bold 10px 'Courier New',monospace;pointer-events:none;max-width:190px}
   #statsPanel,#logoutPanel {position:fixed;inset:0;z-index:48;background:rgba(9,8,28,.9);display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box}
   .fbDialog {width:min(430px,100%);max-height:90dvh;overflow-y:auto;background:#fff9e9;color:#2b1b00;border:3px solid #2b1b00;border-radius:16px;box-shadow:7px 8px 0 #ffd23f;padding:22px;box-sizing:border-box;font:13px/1.5 'Courier New',monospace}
   .fbDialog h2 {margin:0 0 12px}
@@ -793,13 +793,37 @@ if (!initialized) {
     burst(bird.x + 2, bird.y + bird.h, 4, 1.2, 18, ['#fff', '#ffe98a']);
   }
 
+  // Make each new gap reachable from the last one. On tall phones the old
+  // independent random heights could jump from the floor to the ceiling.
+  // Use the *free* horizontal space between pipe hitboxes, current pipe speed,
+  // minimum safe gap and moving-pipe amplitudes to bound each height change.
   function spawnPipe() {
     const D = DIFF[cfg.diff];
     const gap = Math.max(GMIN + D.gap, GMAX + D.gap - score * 1.2);
     const moving = score >= D.mv && Math.random() < 0.45;
     const m = moving ? 22 : 0;
-    const lo = 40 + m, hi = GROUND - gap - 40 - m;
-    const base = lo + Math.random() * (hi - lo);
+    const lo = 40 + m, hi = Math.max(lo, GROUND - gap - 40 - m);
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const minCenter = lo + gap / 2, maxCenter = hi + gap / 2;
+    let center;
+    if (pipes.length) {
+      const prev = pipes[pipes.length - 1];
+      const prevCenter = prev.base + prev.gap / 2;
+      // Available time after clearing the previous pipe and before the next.
+      const freeTicks = Math.max(1, SPACING - PW - bird.w - 8) / Math.max(1, speed());
+      const safeHalfGap = Math.max(0, (Math.min(prev.gap, gap) - bird.h - 8) / 2);
+      const motionReserve = (prev.amp + m) * 0.8;
+      const maxStep = clamp(freeTicks * 2.25 + safeHalfGap * 0.44 - motionReserve, 30, 105);
+      // Gentle centre bias avoids spending many consecutive pipes at an edge.
+      const bias = (GROUND / 2 - prevCenter) * 0.12;
+      const step = clamp((Math.random() * 2 - 1) * maxStep + bias, -maxStep, maxStep);
+      center = clamp(prevCenter + step, minCenter, maxCenter);
+    } else {
+      // The first obstacle begins near the starting bird, not a distant extreme.
+      center = clamp(bird.y + bird.h / 2 + (Math.random() * 2 - 1) * 90,
+        minCenter, maxCenter);
+    }
+    const base = center - gap / 2;
     pipes.push({ x: W + 10, base, top: base, gap, amp: m, phase: Math.random() * 6.28, scored: false, coinTaken: false });
   }
 
@@ -2664,6 +2688,8 @@ function toggleFS() {
   canvas.height = Math.round(H * r);
   canvas.style.width = W * scale + 'px';
   canvas.style.height = H * scale + 'px';
+  // The HTML account button needs the true logical width (portrait can vary).
+  canvas.dataset.logicalWidth = String(W);
 
   ctx.setTransform(r, 0, 0, r, 0, 0);
   ctx.imageSmoothingEnabled = false;
@@ -2832,20 +2858,36 @@ fit();
   el('authBack').onclick = () => setAuthMode('choice');
   const logout = el('authLogout');
   const show = () => { panel.hidden = false; setAuthMode('choice'); updateAccountDetails(); };
-  // Keep the button immediately below the avatar/name HUD, not at viewport edge.
+  // The avatar/nickname occupy the top-left corner of the Canvas.
+  // Anchor account + cloud status to the top-RIGHT, with a fixed logical width,
+  // so they never cover the avatar on tall phones or narrow screens.
   const placeAccountButton = () => {
     const canvas = el('c');
     const rect = canvas.getBoundingClientRect();
-    const scale = rect.width / (window.innerWidth > window.innerHeight ? 640 : 320);
+    const logicalWidth = Number(canvas.dataset.logicalWidth) ||
+      (window.innerWidth > window.innerHeight ? 640 : 320);
+    const scale = rect.width / logicalWidth;
     const button = el('accountBtn');
-    button.style.left = Math.max(5, rect.left + 8 * scale) + 'px';
-    button.style.top = Math.max(5, rect.top + 33 * scale) + 'px';
-    button.style.maxWidth = Math.max(90, Math.min(190, 175 * scale)) + 'px';
+    const xRight = rect.right - 8 * scale;
+    const top = Math.max(5, rect.top + 8 * scale);
+    const buttonWidth = Math.min(132 * scale, rect.width * .43);
+    button.style.boxSizing = 'border-box';
+    button.style.width = buttonWidth + 'px';
+    button.style.maxWidth = buttonWidth + 'px';
+    button.style.left = Math.max(5, xRight - buttonWidth) + 'px';
+    button.style.top = top + 'px';
     button.style.fontSize = Math.max(9, Math.min(12, 10 * scale)) + 'px';
-    button.style.padding = Math.max(3, 5 * scale) + 'px ' + Math.max(6, 9 * scale) + 'px';
+    button.style.padding = Math.max(3, 4 * scale) + 'px ' + Math.max(5, 7 * scale) + 'px';
     const indicator = el('syncIndicator');
+    indicator.style.boxSizing = 'border-box';
+    indicator.style.width = buttonWidth + 'px';
+    indicator.style.maxWidth = buttonWidth + 'px';
     indicator.style.left = button.style.left;
-    indicator.style.top = (parseFloat(button.style.top) + button.offsetHeight + 5) + 'px';
+    indicator.style.top = (top + button.offsetHeight + 4 * scale) + 'px';
+    indicator.style.textAlign = 'center';
+    indicator.style.whiteSpace = 'nowrap';
+    indicator.style.overflow = 'hidden';
+    indicator.style.textOverflow = 'ellipsis';
   };
   placeAccountButton();
   window.addEventListener('resize', placeAccountButton);
