@@ -186,10 +186,79 @@ body::before {
 #fbPrivacyBox :focus-visible{outline:3px solid #ff7eb6;outline-offset:2px}
 @media(max-width:380px){#fbPrivacyBox{padding:15px 12px}}
 @media(max-height:520px){#fbPrivacyPanel{padding:8px}#fbPrivacyBox{max-height:96dvh;padding:12px 14px}#fbPrivacyBox h2{font-size:17px;margin-bottom:5px}#fbPrivacyBox p{font-size:11px;line-height:1.35;margin:5px 0 8px}#fbPrivacyModes{gap:6px}#fbPrivacyModes button{padding:9px;gap:3px}#fbPrivacyModes button small{font-size:10px;line-height:1.25}#fbPrivacyBox #fbPrivacyDone{padding:9px;margin-top:5px}}
+
+/* Leaderboards: a menu-only shortcut anchored under the upper-right coin HUD. */
+#fbLbShortcut[hidden],#fbLbPanel[hidden]{display:none!important}
+#fbLbShortcut{position:fixed;z-index:24;right:12px;top:68px;max-width:138px;
+  padding:7px 10px;border:2px solid #2b1b00;border-radius:9px;background:#ffd23f;
+  box-shadow:3px 3px 0 #2b1b00;color:#2b1b00;
+  font:700 11px/1.1 'Courier New',monospace;cursor:pointer;white-space:nowrap}
+#fbLbPanel{position:fixed;inset:0;z-index:110;background:rgba(9,8,28,.93);display:flex;
+  align-items:center;justify-content:center;box-sizing:border-box;padding:12px;
+  font:13px/1.4 'Courier New',monospace;color:#2b1b00}
+#fbLbBox{position:relative;box-sizing:border-box;width:min(600px,100%);max-height:min(95dvh,900px);
+  overflow-y:auto;overscroll-behavior:contain;border:3px solid #2b1b00;border-radius:15px;
+  box-shadow:7px 8px 0 #f7aa55;background:#fff8e6;padding:17px}
+#fbLbBox h2{margin:0 37px 7px 0;font-size:22px;letter-spacing:1px}
+#fbLbBox button{box-sizing:border-box;cursor:pointer;font:700 12px/1.15 'Courier New',monospace;
+  border:2px solid #2b1b00;border-radius:8px;background:#ffd23f;color:#2b1b00;padding:10px 9px;box-shadow:2px 2px 0 #2b1b00}
+#fbLbBox button:disabled{opacity:.5;cursor:wait}#fbLbBox #fbLbClose{position:absolute;top:8px;right:10px;
+  border:none;box-shadow:none;background:transparent;font-size:25px;padding:3px 8px}
+#fbLbBox .lbHint{color:#765e4b;font-size:11px;margin:5px 0 11px}
+#fbLbBox .lbRow{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
+#fbLbBox .lbScopes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+#fbLbBox .lbModes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin:11px 0}
+#fbLbBox .lbModes button{font-size:10px;padding:9px 2px;min-width:0}
+#fbLbBox button[aria-pressed="true"]{background:#ffad66}
+#fbLbList{min-height:120px;max-height:45dvh;overflow-y:auto;margin:10px 0}
+#fbLbBox .lbEntry{display:flex;align-items:center;gap:9px;padding:9px 7px;margin:7px 0;background:#fff;
+  border:1px solid #e3c89f;border-radius:9px}
+#fbLbBox .lbEntry.lbMe{border-color:#f0a34e;background:#fff1c7}
+#fbLbBox .lbRank{font-size:15px;font-weight:900;min-width:25px;text-align:center}
+#fbLbBox .lbAvatar{width:39px;height:39px;flex:none;border:2px solid #2b1b00;border-radius:7px;image-rendering:pixelated}
+#fbLbBox .lbName{min-width:0;flex:1;display:grid;gap:2px;text-align:left}
+#fbLbBox .lbName strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+#fbLbBox .lbName small{font-size:9px;color:#785f56}
+#fbLbBox .lbPoints{font-size:14px;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}
+#fbLbBox .lbProfile{padding:5px 6px;font-size:10px;box-shadow:none;background:white}
+#fbLbBox .lbGlobalControls{border:1px solid #d7ba87;border-radius:9px;background:#fff0cf;padding:10px;margin:11px 0}
+#fbLbBox .lbGlobalControls .lbRow{justify-content:space-between}
+#fbLbBox .lbState{margin-top:8px;color:#785f56;font-size:11px;white-space:pre-wrap}
+#fbLbBox .lbState.error{color:#a52336}#fbLbBox :focus-visible,#fbLbShortcut:focus-visible{outline:3px solid #ff7eb6;outline-offset:2px}
+@media(max-width:380px){#fbLbBox{padding:11px}#fbLbBox .lbModes button{font-size:9px}#fbLbBox .lbEntry{gap:6px}#fbLbBox .lbPoints{font-size:12px}#fbLbBox .lbProfile{font-size:9px;padding:5px}}
+@media(max-height:520px){#fbLbBox{padding:10px}#fbLbList{max-height:34dvh}}
 </style>
 <canvas id="c"></canvas>
 <input id="nick" maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false">
 <button id="accountBtn" type="button">ACCOUNT / ВХОД</button>
+
+<button id="fbLbShortcut" type="button" hidden aria-label="Leaderboards">🏆 RANKS</button>
+<div id="fbLbPanel" hidden role="dialog" aria-modal="true" aria-labelledby="fbLbTitle">
+ <div id="fbLbBox">
+  <button id="fbLbClose" type="button" aria-label="Close">×</button>
+  <h2 id="fbLbTitle">🏆 LEADERBOARDS</h2>
+  <p id="fbLbIntro" class="lbHint"></p>
+  <div class="lbScopes" role="group" aria-label="Leaderboard group">
+    <button type="button" data-lb-scope="friends" aria-pressed="true">FRIENDS</button>
+    <button type="button" data-lb-scope="global" aria-pressed="false">GLOBAL</button>
+  </div>
+  <div class="lbModes" role="group" aria-label="Leaderboard metric">
+    <button type="button" data-lb-mode="EASY" aria-pressed="false">EASY</button>
+    <button type="button" data-lb-mode="NORMAL" aria-pressed="false">NORMAL</button>
+    <button type="button" data-lb-mode="HARD" aria-pressed="false">HARD</button>
+    <button type="button" data-lb-mode="EXTREME" aria-pressed="false">EXTREME</button>
+    <button type="button" data-lb-mode="COINS" aria-pressed="true">COINS</button>
+  </div>
+  <div class="lbRow"><button id="fbLbRefresh" type="button">↻ Refresh</button><span id="fbLbCount" class="lbHint"></span></div>
+  <div id="fbLbList" aria-live="polite"></div>
+  <div id="fbLbGlobalControls" class="lbGlobalControls" hidden>
+    <div class="lbRow"><strong id="fbLbJoinLabel">GLOBAL PARTICIPATION</strong><button id="fbLbJoin" type="button">Join</button></div>
+    <div id="fbLbJoinHint" class="lbHint"></div>
+  </div>
+  <p class="lbHint" id="fbLbFairness"></p>
+  <p class="lbState" id="fbLbStatus" role="status" aria-live="polite"></p>
+ </div>
+</div>
 <div id="syncIndicator" hidden aria-live="polite">● ЛОКАЛЬНО</div>
 <div id="authPanel" hidden role="dialog" aria-modal="true" aria-labelledby="authTitle">
   <div id="authBox">
@@ -1048,10 +1117,7 @@ if (!initialized) {
           p.scored = true; score++; pop = cfg.fx ? 0 : 1;
           // Score sound removed: coin collection has its own chime.
           onScore(p);
-          if (cfg.diff === 'EXTREME' && score % 8 === 0 && score <= 80) {
-            toasts.push({text: tr('EXTREME_LEVEL') + ' ' + extremeLevel(), plain: true, t: 95});
-            tone(380, 700, 0.18, 'triangle', 0.06);
-          }
+          // EXTREME tiers adjust difficulty silently; no disruptive overlay or toast.
         }
       }
       pipes = pipes.filter(p => p.x + PW + 4 > 0);
@@ -2658,8 +2724,6 @@ function toggleFS() {
     }
 
     if (screen === 'PAUSE') drawPause();
-    if (cfg.diff === 'EXTREME' && !screen && state === 'PLAYING')
-      txt(tr('EXTREME') + ' · ' + extremeLevel(), W / 2, 48, 10, '#ffd23f', 'center', false);
     if (screen === 'SETTINGS') drawSettings();
     if (screen === 'ACH') drawAch();
     if (screen === 'MAPS') drawMaps();
@@ -3488,6 +3552,7 @@ document.addEventListener('keydown',e=>{if(!privacyPanel.hidden){e.stopImmediate
 for(const b of privacyPanel.querySelectorAll('[data-fb-privacy]'))b.addEventListener('click',()=>{
   const uid=ownUid();if(!registered()||privacyReadyUid!==uid)return;
   currentPrivacy=validPrivacy(b.dataset.fbPrivacy);writePrivacyLocal(uid,currentPrivacy,true);
+  window.dispatchEvent(new CustomEvent('flyingbird:privacy-changing',{detail:{uid,visibility:currentPrivacy}}));
   privacyStatus=privacyText('saving');renderPrivacy();schedulePublicUpdate(100);
 });
 async function preparePrivacy(uid){
@@ -3656,8 +3721,10 @@ function publicStatsPayload(){
   let progress={};try{progress=JSON.parse(localStorage.getItem('flyingBirdSave')||'{}')}catch{}
   const safeNumber=x=>Math.min(100000000,Math.max(0,Math.floor(Number(x)||0)));
   const best={};for(const mode of ['EASY','NORMAL','HARD','EXTREME'])best[mode]=safeNumber(progress.best?.[mode]);
+  let wallet={};try{wallet=JSON.parse(localStorage.getItem('flyingBirdWallet')||'{}')}catch{}
   return {best,games:safeNumber(progress.games),pipes:safeNumber(progress.pipes),
     flaps:safeNumber(progress.flaps),earnedCoins:safeNumber(progress.earnedCoins),
+    coins:safeNumber(wallet.coins),
     achievements:Object.values(progress.ach||{}).filter(Boolean).length,
     updatedAt:serverTimestamp()};
 }
@@ -3710,7 +3777,10 @@ async function publishOwnData(){
     if(ownUid()===uid&&readyUid===uid&&window.flyingBirdPublicReadyUid===uid){
       setPublishState('stats','…');
       await setDoc(doc(db,'publicStats',uid),publicStatsPayload());
-      if(ownUid()===uid)setPublishState('stats','✓ '+(lang==='RU'?'синхронизирована':'synced'));
+      if(ownUid()===uid){
+        setPublishState('stats','✓ '+(lang==='RU'?'синхронизирована':'synced'));
+        window.dispatchEvent(new CustomEvent('flyingbird:public-stats-synced',{detail:{uid}}));
+      }
     }else if(ownUid()===uid){setPublishState('stats',lang==='RU'?'ожидание загрузки прогресса':'waiting for progress')}
   }catch(e){
     failed=true;
@@ -3757,6 +3827,13 @@ function openFriends(){closePlayerProfile();applyLang();if(!registered()){docume
 function closeFriends(){closePlayerProfile();modal.hidden=true}
 function setActiveTab(name){closePlayerProfile();activeTab=name;for(const n of ['friends','requests','blocked']){$('fbf'+n[0].toUpperCase()+n.slice(1)+'Pane').hidden=n!==name;modal.querySelector('[data-fbf-tab="'+n+'"]').setAttribute('aria-selected',String(n===name))}}
 window.flyingBirdOpenFriends=openFriends;
+window.flyingBirdOpenRankedProfile=(uid)=>{
+  if(!registered()||!uid)return;
+  modal.hidden=false;
+  applyLang();
+  setActiveTab('friends');
+  void fetchPublic(uid).then(()=>openPlayerProfile(uid));
+};
 $('fbfClose').onclick=closeFriends;modal.addEventListener('click',e=>{if(e.target===modal)closeFriends()});
 modal.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();if(!$('fbfProfile').hidden)closePlayerProfile();else closeFriends()}});
 document.addEventListener('keydown',e=>{if(!modal.hidden){e.stopImmediatePropagation();if(e.key==='Escape'){e.preventDefault();if(!$('fbfProfile').hidden)closePlayerProfile();else closeFriends()}}},true);
@@ -3770,6 +3847,71 @@ onAuthStateChanged(auth,async user=>{const seq=++authSeq,uid=user&&!user.isAnony
 if(window.flyingBirdIdentityReadyUid===uid||window.flyingBirdPublicReadyUid===uid)void preparePrivacy(uid)
 if(setupUrl){const url=validUrl(setupUrl);if(url){try{dbRealtime=dbRealtime||getDatabase(app,url);startPresence(uid);$('fbfPresenceInfo').textContent=T('dbReady')}catch(e){$('fbfPresenceInfo').textContent=err(e)}}}else $('fbfPresenceInfo').textContent=T('dbMissing');await refresh();if(seq!==authSeq)return;});
 applyLang();
+</script>
+<script type="module">
+// Flying Bird Leaderboards: uses existing Auth, public profiles, public stats, friendships.
+// Global entries are optional and contain only explicitly leaderboard-shared data.
+import {getApps,getApp,initializeApp} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
+import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+import {getFirestore,collection,doc,query,where,limit,orderBy,getDocsFromServer,getDocFromServer,setDoc,deleteDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
+const fbConfig={apiKey:'AIzaSyBXhPjfPGPjD6SX6ISyd9UIGcwIGDir2IE',authDomain:'flying-bird-d6832.firebaseapp.com',projectId:'flying-bird-d6832',storageBucket:'flying-bird-d6832.firebasestorage.app',messagingSenderId:'824302202629',appId:'1:824302202629:web:885e30d34fb1ddaa56516c'};
+const app=getApps().length?getApp():initializeApp(fbConfig),auth=getAuth(app),db=getFirestore(app);
+const $=id=>document.getElementById(id),panel=$('fbLbPanel'),shortcut=$('fbLbShortcut');
+const dict={
+ EN:{ranks:'🏆 RANKS',title:'🏆 LEADERBOARDS',intro:'Compare your best flights and your coin balance.',friends:'FRIENDS',global:'GLOBAL',refresh:'↻ Refresh',globalShare:'GLOBAL PARTICIPATION',join:'Join',leave:'Leave',joined:'Your scores and current coin balance appear in the global ranking.',needPublic:'Change Profile → Privacy to PUBLIC before joining the global ranking.',globalInfo:'Global is opt-in. Your public nickname, avatar, records and current coin balance will be visible.',fun:'Coin ranking uses your current wallet balance. These are informal client-reported scores, not anti-cheat verified.',empty:'No ranked players yet.',loading:'Loading rankings…',signedOut:'Sign in to view the leaderboards.',closed:'Hidden by privacy settings',error:'Unable to load leaderboard',notReady:'Public profile and statistics must finish syncing.',count:'players shown',me:'YOU',profile:'Profile',waiting:'Saving participation…',leaveDone:'Removed from global rankings.',joinDone:'You joined the global rankings.',onlyPublic:'Global participation requires a Public profile.',modeCoin:'COINS',more:'Top 50; some friends may be hidden.',joinRetry:'Sync failed. Check your connection and retry.'},
+ RU:{ranks:'🏆 ТОП',title:'🏆 ТАБЛИЦА ЛИДЕРОВ',intro:'Соревнуйся с друзьями по рекордам и монетам.',friends:'ДРУЗЬЯ',global:'МИР',refresh:'↻ Обновить',globalShare:'УЧАСТИЕ В МИРОВОМ ТОПЕ',join:'Участвовать',leave:'Покинуть',joined:'Твои рекорды и текущий баланс монет видны в мировом рейтинге.',needPublic:'Для участия переключи Профиль → Приватность на «Публичный».',globalInfo:'Участие добровольное: всем видны твой ник, аватар, рекорды и текущий баланс монет.',fun:'В зачёт идут монеты на кошельке. Результаты пока без серверной античит-проверки.',empty:'Пока нет игроков в рейтинге.',loading:'Загружаем рейтинг…',signedOut:'Войди в аккаунт, чтобы смотреть рейтинг.',closed:'Скрыто настройкой приватности',error:'Не удалось загрузить рейтинг',notReady:'Дождись синхронизации публичного профиля и статистики.',count:'игроков показано',me:'ТЫ',profile:'Профиль',waiting:'Сохраняем участие…',leaveDone:'Ты удалён из мирового рейтинга.',joinDone:'Ты вступил в мировой рейтинг.',onlyPublic:'Для мирового рейтинга нужен публичный профиль.',modeCoin:'МОНЕТЫ',more:'Топ-50; скрытые профили друзей не отображаются.',joinRetry:'Ошибка синхронизации. Проверь сеть и повтори.'},
+ ZH:{ranks:'🏆 排名',title:'🏆 排行榜',intro:'对比好友的成绩与金币余额。',friends:'好友',global:'全球',refresh:'↻ 刷新',globalShare:'参与全球排行',join:'参加',leave:'退出',joined:'你的成绩与当前金币余额会出现在全球排行。',needPublic:'请先在个人资料 → 隐私中选择公开。',globalInfo:'自愿参与。昵称、头像、纪录与当前金币余额将公开。',fun:'金币排行按当前余额计算。成绩尚无服务器反作弊验证。',empty:'暂无排行数据。',loading:'正在加载…',signedOut:'请登录后查看排行榜。',closed:'隐私设置已隐藏',error:'无法加载排行',notReady:'等待个人资料和统计同步。',count:'位玩家',me:'你',profile:'资料',waiting:'正在保存…',leaveDone:'已退出全球排行。',joinDone:'已参加全球排行。',onlyPublic:'需要公开个人资料才能参加全球排行。',modeCoin:'金币',more:'前 50 名；隐藏资料不显示。',joinRetry:'同步失败，请检查网络。'},
+ ES:{ranks:'🏆 TOP',title:'🏆 CLASIFICACIÓN',intro:'Compara récords y monedas con tus amigos.',friends:'AMIGOS',global:'GLOBAL',refresh:'↻ Actualizar',globalShare:'PARTICIPACIÓN GLOBAL',join:'Unirse',leave:'Salir',joined:'Tus récords y saldo de monedas son visibles en la clasificación global.',needPublic:'Cambia Perfil → Privacidad a Público para participar.',globalInfo:'Participación voluntaria. Nick, avatar, récords y saldo son públicos.',fun:'Las monedas son el saldo actual. Los resultados aún no tienen verificación antitrampas.',empty:'Aún no hay jugadores.',loading:'Cargando clasificación…',signedOut:'Inicia sesión para ver la clasificación.',closed:'Oculto por privacidad',error:'No se pudo cargar',notReady:'Espera a que se sincronicen tu perfil y estadísticas.',count:'jugadores',me:'TÚ',profile:'Perfil',waiting:'Guardando…',leaveDone:'Has salido de la clasificación global.',joinDone:'Te uniste a la clasificación global.',onlyPublic:'Necesitas un perfil público.',modeCoin:'MONEDAS',more:'Top 50; se omiten perfiles ocultos.',joinRetry:'Error de sincronización. Reintenta.'},
+ PT:{ranks:'🏆 TOP',title:'🏆 CLASSIFICAÇÃO',intro:'Compare recordes e moedas com seus amigos.',friends:'AMIGOS',global:'GLOBAL',refresh:'↻ Atualizar',globalShare:'PARTICIPAÇÃO GLOBAL',join:'Participar',leave:'Sair',joined:'Seus recordes e saldo de moedas aparecem no ranking global.',needPublic:'Mude Perfil → Privacidade para Público antes de participar.',globalInfo:'Participação opcional. Nick, avatar, recordes e saldo ficam públicos.',fun:'O ranking de moedas usa o saldo atual. Recordes ainda não têm verificação antitrapaça.',empty:'Ainda não há jogadores.',loading:'Carregando ranking…',signedOut:'Entre na conta para ver o ranking.',closed:'Oculto pela privacidade',error:'Não foi possível carregar',notReady:'Aguarde sincronizar perfil e estatísticas.',count:'jogadores',me:'VOCÊ',profile:'Perfil',waiting:'Salvando…',leaveDone:'Você saiu do ranking global.',joinDone:'Você entrou no ranking global.',onlyPublic:'É necessário perfil público.',modeCoin:'MOEDAS',more:'Top 50; perfis ocultos não aparecem.',joinRetry:'Erro ao sincronizar. Tente novamente.'}
+};
+function lang(){try{return JSON.parse(localStorage.getItem('flyingBirdCfg')||'{}').lang||'EN'}catch{return 'EN'}}
+function T(key){return (dict[lang()]||dict.EN)[key]||dict.EN[key]||key}
+const safeN=x=>Math.min(100000000,Math.max(0,Math.floor(Number(x)||0)));
+const read=k=>{try{return JSON.parse(localStorage.getItem(k)||'{}')}catch{return {}}};
+const myUid=()=>auth.currentUser&&!auth.currentUser.isAnonymous?auth.currentUser.uid:null;
+const vis=uid=>{try{return JSON.parse(localStorage.getItem('flyingBirdPrivacyV1:'+uid)||'null')?.value}catch{return null}};
+let scope='friends',mode='EASY',rows=[],joined=false,joining=false,loading=false,seq=0,authSeq=0,localSig='',syncTimer=null,privacyBlockedUid=null;
+let status='',statusError=false;
+function setStatus(message,error=false){status=message||'';statusError=error;renderStatus()}
+function renderStatus(){const e=$('fbLbStatus');e.textContent=status;e.classList.toggle('error',statusError)}
+function pos(){const r=$('c').getBoundingClientRect(),sc=r.width/(Number($('c').dataset.logicalWidth)||320);shortcut.style.right=Math.max(8,Math.round(innerWidth-r.right+10*sc))+'px';shortcut.style.top=Math.round(r.top+39*sc)+'px';shortcut.style.fontSize=Math.max(10,Math.min(13,10*sc))+'px';}
+function showShortcut(){shortcut.hidden=window.__flyingBirdAccountScreen!=='MENU';pos()}
+window.addEventListener('flyingbird:screen-change',showShortcut);window.addEventListener('resize',pos);window.visualViewport?.addEventListener('resize',pos);
+setTimeout(showShortcut,150);
+function setLanguage(){shortcut.textContent=T('ranks');$('fbLbTitle').textContent=T('title');$('fbLbIntro').textContent=T('intro');$('fbLbRefresh').textContent=T('refresh');$('fbLbJoinLabel').textContent=T('globalShare');$('fbLbFairness').textContent=T('fun');for(const b of panel.querySelectorAll('[data-lb-scope]')){b.textContent=T(b.dataset.lbScope);b.setAttribute('aria-pressed',String(b.dataset.lbScope===scope))}for(const b of panel.querySelectorAll('[data-lb-mode]')){b.textContent=b.dataset.lbMode==='COINS'?T('modeCoin'):b.dataset.lbMode;b.setAttribute('aria-pressed',String(b.dataset.lbMode===mode))}renderJoin()}
+function isPublic(){const uid=myUid();return uid&&vis(uid)==='public'&&privacyBlockedUid!==uid}
+function renderJoin(){const uid=myUid(),e=$('fbLbGlobalControls');e.hidden=scope!=='global'||!uid;$('fbLbJoin').textContent=joined?T('leave'):T('join');$('fbLbJoin').disabled=joining||(!joined&&!isPublic());$('fbLbJoinHint').textContent=joined?T('joined'):isPublic()?T('globalInfo'):T('needPublic')}
+function avatar(data){const cv=document.createElement('canvas');cv.width=cv.height=32;cv.className='lbAvatar';cv.setAttribute('aria-label','Bird avatar');const c=cv.getContext('2d');if(!c)return cv;const bg=window.flyingBirdFriendAvatarBackgrounds||['#ff6b9d','#ffd23f','#4cd964','#4da3ff','#b9a0ff','#ff7b2e','#2ec4b6','#e8e8f5'];const p=window.flyingBirdFriendSkinPalette||[];const a=data?.avatar||{},b=bg[Math.abs(Number(a.bg)||0)%bg.length],s=p[Math.max(0,Math.floor(Number(a.skin)||0))]||p[0]||{body:'#ffd23f',hi:'#ffe98a',wing:'#ff9f1c',belly:'#fff4d6'};c.fillStyle=b;c.fillRect(0,0,32,32);c.fillStyle='rgba(255,255,255,.18)';c.fillRect(0,0,32,9);c.fillStyle='#2b1b00';c.fillRect(6,8,21,18);c.fillStyle=s.body;c.fillRect(7,9,19,16);c.fillRect(10,6,13,4);c.fillStyle=s.hi;c.fillRect(11,7,10,3);c.fillStyle=s.wing;c.fillRect(8,17,9,7);c.fillStyle=s.belly;c.fillRect(15,21,9,4);c.fillStyle='#fff';c.fillRect(19,11,6,6);c.fillStyle='#1a1033';c.fillRect(23,13,3,3);c.fillStyle='#ff9f1c';c.fillRect(26,18,5,3);return cv}
+function metric(row){return mode==='COINS'?safeN(row.coins):safeN(row.best?.[mode])}
+function makeEl(tag,text,cls){const n=document.createElement(tag);if(text!=null)n.textContent=String(text);if(cls)n.className=cls;return n}
+function renderList(){const target=$('fbLbList');target.replaceChildren();if(!myUid()){target.append(makeEl('p',T('signedOut'),'lbHint'));$('fbLbCount').textContent='';return}if(loading){target.append(makeEl('p',T('loading'),'lbHint'));return}if(!rows.length){target.append(makeEl('p',T('empty'),'lbHint'));$('fbLbCount').textContent='';return}const sorted=[...rows].sort((a,b)=>metric(b)-metric(a)||(a.nick||'').localeCompare(b.nick||'')||(a.uid||'').localeCompare(b.uid||''));for(const [i,r] of sorted.entries()){const item=makeEl('div',null,'lbEntry'+(r.uid===myUid()?' lbMe':''));item.append(makeEl('span',i===0?'🥇':i===1?'🥈':i===2?'🥉':String(i+1),'lbRank'));item.append(avatar(r));const name=makeEl('div',null,'lbName');name.append(makeEl('strong',String(r.nick||'BIRD')+(r.uid===myUid()?' · '+T('me'):'')),makeEl('small',r.playerId||'—'));item.append(name,makeEl('strong',metric(r).toLocaleString(),'lbPoints'));if(r.uid!==myUid()){const button=makeEl('button',T('profile'),'lbProfile');button.type='button';button.addEventListener('click',()=>{close();window.flyingBirdOpenRankedProfile?.(r.uid)});item.append(button)}target.append(item)}$('fbLbCount').textContent=sorted.length+' '+T('count');}
+const getProfile=uid=>getDocFromServer(doc(db,'publicProfiles',uid));
+const getStats=uid=>getDocFromServer(doc(db,'publicStats',uid));
+async function loadFriends(uid){const requests=collection(db,'friendRequests');const [inS,outS,blocksSnap]=await Promise.all([getDocsFromServer(query(requests,where('toUid','==',uid),limit(50))),getDocsFromServer(query(requests,where('fromUid','==',uid),limit(50))),getDocsFromServer(query(collection(db,'blocks',uid,'users'),limit(100)))]);const blocked=new Set(blocksSnap.docs.map(s=>s.id));const ids=new Set([uid]);for(const s of [...inS.docs,...outS.docs]){const d=s.data(),other=d.fromUid===uid?d.toUid:d.toUid===uid?d.fromUid:null;if(d.status==='accepted'&&other&&!blocked.has(other))ids.add(other)}return [...ids];}
+async function refresh(){const uid=myUid(),ticket=++seq;loading=true;rows=[];renderList();if(!uid){loading=false;renderList();setStatus('');return}try{let newRows=[];if(scope==='friends'){const ids=await loadFriends(uid);const results=await Promise.all(ids.map(async id=>{try{const profileSnap=await getProfile(id);if(!profileSnap.exists())return null;const profile=profileSnap.data();if(id!==uid && profile.visibility==='hidden')return null;const statsSnap=await getStats(id);if(!statsSnap.exists())return null;const st=statsSnap.data();return {uid:id,nick:profile.nick,playerId:profile.playerId,avatar:profile.avatar,best:st.best,coins:st.coins??0}}catch(e){if(e?.code!=='permission-denied')console.warn('[Leaderboards] friend rank unavailable',id,e?.code||e);return null}}));newRows=results.filter(Boolean);}else{const field=mode==='COINS'?'coins':'best.'+mode;const list=await getDocsFromServer(query(collection(db,'leaderboardEntries'),orderBy(field,'desc'),limit(50)));newRows=list.docs.map(s=>({uid:s.id,...s.data()}));}if(ticket!==seq||uid!==myUid())return;rows=newRows;setStatus('');}catch(e){if(ticket!==seq)return;setStatus(T('error')+' ('+(e?.code||e?.message||String(e))+')',true);rows=[]}finally{if(ticket===seq){loading=false;renderList();renderJoin()}}}
+function open(){panel.hidden=false;scope='friends';setLanguage();renderList();renderStatus();void refresh()}
+function close(){panel.hidden=true;++seq;loading=false}
+window.flyingBirdCloseLeaderboard=close;
+shortcut.addEventListener('click',()=>{if(panel.hidden)open();else close()});$('fbLbClose').addEventListener('click',close);panel.addEventListener('click',e=>{if(e.target===panel)close()});panel.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close()}});document.addEventListener('keydown',e=>{if(!panel.hidden){e.stopImmediatePropagation();if(e.key==='Escape'){e.preventDefault();close()}}},true);
+for(const b of panel.querySelectorAll('[data-lb-scope]'))b.addEventListener('click',()=>{scope=b.dataset.lbScope;setLanguage();void refresh()});
+for(const b of panel.querySelectorAll('[data-lb-mode]'))b.addEventListener('click',()=>{mode=b.dataset.lbMode;setLanguage();void refresh()});
+$('fbLbRefresh').addEventListener('click',()=>void refresh());
+// Global opt-in is stored by existence of leaderboardEntries/{uid}. It persists across devices.
+const myEntryRef=uid=>doc(db,'leaderboardEntries',uid);
+let initializedUid=null;
+async function initJoin(uid){const ticket=++authSeq;initializedUid=null;joined=false;localSig='';clearTimeout(syncTimer);renderJoin();if(!uid)return;try{const s=await getDocFromServer(myEntryRef(uid));if(ticket!==authSeq||myUid()!==uid)return;joined=s.exists();initializedUid=uid;if(s.exists()){const d=s.data();localSig=JSON.stringify({nick:d.nick,playerId:d.playerId,avatar:d.avatar,best:d.best,coins:d.coins});}}catch(e){if(ticket===authSeq){setStatus(T('error')+' ('+(e?.code||e?.message||e)+')',true)}}finally{renderJoin()}}
+async function dropEntry(uid){if(myUid()!==uid)return;try{await deleteDoc(myEntryRef(uid));if(myUid()===uid){joined=false;localSig='';renderJoin();setStatus(T('leaveDone'))}}catch(e){if(myUid()===uid){setStatus(T('joinRetry')+' ('+(e?.code||e?.message||e)+')',true)}}}
+async function snapshotOwn(uid){const [p,s]=await Promise.all([getProfile(uid),getStats(uid)]);if(myUid()!==uid)return null;if(!p.exists()||!s.exists())throw Error(T('notReady'));const card=p.data(),st=s.data();if(card.visibility!=='public'||!isPublic())throw Error(T('onlyPublic'));return {nick:card.nick,playerId:card.playerId,avatar:card.avatar,best:Object.fromEntries(['EASY','NORMAL','HARD','EXTREME'].map(d=>[d,safeN(st.best?.[d])])),coins:safeN(st.coins)};}
+async function syncEntry(uid,force=false){if(!joined||initializedUid!==uid||uid!==myUid())return;if(!isPublic()){await dropEntry(uid);return}try{const payload=await snapshotOwn(uid);if(uid!==myUid()||!joined||!payload)return;const signature=JSON.stringify(payload);if(!force&&signature===localSig)return;await setDoc(myEntryRef(uid),{...payload,updatedAt:serverTimestamp()});if(uid!==myUid())return;localSig=signature;if(!panel.hidden&&scope==='global')void refresh();}catch(e){if(uid===myUid())setStatus(T('joinRetry')+' ('+(e?.code||e?.message||e)+')',true)}}
+function scheduleSync(ms=4500){const uid=myUid();if(!uid||!joined||initializedUid!==uid)return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>void syncEntry(uid),ms)}
+$('fbLbJoin').addEventListener('click',async()=>{const uid=myUid();if(!uid||joining)return;joining=true;renderJoin();setStatus(T('waiting'));try{if(joined){await deleteDoc(myEntryRef(uid));joined=false;localSig='';setStatus(T('leaveDone'))}else{if(!isPublic())throw Error(T('onlyPublic'));const payload=await snapshotOwn(uid);if(!payload)throw Error(T('notReady'));await setDoc(myEntryRef(uid),{...payload,updatedAt:serverTimestamp()});joined=true;initializedUid=uid;localSig=JSON.stringify(payload);setStatus(T('joinDone'))}if(scope==='global')await refresh();}catch(e){setStatus(T('joinRetry')+' ('+(e?.code||e?.message||e)+')',true)}finally{joining=false;renderJoin()}});
+window.addEventListener('flyingbird:public-stats-synced',e=>{if(e.detail?.uid===myUid())scheduleSync(900)});
+window.addEventListener('flyingbird:privacy-changing',e=>{const uid=myUid();if(e.detail?.uid!==uid)return;if(e.detail.visibility!=='public'){privacyBlockedUid=uid;clearTimeout(syncTimer);if(joined)void dropEntry(uid);}else {privacyBlockedUid=null;renderJoin();}});
+window.addEventListener('flyingbird:progress-changed',()=>{if(!panel.hidden){setLanguage()}scheduleSync(9000)});
+window.addEventListener('online',()=>scheduleSync(250));
+onAuthStateChanged(auth,user=>{const uid=user&&!user.isAnonymous?user.uid:null;privacyBlockedUid=null;void initJoin(uid);if(!panel.hidden){setLanguage();void refresh()}});
+setLanguage();
+
 </script>
 </body>
 </html>
