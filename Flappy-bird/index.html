@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="theme-color" content="#0f0c29">
   <meta name="mobile-web-app-capable" content="yes">
   <title>Flying Bird</title>
 </head>
@@ -18,6 +19,7 @@
   justify-content: center;
   align-items: center;
   box-sizing: border-box;
+  background: #0f0c29;
   height: 100%;
   height: 100dvh;
   padding:
@@ -31,13 +33,25 @@ body.mobile canvas {
   outline: none;
   box-shadow: none;
 }
+/* Solid dark safe-area backing instead of a translucent bright header. */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: #0f0c29;
+  pointer-events: none;
+  z-index: 10;
+}
   canvas { display:block; background:#000; outline:4px solid #ffd23f; box-shadow:0 0 40px rgba(255,107,157,.35); image-rendering:pixelated; }
   #nick { display:none; position:fixed; z-index:5; box-sizing:border-box; background:#fff4d6; color:#2b1b00; border:3px solid #2b1b00; outline:3px solid #ffd23f; border-radius:0; text-align:center; padding:0 8px; font:bold 18px 'Courier New', monospace; user-select:text; -webkit-user-select:text; }
 
   body.nick-editing { overflow:hidden; }
   body.nick-editing #nick { z-index:100; }
   /* Account shortcut: aligned with the game's avatar and nickname. */
-  #accountBtn {position:fixed;left:auto;right:12px;top:12px;z-index:20;max-width:136px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:2px solid #2b1b00;border-radius:8px;background:#ffd23f;color:#2b1b00;padding:6px 10px;font:bold 11px 'Courier New',monospace;box-shadow:3px 3px 0 #2b1b00;cursor:pointer;transition:filter .15s}
+  #accountBtn {position:fixed;left:10px;right:auto;top:calc(env(safe-area-inset-top, 0px) + 36px);z-index:20;max-width:136px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:2px solid #2b1b00;border-radius:7px;background:#ffd23f;color:#2b1b00;padding:4px 7px;font:bold 10px 'Courier New',monospace;box-shadow:2px 2px 0 #2b1b00;cursor:pointer;transition:filter .15s}
   #accountBtn[hidden] {display:none!important}
   #accountBtn:hover {filter:brightness(1.07)}
   #accountBtn:focus-visible,#authBox button:focus-visible,#authBox input:focus-visible {outline:3px solid #ff7eb6;outline-offset:2px}
@@ -78,7 +92,7 @@ body.mobile canvas {
   #accountDetails .detail span:first-child {color:#855c28}
   #accountDetails .detail span:last-child {text-align:right}
   #accountStats {width:100%;margin:12px 0 9px}
-  #syncIndicator {position:fixed;right:12px;top:52px;z-index:21;padding:4px 8px;border:2px solid #2b1b00;border-radius:7px;background:#fff9e9;color:#2b1b00;font:bold 10px 'Courier New',monospace;pointer-events:none;max-width:190px}
+  #syncIndicator {position:fixed;left:10px;right:auto;top:calc(env(safe-area-inset-top, 0px) + 62px);z-index:21;padding:3px 5px;border:2px solid #2b1b00;border-radius:7px;background:#fff9e9;color:#2b1b00;font:bold 9px 'Courier New',monospace;pointer-events:none;max-width:136px}
   #statsPanel,#logoutPanel {position:fixed;inset:0;z-index:48;background:rgba(9,8,28,.9);display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box}
   .fbDialog {width:min(430px,100%);max-height:90dvh;overflow-y:auto;background:#fff9e9;color:#2b1b00;border:3px solid #2b1b00;border-radius:16px;box-shadow:7px 8px 0 #ffd23f;padding:22px;box-sizing:border-box;font:13px/1.5 'Courier New',monospace}
   .fbDialog h2 {margin:0 0 12px}
@@ -393,16 +407,26 @@ body.mobile canvas {
     return [...full].every(c => ID_CH.includes(c)) && idCheck(full.slice(0, 7)) === full[7];
   }
   const cleanNick = v => Array.from(String(v).replace(/[^\p{L}\p{N} _.-]/gu, '').replace(/\s+/g, ' ').trim()).slice(0, 12).join('');
-  const AV_BG = ['#ff6b9d', '#ffd23f', '#4cd964', '#4da3ff', '#b9a0ff', '#ff7b2e', '#2ec4b6', '#e8e8f5'];
+  // Keep the first eight positions unchanged for older local/cloud avatars.
+  const AV_BG = ['#ff6b9d', '#ffd23f', '#4cd964', '#4da3ff', '#b9a0ff', '#ff7b2e', '#2ec4b6', '#e8e8f5',
+                 '#151c46', '#f8a46b', '#126d91', '#60318e'];
+  // Friends panel uses precisely the same palette, including new backgrounds.
+  window.flyingBirdFriendAvatarBackgrounds = AV_BG.slice();
+  window.flyingBirdAvatarBackgroundCount = AV_BG.length;
   window.flyingBirdFriendSkinPalette = SKINS.map(({body,hi,wing,belly})=>({body,hi,wing,belly}));
   const profile = store.get('flyingBirdProfile', { id: '', nick: '', av: { skin: 0, bg: 0 }, created: 0 });
   if (!isValidId(profile.id)) { profile.id = newId(); profile.created = Date.now(); }
   profile.nick = cleanNick(profile.nick);
   if (Array.from(profile.nick).length < 3) profile.nick = 'BIRD' + (1000 + Math.floor(Math.random() * 9000));
-  profile.av = { skin: Math.max(0, (profile.av && profile.av.skin) | 0), bg: (((profile.av && profile.av.bg) | 0) % AV_BG.length + AV_BG.length) % AV_BG.length };
+  profile.av = {
+    skin: Math.max(0, Math.min(SKINS.length - 1, (profile.av && profile.av.skin) | 0)),
+    bg: (((profile.av && profile.av.bg) | 0) % AV_BG.length + AV_BG.length) % AV_BG.length
+  };
   window.addEventListener('flyingbird:cloud-profile', e => {
     if (!e.detail) return;
     Object.assign(profile, e.detail);
+    const a=profile.av || {};
+    profile.av={skin:Math.max(0,Math.min(SKINS.length-1,Number(a.skin)|0)),bg:((Number(a.bg)|0)%AV_BG.length+AV_BG.length)%AV_BG.length};
     store.set('flyingBirdProfile', profile);
   });
   window.addEventListener('flyingbird:new-guest-profile', () => {
@@ -649,6 +673,14 @@ body.mobile canvas {
     ZH:{HIGH:'高',LOW:'低'},ES:{HIGH:'ALTA',LOW:'BAJA'},PT:{HIGH:'ALTA',LOW:'BAIXA'}
   };
   for (const lang of LANGS) Object.assign(I18N[lang], qualityText[lang]);
+  const AVATAR_MENU_TEXT = {
+    EN:{AVATAR_PICK:'AVATAR CUSTOMIZATION',AVATAR_BIRDS:'OWNED BIRDS',AVATAR_BACKS:'BACKGROUNDS',AVATAR_MATCH:'USE GAME SKIN',AVATAR_SELECTED:'SELECTED',AVATAR_EMPTY:'NO OWNED BIRDS',GAME_EXIT:'EXIT GAME',EXIT_QUESTION:'LEAVE FLYING BIRD?',EXIT_CONFIRM:'EXIT',EXIT_CANCEL:'CANCEL',EXIT_DONE:'SESSION FINISHED',EXIT_HINT:'CLOSE THIS TAB OR APP TO EXIT',EXIT_RETURN:'RETURN TO GAME',AVBG_STARS:'STARLIGHT',AVBG_SUNSET:'SUNSET',AVBG_SEA:'DEEP SEA',AVBG_ROYAL:'ROYAL NIGHT'},
+    RU:{AVATAR_PICK:'НАСТРОЙКА АВАТАРА',AVATAR_BIRDS:'МОИ ПТИЦЫ',AVATAR_BACKS:'ФОНЫ',AVATAR_MATCH:'СКИН КАК В ИГРЕ',AVATAR_SELECTED:'ВЫБРАНО',AVATAR_EMPTY:'НЕТ ДОСТУПНЫХ ПТИЦ',GAME_EXIT:'ВЫХОД ИЗ ИГРЫ',EXIT_QUESTION:'ЗАВЕРШИТЬ ИГРУ?',EXIT_CONFIRM:'ВЫЙТИ',EXIT_CANCEL:'ОТМЕНА',EXIT_DONE:'ИГРА ЗАВЕРШЕНА',EXIT_HINT:'ЗАКРОЙТЕ ВКЛАДКУ ИЛИ ПРИЛОЖЕНИЕ',EXIT_RETURN:'ВЕРНУТЬСЯ В ИГРУ',AVBG_STARS:'ЗВЁЗДЫ',AVBG_SUNSET:'ЗАКАТ',AVBG_SEA:'МОРСКАЯ ГЛУБИНА',AVBG_ROYAL:'КОРОЛЕВСКАЯ НОЧЬ'},
+    ZH:{AVATAR_PICK:'自定义头像',AVATAR_BIRDS:'拥有的小鸟',AVATAR_BACKS:'背景',AVATAR_MATCH:'使用游戏外观',AVATAR_SELECTED:'已选',AVATAR_EMPTY:'暂无可用小鸟',GAME_EXIT:'退出游戏',EXIT_QUESTION:'确定退出游戏？',EXIT_CONFIRM:'退出',EXIT_CANCEL:'取消',EXIT_DONE:'游戏已结束',EXIT_HINT:'关闭浏览器标签页或应用',EXIT_RETURN:'返回游戏',AVBG_STARS:'星夜',AVBG_SUNSET:'晚霞',AVBG_SEA:'深海',AVBG_ROYAL:'皇家之夜'},
+    ES:{AVATAR_PICK:'PERSONALIZAR AVATAR',AVATAR_BIRDS:'AVES OBTENIDAS',AVATAR_BACKS:'FONDOS',AVATAR_MATCH:'USAR ASPECTO ACTUAL',AVATAR_SELECTED:'ELEGIDO',AVATAR_EMPTY:'SIN AVES DESBLOQUEADAS',GAME_EXIT:'SALIR DEL JUEGO',EXIT_QUESTION:'¿SALIR DE FLYING BIRD?',EXIT_CONFIRM:'SALIR',EXIT_CANCEL:'CANCELAR',EXIT_DONE:'SESIÓN TERMINADA',EXIT_HINT:'CIERRA LA PESTAÑA O APLICACIÓN',EXIT_RETURN:'VOLVER AL JUEGO',AVBG_STARS:'NOCHE ESTRELLADA',AVBG_SUNSET:'ATARDECER',AVBG_SEA:'MAR PROFUNDO',AVBG_ROYAL:'NOCHE REAL'},
+    PT:{AVATAR_PICK:'PERSONALIZAR AVATAR',AVATAR_BIRDS:'AVES OBTIDAS',AVATAR_BACKS:'FUNDOS',AVATAR_MATCH:'USAR VISUAL ATUAL',AVATAR_SELECTED:'SELECIONADO',AVATAR_EMPTY:'SEM AVES DESBLOQUEADAS',GAME_EXIT:'SAIR DO JOGO',EXIT_QUESTION:'SAIR DO FLYING BIRD?',EXIT_CONFIRM:'SAIR',EXIT_CANCEL:'CANCELAR',EXIT_DONE:'SESSÃO ENCERRADA',EXIT_HINT:'FECHE A ABA OU O APP PARA SAIR',EXIT_RETURN:'VOLTAR AO JOGO',AVBG_STARS:'NOITE ESTRELADA',AVBG_SUNSET:'PÔR DO SOL',AVBG_SEA:'MAR PROFUNDO',AVBG_ROYAL:'NOITE REAL'}
+  };
+  for (const lang of LANGS) Object.assign(I18N[lang], AVATAR_MENU_TEXT[lang]);
   const tr = key => (I18N[cfg.lang] || I18N.EN)[key] || I18N.EN[key] || key;
   const displayValue = value => ({
     NIGHT:tr('NIGHT'), DAY:tr('DAY'), AUTO:tr('AUTO'),
@@ -1874,11 +1906,37 @@ if (!initialized) {
     txt(str, x, y, size, color, align, outline);
   }
 
+  // One shared pixel-art background renderer for the profile and friends list.
+  function paintAvatarBackdrop(c,x,y,s,rawIndex){
+    const index=((Number(rawIndex)|0)%AV_BG.length+AV_BG.length)%AV_BG.length;
+    c.save();c.beginPath();c.rect(x,y,s,s);c.clip();
+    c.fillStyle=AV_BG[index];c.fillRect(x,y,s,s);
+    if(index>=8){
+      const rect=(color,rx,ry,rw,rh)=>{c.fillStyle=color;c.fillRect(Math.round(x+rx*s),Math.round(y+ry*s),Math.max(1,Math.round(rw*s)),Math.max(1,Math.round(rh*s)))};
+      if(index===8){ // starry sky
+        rect('#29366d',0,.58,1,.42);rect('#c5d5ff',.17,.13,.045,.045);rect('#f6d9a4',.73,.19,.075,.075);
+        rect('#e7edff',.84,.69,.04,.04);rect('#9fb8ff',.35,.76,.05,.05);
+      }else if(index===9){ // sunset mountains
+        rect('#ffcf8b',0,.48,1,.52);rect('#fff0ba',.71,.19,.16,.16);
+        rect('#e57f79',0,.76,.54,.24);rect('#b95c83',.47,.69,.53,.31);
+      }else if(index===10){ // deep sea
+        rect('#2ba1be',0,.48,1,.52);rect('#75d6d2',.09,.16,.06,.06);rect('#a1ecf5',.73,.21,.08,.08);
+        rect('#0a527b',0,.88,1,.12);rect('#b0f5f6',.21,.74,.035,.035);
+      }else if(index===11){ // regal night
+        rect('#9047a5',0,.69,1,.31);rect('#ecbf78',.14,.16,.08,.08);
+        rect('#ba8cda',.79,.19,.045,.045);rect('#e3b7f9',.82,.78,.06,.06);
+      }
+    }else{
+      c.fillStyle='rgba(255,255,255,0.14)';c.fillRect(x,y,s,Math.floor(s/3));
+    }
+    c.restore();
+  }
+  window.flyingBirdPaintAvatarBackground=paintAvatarBackdrop;
   function drawAvatar(x, y, s, av) {
-    ctx.fillStyle = BROWN; ctx.fillRect(x - 2, y - 2, s + 4, s + 4);
-    ctx.fillStyle = AV_BG[av.bg]; ctx.fillRect(x, y, s, s);
-    ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x, y, s, Math.floor(s / 3));
-    birdIcon(SKINS[skinOK(av.skin) ? av.skin : 0], x + s / 2, y + s / 2, s / 44);
+    ctx.fillStyle=BROWN;ctx.fillRect(x-2,y-2,s+4,s+4);
+    paintAvatarBackdrop(ctx,x,y,s,av.bg);
+    const i=Number(av.skin)|0;
+    birdIcon(SKINS[skinOK(i)?i:0],x+s/2,y+s/2,s/44);
   }
 
   function drawProfile() {
@@ -1897,19 +1955,65 @@ if (!initialized) {
     });
     const bw = L ? Math.min(290,(W-350)) : Math.min(280,W-40), bx = L ? W-bw-20 : (W-bw)/2, by = L ? 62 : 246, st = L ? 44 : 36, h = L ? 34 : 30;
     btn(bx, by, bw, h, tr('EDIT_NICK'), editNick, { size: 13 });
-    btn(bx, by + st, bw, h, tr('AVATAR'), d => {
-      let i = profile.av.skin;
-      do { i = (i + d + SKINS.length) % SKINS.length; } while (!skinOK(i));
-      profile.av.skin = i; saveProfile();
-    }, { value: itemName({kind:'BIRDS',name:SKINS[profile.av.skin].name}), adj: true, size: 13 });
-    btn(bx, by + st * 2, bw, h, tr('AVATAR_BG'), d => { profile.av.bg = (profile.av.bg + d + AV_BG.length) % AV_BG.length; saveProfile(); },
-      { value: (profile.av.bg + 1) + '/' + AV_BG.length, adj: true, size: 13 });
-    btn(bx, by + st * 3, bw, h, tr('COPY_ID'), copyId, { size: 13 });
-    btn(bx, by + st * 4, bw, h, tr('BACK'), back, { size: 13 });
+    btn(bx,by+st,bw,h,tr('AVATAR'),()=>{avatarEditorTab='SKINS';avatarEditorPage=0;screen='AVATAR_EDITOR';focus=0;},
+      {value:itemName({kind:'BIRDS',name:SKINS[profile.av.skin]?.name||'CLASSIC'}),size:12});
+    btn(bx,by+st*2,bw,h,tr('AVATAR_BG'),()=>{avatarEditorTab='BACKGROUNDS';avatarEditorPage=0;screen='AVATAR_EDITOR';focus=0;},
+      {value:(profile.av.bg+1)+'/'+AV_BG.length,size:12});
+    btn(bx,by+st*3,bw,h,tr('AVATAR_MATCH'),()=>{
+      if(!skinOK(cfg.skin))return;
+      profile.av.skin=cfg.skin;saveProfile();
+      toasts.push({text:tr('AVATAR_SELECTED'),plain:true,t:75});
+    },{size:12});
+    btn(bx,by+st*4,bw,h,tr('COPY_ID'),copyId,{size:12});
+    btn(bx,by+st*5,bw,h,tr('BACK'),back,{size:12});
     if (editing) {
       ctx.fillStyle = 'rgba(15,12,41,0.8)'; ctx.fillRect(0, 0, W, H);
       txt(tr('NICKNAME_PH'), W / 2, H / 2 - 36, 12);
     }
+  }
+
+  // Avatar editor: every owned skin, including the Claude expansion skins, is selectable.
+  // Old skin indices and the first eight background indices remain unchanged.
+  let avatarEditorTab='SKINS',avatarEditorPage=0;
+  const avatarBackgroundLabel=i=>i<8?(i+1)+'/'+AV_BG.length:
+    tr(['AVBG_STARS','AVBG_SUNSET','AVBG_SEA','AVBG_ROYAL'][i-8]);
+  function drawAvatarEditor(){
+    ctx.fillStyle='rgba(10,15,38,.96)';ctx.fillRect(0,0,W,H);
+    // Leave the top HUD lane clear for the coin counter.
+    titleFitted(tr('AVATAR_PICK'),42,L?25:22);
+    const gap=8,margin=14,tabY=65,tabW=(W-2*margin-gap)/2;
+    for(const [i,k] of ['SKINS','BACKGROUNDS'].entries()){
+      const xx=margin+i*(tabW+gap),active=avatarEditorTab===k;
+      btns.push({x:xx,y:tabY,w:tabW,h:26,fn:()=>{avatarEditorTab=k;avatarEditorPage=0;focus=0;}});
+      ctx.fillStyle=active?'#ffd23f':'#344e70';ctx.fillRect(xx,tabY,tabW,26);
+      txtFit(tr(k==='SKINS'?'AVATAR_BIRDS':'AVATAR_BACKS'),xx+tabW/2,tabY+13,11,tabW-10,active?BROWN:'#eaf2ff','center',false);
+    }
+    const entries=avatarEditorTab==='SKINS'?SKINS.map((_,i)=>i).filter(skinOK):AV_BG.map((_,i)=>i);
+    const cols=L?4:2,per=L?8:6,pages=Math.max(1,Math.ceil(entries.length/per));
+    avatarEditorPage=Math.max(0,Math.min(pages-1,avatarEditorPage));
+    const shown=entries.slice(avatarEditorPage*per,(avatarEditorPage+1)*per);
+    const cardGap=L?8:10,top=99,cw=(W-2*margin-cardGap*(cols-1))/cols,ch=L?76:Math.max(76,Math.min(154,Math.floor((H-214)/3)));
+    shown.forEach((id,n)=>{
+      const x=margin+(n%cols)*(cw+cardGap),y=top+Math.floor(n/cols)*(ch+cardGap);
+      const selected=avatarEditorTab==='SKINS'?id===profile.av.skin:id===profile.av.bg;
+      tile(x,y,cw,ch,selected);
+      const size=Math.min(L?48:80,ch-31,cw-16),ax=x+(cw-size)/2,ay=y+Math.max(7,Math.floor((ch-size-22)/2));
+      // Background tab retains current bird so the player can preview the final avatar.
+      drawAvatar(ax,ay,size,{skin:avatarEditorTab==='SKINS'?id:profile.av.skin,bg:avatarEditorTab==='SKINS'?profile.av.bg:id});
+      const name=avatarEditorTab==='SKINS'?itemName({kind:'BIRDS',name:SKINS[id].name}):avatarBackgroundLabel(id);
+      txtFit(name,x+cw/2,y+ch-12,10,cw-12,selected?'#ffd23f':'#e5eaff','center',false);
+      if(selected){ctx.fillStyle='#ffd23f';ctx.fillRect(x+cw-12,y+3,7,7);}
+      btns.push({x,y,w:cw,h:ch,fn:()=>{
+        if(avatarEditorTab==='SKINS')profile.av.skin=id;else profile.av.bg=id;
+        saveProfile();focus=0;
+      }});
+    });
+    if(!entries.length)txt(tr('AVATAR_EMPTY'),W/2,H/2,13);
+    const navY=H-78;
+    btn(margin,navY,62,26,'◀',()=>{avatarEditorPage=(avatarEditorPage+pages-1)%pages;focus=0;},{size:12});
+    txt((avatarEditorPage+1)+' / '+pages,W/2,navY+13,12,'#ffffff','center',false);
+    btn(W-margin-62,navY,62,26,'▶',()=>{avatarEditorPage=(avatarEditorPage+1)%pages;focus=0;},{size:12});
+    btn(W/2-70,H-38,140,27,tr('BACK'),()=>{screen='PROFILE';focus=0;},{size:12});
   }
 
   // ----- UI helpers -----
@@ -2049,6 +2153,8 @@ if (!initialized) {
     else if (screen === 'ACH') { screen = 'MENU'; focus = 0; }
     else if (screen === 'MAPS') { screen = 'MENU'; focus = 0; }
     else if (screen === 'PREVIEW') { screen=previewReturn; focus=0; }
+    else if(screen==='AVATAR_EDITOR'){screen='PROFILE';focus=0;}
+    else if(screen==='EXIT_CONFIRM'||screen==='EXITED'){screen='MENU';focus=0;}
     else if (screen === 'PROFILE' || screen === 'SHOP' || screen === 'INVENTORY') { screen = 'MENU'; focus = 0; }
     else if (screen === 'PAUSE') screen = null;
   }
@@ -2113,7 +2219,29 @@ function toggleFS() {
     btn(bx, y0 + st * 4, bw, 29, tr('SHOP'), () => { screen = 'SHOP'; focus = 0; });
     btn(bx, y0 + st * 5, bw, 29, tr('INVENTORY'), () => { screen = 'INVENTORY'; focus = 0; });
     btn(bx, y0 + st * 6, bw, 29, tr('SETTINGS'), () => { settingsFrom = 'MENU'; screen = 'SETTINGS'; focus = 0; });
-    txt(tr('BEST') + ' ' + bestNow() + '  (' + displayValue(cfg.diff) + ')', W / 2, y0 + st * 7 + 12, 11);
+    btn(bx,y0+st*7,bw,29,tr('GAME_EXIT'),()=>{screen='EXIT_CONFIRM';focus=0;},{size:12});
+    txt(tr('BEST') + ' ' + bestNow() + '  (' + displayValue(cfg.diff) + ')', W / 2, y0 + st * 8 + (L?7:12), 11);
+  }
+
+  // Browser tabs opened by users cannot be closed by JavaScript. Display a clear
+  // exit screen instead; a script-opened window may be closed directly.
+  function finishGameExit(){
+    window.dispatchEvent(new Event('flyingbird:save-on-exit'));
+    screen='EXITED';focus=0;
+    if(window.opener && !window.opener.closed){try{window.close()}catch(e){}}
+  }
+  function drawExitScreen(){
+    ctx.fillStyle='rgba(10,12,35,.94)';ctx.fillRect(0,0,W,H);
+    const finished=screen==='EXITED',cy=H/2-40;
+    titleFitted(tr(finished?'EXIT_DONE':'EXIT_QUESTION'),cy-37,L?25:24);
+    txtFit(tr(finished?'EXIT_HINT':'GAME_EXIT'),W/2,cy+12,12,W-32,'#e8d7b8','center',false);
+    const bw=Math.min(210,W-36),bx=(W-bw)/2;
+    if(finished){
+      btn(bx,cy+49,bw,33,tr('EXIT_RETURN'),()=>{screen='MENU';focus=0;},{size:12});
+    }else{
+      btn(bx,cy+40,bw,32,tr('EXIT_CONFIRM'),finishGameExit,{size:12});
+      btn(bx,cy+83,bw,32,tr('EXIT_CANCEL'),()=>{screen='MENU';focus=0;},{size:12});
+    }
   }
 
   // Unified cosmetics catalogue. The legacy numeric skin indices are preserved for cloud-save compatibility.
@@ -2535,6 +2663,8 @@ function toggleFS() {
     if (screen === 'ACH') drawAch();
     if (screen === 'MAPS') drawMaps();
     if (screen === 'PROFILE') drawProfile();
+    if (screen === 'AVATAR_EDITOR') drawAvatarEditor();
+    if (screen === 'EXIT_CONFIRM' || screen === 'EXITED') drawExitScreen();
     if (screen === 'SHOP') drawShop();
     if (screen === 'INVENTORY') drawInventory();
     if (screen === 'PREVIEW') drawPreview();
@@ -2548,9 +2678,26 @@ function toggleFS() {
       ctx.fillStyle = '#ffd23f'; ctx.fillRect(x, y, w, 24);
       txtFit((t.plain ? '' : tr('ACHIEVEMENT_TOAST') + ': ') + t.text, W / 2, y + 12, 10, w-12, BROWN, 'center',false);
     }
-    // Persistent wallet counter in the upper-right corner on every screen.
-    drawCoin(W - 63, 18, {static: true});
-    txt(String(wallet.coins), W - 10, 18, 12, '#fff2a6', 'right');
+    // HUD: reserve the coin's entire diameter + a gap before the digits.
+    // Shift the coin left as the balance grows instead of letting text overlap it.
+    const balanceNumber = Math.max(0, Math.floor(Number(wallet.coins) || 0));
+    let balanceText = String(balanceNumber);
+    let coinFont = 12;
+    const textLimit = Math.min(155, W * 0.42);
+    ctx.font = 'bold ' + coinFont + 'px "Courier New", monospace';
+    while (coinFont > 9 && ctx.measureText(balanceText).width > textLimit) {
+      coinFont--;
+      ctx.font = 'bold ' + coinFont + 'px "Courier New", monospace';
+    }
+    // Extremely large developer balances use a short label, rather than clipping the HUD.
+    if (ctx.measureText(balanceText).width > textLimit) {
+      balanceText = balanceNumber.toExponential(2);
+    }
+    const labelWidth = ctx.measureText(balanceText).width;
+    const rightEdge = W - 10;
+    const coinCenter = rightEdge - labelWidth - 9 - 14;
+    drawCoin(coinCenter, 18, {static: true});
+    txt(balanceText, rightEdge, 18, coinFont, '#fff2a6', 'right');
     if (cfg.showFps) txt('FPS ' + fpsShown, W - 8, 34, 10, '#9fe870', 'right');
     if (focus >= btns.length) focus = 0;
   }
@@ -2858,32 +3005,37 @@ fit();
   el('authBack').onclick = () => setAuthMode('choice');
   const logout = el('authLogout');
   const show = () => { panel.hidden = false; setAuthMode('choice'); updateAccountDetails(); };
-  // The avatar/nickname occupy the top-left corner of the Canvas.
-  // Anchor account + cloud status to the top-RIGHT, with a fixed logical width,
-  // so they never cover the avatar on tall phones or narrow screens.
+  // The game's avatar sits at (8,8) and nickname starts at (36,19).
+  // Place the account button and save badge in a compact LEFT stack directly
+  // under the avatar. The coin HUD stays in its own top-right lane.
   const placeAccountButton = () => {
     const canvas = el('c');
     const rect = canvas.getBoundingClientRect();
     const logicalWidth = Number(canvas.dataset.logicalWidth) ||
       (window.innerWidth > window.innerHeight ? 640 : 320);
     const scale = rect.width / logicalWidth;
+    if (!Number.isFinite(scale) || scale <= 0) return;
     const button = el('accountBtn');
-    const xRight = rect.right - 8 * scale;
-    const top = Math.max(5, rect.top + 8 * scale);
-    const buttonWidth = Math.min(132 * scale, rect.width * .43);
+    const indicator = el('syncIndicator');
+    const left = rect.left + 8 * scale;
+    const top = rect.top + 35 * scale;
+    const buttonWidth = Math.min(135 * scale, rect.width * 0.43);
     button.style.boxSizing = 'border-box';
     button.style.width = buttonWidth + 'px';
     button.style.maxWidth = buttonWidth + 'px';
-    button.style.left = Math.max(5, xRight - buttonWidth) + 'px';
+    button.style.left = left + 'px';
+    button.style.right = 'auto';
     button.style.top = top + 'px';
     button.style.fontSize = Math.max(9, Math.min(12, 10 * scale)) + 'px';
-    button.style.padding = Math.max(3, 4 * scale) + 'px ' + Math.max(5, 7 * scale) + 'px';
-    const indicator = el('syncIndicator');
+    button.style.padding = Math.max(2, 3 * scale) + 'px ' + Math.max(4, 6 * scale) + 'px';
     indicator.style.boxSizing = 'border-box';
     indicator.style.width = buttonWidth + 'px';
     indicator.style.maxWidth = buttonWidth + 'px';
-    indicator.style.left = button.style.left;
-    indicator.style.top = (top + button.offsetHeight + 4 * scale) + 'px';
+    indicator.style.left = left + 'px';
+    indicator.style.right = 'auto';
+    indicator.style.top = (top + button.offsetHeight + 3 * scale) + 'px';
+    indicator.style.padding = Math.max(2, 2 * scale) + 'px ' + Math.max(3, 5 * scale) + 'px';
+    indicator.style.fontSize = Math.max(9, Math.min(11, 9 * scale)) + 'px';
     indicator.style.textAlign = 'center';
     indicator.style.whiteSpace = 'nowrap';
     indicator.style.overflow = 'hidden';
@@ -2946,7 +3098,7 @@ fit();
       if (typeof data.id === 'string' && data.id) local.id = data.id;
       local.nick = safeNick(data.nick) || local.nick || 'BIRD';
       const av = data.avatar || data.av;
-      if (av) local.av = { skin: Math.max(0,Math.floor(Number(av.skin)||0)), bg: Math.max(0,Math.floor(Number(av.bg)||0)) % 8 };
+      if (av) local.av = { skin: Math.max(0,Math.floor(Number(av.skin)||0)), bg: Math.max(0,Math.floor(Number(av.bg)||0)) % (window.flyingBirdAvatarBackgroundCount||12) };
       localStorage.setItem(localProfileKey, JSON.stringify(local));
       window.dispatchEvent(new CustomEvent('flyingbird:cloud-profile', { detail: local }));
     };
@@ -2975,10 +3127,19 @@ fit();
       updateAccountDetails();
       if (!profileOwner || uid !== profileOwner) return;
       const nick = safeNick(local.nick)||'BIRD';
-      const avatar = {skin:Math.max(0,Math.floor(Number(local.av?.skin)||0)),bg:Math.max(0,Math.floor(Number(local.av?.bg)||0))%8};
+      const avatar = {skin:Math.max(0,Math.floor(Number(local.av?.skin)||0)),bg:Math.max(0,Math.floor(Number(local.av?.bg)||0))%(window.flyingBirdAvatarBackgroundCount||12)};
       pendingProfileSave = pendingProfileSave.catch(()=>{}).then(async()=>{
         if (auth.currentUser?.uid !== uid) return;
         await updateDoc(doc(db,'players',uid),{nick,avatar});
+        // Public friend card must follow avatar changes. Do this AFTER the owner
+        // profile write, because existing Firestore rules compare both documents.
+        // If Player ID was never indexed, retain the private profile change.
+        if(auth.currentUser?.uid===uid && typeof local.id==='string' && local.id){
+          try{
+            await setDoc(doc(db,'publicProfiles',uid),{playerId:local.id,nick,avatar});
+            window.dispatchEvent(new Event('flyingbird:public-avatar-updated'));
+          }catch(e){console.warn('Public friend card is not synced yet:',e.code||e.message);}
+        }
       }).catch(e => { error.textContent = t('SAVE_PROFILE_ERROR') + (e.code || e.message); });
     });
     // Validate inputs before sending them to Firebase, and show useful errors.
@@ -3144,6 +3305,9 @@ fit();
         }
       }
     };
+    window.addEventListener('flyingbird:save-on-exit',()=>{
+      if(auth.currentUser && pendingSave){clearTimeout(syncTimer);void flushProgress();}
+    });
     const scheduleProgressSave = () => {
       if (switchingIdentity) return;
       if (currentIdentity) cacheCurrent(currentIdentity);
@@ -3312,12 +3476,12 @@ function avatar(uid){
   const canvas=el('canvas',null,'fbfAvatar');canvas.width=32;canvas.height=32;
   canvas.style.imageRendering='pixelated';canvas.setAttribute('aria-label','Bird avatar');
   const c=canvas.getContext('2d');if(!c)return canvas;
-  const bgs=['#ff6b9d','#ffd23f','#4cd964','#4da3ff','#b9a0ff','#ff7b2e','#2ec4b6','#e8e8f5'];
+  const bgs=window.flyingBirdFriendAvatarBackgrounds||['#ff6b9d','#ffd23f','#4cd964','#4da3ff','#b9a0ff','#ff7b2e','#2ec4b6','#e8e8f5'];
   const n=Math.max(0,Math.floor(Number(data.bg)||0))%bgs.length;
   const pal=window.flyingBirdFriendSkinPalette||[];
   const s=pal[Math.max(0,Math.floor(Number(data.skin)||0))]||pal[0]||{body:'#ffd23f',hi:'#ffe98a',wing:'#ff9f1c',belly:'#fff4d6'};
-  c.fillStyle=bgs[n];c.fillRect(0,0,32,32);
-  c.fillStyle='rgba(255,255,255,.18)';c.fillRect(0,0,32,10);
+  if(window.flyingBirdPaintAvatarBackground)window.flyingBirdPaintAvatarBackground(c,0,0,32,n);
+  else {c.fillStyle=bgs[n];c.fillRect(0,0,32,32);}
   c.fillStyle='#2b1b00';c.fillRect(6,8,21,18);
   c.fillStyle=s.body;c.fillRect(7,9,19,16);c.fillRect(10,6,13,4);
   c.fillStyle=s.hi;c.fillRect(11,7,10,3);
@@ -3371,6 +3535,9 @@ for(const b of modal.querySelectorAll('[data-fbf-tab]'))b.addEventListener('clic
 $('fbfRefresh').onclick=refresh;$('fbfSearchBtn').onclick=search;$('fbfPublish').onclick=publishOwn;$('fbfConnect').onclick=connectPresence;
 $('fbfSearchId').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();void search()}});
 $('accountFriends').onclick=openFriends;
+window.addEventListener('flyingbird:public-avatar-updated',()=>{
+  const me=ownUid();if(me)cards.delete(me);
+});
 window.addEventListener('flyingbird:progress-changed',applyLang);
 let previousUid=null;
 onAuthStateChanged(auth,async user=>{const seq=++authSeq,uid=user&&!user.isAnonymous?user.uid:null;if(previousUid&&previousUid!==uid){void logoutPresence();resetFriends()}previousUid=uid;setBusy(false);if(!uid){resetFriends();if(!modal.hidden)closeFriends();return}if(setupUrl){const url=validUrl(setupUrl);if(url){try{dbRealtime=dbRealtime||getDatabase(app,url);startPresence(uid);$('fbfPresenceInfo').textContent=T('dbReady')}catch(e){$('fbfPresenceInfo').textContent=err(e)}}}else $('fbfPresenceInfo').textContent=T('dbMissing');await refresh();if(seq!==authSeq)return;});
