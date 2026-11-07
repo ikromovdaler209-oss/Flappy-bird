@@ -1,0 +1,19 @@
+
+{
+  "name": "Flying Bird",
+  "short_name": "Flying Bird",
+  "description": "Flying Bird Arcade Game",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#171333",
+  "theme_color": "#171333",
+  "icons": [
+    {
+      "src": "./icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
