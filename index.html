@@ -144,7 +144,26 @@ body::before {
 #fbfBox #fbfSearchRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}#fbfBox .fbfConfig{padding:10px;background:#f5ead8;border-radius:9px;margin-top:12px}
 #fbfBox .fbfSettingsRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
 #fbfBox .fbfScroll{max-height:45dvh;overflow:auto}#fbfBox .fbfAvatar{display:inline-block;width:36px;height:36px;border:2px solid #34253b;border-radius:7px;flex:none;image-rendering:pixelated}
-#fbfBox :focus-visible{outline:3px solid #ff7eb6;outline-offset:2px}
+#fbfBox :focus-visible,#fbfProfileClose:focus-visible{outline:3px solid #ff7eb6;outline-offset:2px}
+#fbfProfile[hidden]{display:none!important}
+#fbfProfile{position:absolute;inset:0;z-index:8;display:flex;justify-content:center;align-items:flex-start;background:#fff8e6;padding:16px;overflow:auto;overscroll-behavior:contain}
+#fbfProfileCard{width:100%;max-width:550px;min-width:0}
+#fbfProfileClose{border:2px solid #2b1b00;border-radius:8px;background:#ffd23f;color:#2b1b00;font:bold 12px 'Courier New',monospace;padding:9px 14px;margin-bottom:14px;cursor:pointer}
+#fbfProfileHeader{display:flex;align-items:center;gap:16px;padding:13px;border:2px solid #d7b992;border-radius:11px;background:#fff;min-width:0}
+#fbfProfileAvatar{width:92px;height:92px;flex:none;border-radius:10px;border:3px solid #2b1b00;image-rendering:pixelated}
+#fbfProfileMeta{min-width:0;flex:1;overflow-wrap:anywhere}
+#fbfProfileMeta strong{display:block;font-size:19px;line-height:1.2;margin-bottom:8px}
+#fbfProfileMeta small{display:block;color:#765a48;font-size:11px}
+#fbfProfileStats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}
+#fbfProfileStats .fbfStat{background:#fff;border:1px solid #dec7aa;border-radius:9px;padding:12px;min-width:0}
+#fbfProfileStats .fbfStat strong{font-size:19px;display:block;overflow-wrap:anywhere}
+#fbfProfileStats .fbfStat small{display:block;color:#806954;font-size:11px;margin-top:3px}
+#fbfBox .fbfIdentity{display:flex;align-items:center;gap:10px;min-width:0;margin:0!important}
+#fbfBox .fbfIdentity .fbfAvatar{width:42px;height:42px}
+#fbfBox .fbfIdentityText{display:grid;gap:3px;min-width:0}
+#fbfBox .fbfIdentityText strong{overflow-wrap:anywhere}
+#fbfBox .fbfIdentityText small{color:#785f56;font-size:11px}
+@media(max-width:380px){#fbfProfile{padding:9px}#fbfProfileHeader{gap:9px;padding:9px}#fbfProfileAvatar{width:68px;height:68px}#fbfProfileMeta strong{font-size:15px}}
 #accountFriends{width:100%;margin:9px 0 5px!important}
 @media(max-width:380px){#fbfBox{padding:12px}#fbfBox .fbfItem{padding:8px}#fbfBox button{font-size:11px}#fbfBox h2{font-size:17px}}
 @media(prefers-reduced-motion:reduce){#fbfBox button{transition:none}}
@@ -235,6 +254,20 @@ body::before {
     <div id="fbfBlockedPane" class="fbfPane" role="tabpanel" hidden>
       <h3 data-fbf="blockedTitle">Blocked players</h3><div id="fbfBlocked" class="fbfScroll"></div>
     </div>
+    <section id="fbfProfile" hidden aria-labelledby="fbfProfileTitle">
+      <div id="fbfProfileCard">
+        <button type="button" id="fbfProfileClose">← BACK</button>
+        <div id="fbfProfileHeader">
+          <div id="fbfProfileAvatarSlot"></div>
+          <div id="fbfProfileMeta"><strong id="fbfProfileTitle">PLAYER</strong>
+            <small id="fbfProfileId">—</small>
+            <small id="fbfProfileSkin">—</small></div>
+        </div>
+        <h3 id="fbfProfileStatsTitle">PLAYER STATISTICS</h3>
+        <div id="fbfProfileStats" aria-live="polite"></div>
+        <p id="fbfProfileMessage" class="fbfMuted"></p>
+      </div>
+    </section>
     <details class="fbfConfig"><summary data-fbf="presenceSettings">Online status settings</summary>
       <p class="fbfMuted" data-fbf="databaseHint">Paste your exact Realtime Database URL from Firebase Console → Realtime Database → Data.</p>
       <div class="fbfSettingsRow"><input id="fbfDatabaseUrl" type="url" placeholder="https://…firebasedatabase.app" spellcheck="false" aria-label="Realtime Database URL"><button id="fbfConnect" type="button" data-fbf="connect">Connect</button></div>
@@ -265,14 +298,26 @@ body::before {
   };
   const cfg = store.get('flyingBirdCfg', { theme: 'NIGHT', music: 4, sfx: 7, cb: 'OFF', fx: false, diff: 'NORMAL', skin: 0, muted: false, lang: 'EN', map: 'CITY', fps: 'MAX', showFps: false });
   if (!['EN', 'ZH', 'RU', 'ES', 'PT'].includes(cfg.lang)) cfg.lang = 'EN';
-  const save = store.get('flyingBirdSave', { best: { EASY: 0, NORMAL: 0, HARD: 0 }, games: 0, flaps: 0, pipes: 0, earnedCoins: 0, ach: {} });
+  const save = store.get('flyingBirdSave', { best: { EASY: 0, NORMAL: 0, HARD: 0, EXTREME: 0 }, games: 0, flaps: 0, pipes: 0, earnedCoins: 0, ach: {} });
+  // Older saves have only three difficulty records; initialize EXTREME safely.
+  save.best = Object.assign({EASY:0,NORMAL:0,HARD:0,EXTREME:0}, save.best || {});
   const saveCfg = () => { store.set('flyingBirdCfg', cfg); window.dispatchEvent(new Event('flyingbird:progress-changed')); };
   const saveGame = () => { store.set('flyingBirdSave', save); window.dispatchEvent(new Event('flyingbird:progress-changed')); };
   const bestNow = () => save.best[cfg.diff] || 0;
-  const maxBest = () => Math.max(save.best.EASY, save.best.NORMAL, save.best.HARD);
+  const maxBest = () => Math.max(0, ...['EASY','NORMAL','HARD','EXTREME'].map(mode => Number(save.best[mode])||0));
   const themeName = () => cfg.theme !== 'AUTO' ? cfg.theme : (h => (h >= 6 && h < 19 ? 'DAY' : 'NIGHT'))(new Date().getHours());
 
-  const DIFF = { EASY: { gap: 15, spd: 0.9, mv: 15 }, NORMAL: { gap: 0, spd: 1, mv: 10 }, HARD: { gap: -10, spd: 1.12, mv: 5 } };
+  const DIFF = {
+    EASY: { gap: 15, spd: 0.9, mv: 15 }, NORMAL: { gap: 0, spd: 1, mv: 10 },
+    HARD: { gap: -10, spd: 1.12, mv: 5 },
+    EXTREME: { gap: -5, spd: 1.12, mv: 3 }
+  };
+  // One EXTREME level every eight scored pipes. A cap keeps it progressively
+  // challenging without producing mathematically unplayable gaps or speeds.
+  const extremeTier = () => cfg.diff === 'EXTREME' ? Math.min(10, Math.floor(score / 8)) : 0;
+  const extremeLevel = () => extremeTier() + 1;
+  const extremeGap = () => Math.max(GMIN - 12, GMAX - 5 - score * 1.05 - extremeTier() * 1.7);
+  const extremeSpeedMultiplier = () => 1 + extremeTier() * 0.052;
   const THEMES = {
     NIGHT: { sky: ['#0f0c29', '#302b63', '#d4638f'], mount: '#2a2468', snow: '#d8d4ff', city: INK, top: '#2b2250', lit: '#ffd66b', off: '#2b2250', cloud: 'rgba(255,226,240,0.22)' },
     DAY:   { sky: ['#3aa0ff', '#7fd0ff', '#d6f3ff'], mount: '#6f8fd8', snow: '#ffffff', city: '#4a5f9a', top: '#6d84c0', lit: '#bcd6f7', off: '#5f78b0', cloud: 'rgba(255,255,255,0.8)' }
@@ -338,7 +383,7 @@ body::before {
     const data = e.detail || {};
     if (data.cfg && typeof data.cfg === 'object') {
       Object.assign(cfg, data.cfg);
-      if (!['EASY','NORMAL','HARD'].includes(cfg.diff)) cfg.diff = 'NORMAL';
+      if (!['EASY','NORMAL','HARD','EXTREME'].includes(cfg.diff)) cfg.diff = 'NORMAL';
       if (!['EN','ZH','RU','ES','PT'].includes(cfg.lang)) cfg.lang = 'EN';
       if (!MAPS[cfg.map]) cfg.map = 'CITY';
       cfg.fps = String(cfg.fps);
@@ -347,7 +392,7 @@ body::before {
     }
     if (data.save && typeof data.save === 'object') {
       const x = data.save;
-      save.best = { EASY: Math.max(0,Number(x.best?.EASY)||0), NORMAL: Math.max(0,Number(x.best?.NORMAL)||0), HARD: Math.max(0,Number(x.best?.HARD)||0) };
+      save.best = Object.fromEntries(['EASY','NORMAL','HARD','EXTREME'].map(d => [d, Math.max(0,Number(x.best?.[d])||0)]));
       save.games = Math.max(0,Number(x.games)||0);
       save.flaps = Math.max(0,Number(x.flaps)||0);
       save.pipes = Math.max(0,Number(x.pipes)||0);
@@ -427,7 +472,8 @@ body::before {
   }
   const cleanNick = v => Array.from(String(v).replace(/[^\p{L}\p{N} _.-]/gu, '').replace(/\s+/g, ' ').trim()).slice(0, 12).join('');
   const AV_BG = ['#ff6b9d', '#ffd23f', '#4cd964', '#4da3ff', '#b9a0ff', '#ff7b2e', '#2ec4b6', '#e8e8f5'];
-  window.flyingBirdFriendSkinPalette = SKINS.map(({body,hi,wing,belly})=>({body,hi,wing,belly}));
+  window.flyingBirdFriendSkinPalette = SKINS.map(({name,body,hi,wing,belly})=>({name,body,hi,wing,belly}));
+  window.flyingBirdFriendAvatarBackgrounds = AV_BG.slice();
   const profile = store.get('flyingBirdProfile', { id: '', nick: '', av: { skin: 0, bg: 0 }, created: 0 });
   if (!isValidId(profile.id)) { profile.id = newId(); profile.created = Date.now(); }
   profile.nick = cleanNick(profile.nick);
@@ -682,10 +728,18 @@ body::before {
     ZH:{HIGH:'高',LOW:'低'},ES:{HIGH:'ALTA',LOW:'BAJA'},PT:{HIGH:'ALTA',LOW:'BAIXA'}
   };
   for (const lang of LANGS) Object.assign(I18N[lang], qualityText[lang]);
+  const EXTREME_TEXT = {
+    EN:{EXTREME:'EXTREME',EXTREME_LEVEL:'EXTREME LEVEL'},
+    RU:{EXTREME:'ЭКСТРИМ',EXTREME_LEVEL:'УРОВЕНЬ ЭКСТРИМА'},
+    ZH:{EXTREME:'极限',EXTREME_LEVEL:'极限等级'},
+    ES:{EXTREME:'EXTREMO',EXTREME_LEVEL:'NIVEL EXTREMO'},
+    PT:{EXTREME:'EXTREMO',EXTREME_LEVEL:'NÍVEL EXTREMO'}
+  };
+  for (const lang of LANGS) Object.assign(I18N[lang], EXTREME_TEXT[lang]);
   const tr = key => (I18N[cfg.lang] || I18N.EN)[key] || I18N.EN[key] || key;
   const displayValue = value => ({
     NIGHT:tr('NIGHT'), DAY:tr('DAY'), AUTO:tr('AUTO'),
-    EASY:tr('EASY'), NORMAL:tr('NORMAL'), HARD:tr('HARD'),
+    EASY:tr('EASY'), NORMAL:tr('NORMAL'), HARD:tr('HARD'), EXTREME:tr('EXTREME'),
     CLASSIC:tr('CLASSIC'), RED:tr('RED'), BLUE:tr('BLUE'), GHOST:tr('GHOST'), ROOKIE:tr('ROOKIE'), PRO:tr('PRO'), MASTER:tr('MASTER'), LEGEND:tr('LEGEND'),
     OFF:tr('NONE'), 'RED-GREEN':tr('RED_GREEN'), 'BLUE-YELLOW':tr('BLUE_YELLOW'),
     'HIGH CONTRAST':tr('HIGH_CONTRAST'), HIGH:tr('HIGH'), LOW:tr('LOW'), ON:tr('ON')
@@ -698,7 +752,7 @@ body::before {
   if (!mapOK(cfg.map)) cfg.map = 'CITY';
 
   const bird = { x: 70, y: 200, w: 20, h: 16, vy: 0, rot: 0 };
-  const speed = () => (2 + Math.min(score * 0.04, 1.4)) * DIFF[cfg.diff].spd;
+  const speed = () => (2 + Math.min(score * 0.04, 1.4)) * DIFF[cfg.diff].spd * (cfg.diff === 'EXTREME' ? extremeSpeedMultiplier() : 1);
 
   function layout(
   land,
@@ -832,9 +886,10 @@ if (!initialized) {
   // minimum safe gap and moving-pipe amplitudes to bound each height change.
   function spawnPipe() {
     const D = DIFF[cfg.diff];
-    const gap = Math.max(GMIN + D.gap, GMAX + D.gap - score * 1.2);
-    const moving = score >= D.mv && Math.random() < 0.45;
-    const m = moving ? 22 : 0;
+    const gap = cfg.diff === 'EXTREME' ? extremeGap() : Math.max(GMIN + D.gap, GMAX + D.gap - score * 1.2);
+    const movingChance = cfg.diff === 'EXTREME' ? Math.min(0.72, 0.40 + extremeTier() * 0.032) : 0.45;
+    const moving = score >= D.mv && Math.random() < movingChance;
+    const m = moving ? (cfg.diff === 'EXTREME' ? Math.min(28, 18 + extremeTier()) : 22) : 0;
     const lo = 40 + m, hi = Math.max(lo, GROUND - gap - 40 - m);
     const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
     const minCenter = lo + gap / 2, maxCenter = hi + gap / 2;
@@ -939,7 +994,7 @@ if (!initialized) {
       const hx = bird.x + 2, hy = bird.y + 2, hw = bird.w - 4, hh = bird.h - 4;
       for (const p of pipes) {
         p.x -= spd;
-        p.phase += 0.04;
+        p.phase += 0.04 + (cfg.diff === 'EXTREME' ? extremeTier() * 0.0015 : 0);
         p.top = p.base + Math.sin(p.phase) * p.amp;
         if (hx + hw > p.x - 4 && hx < p.x + PW + 4) {
           if (hy < p.top || hy + hh > p.top + p.gap) die(false);
@@ -959,6 +1014,10 @@ if (!initialized) {
           p.scored = true; score++; pop = cfg.fx ? 0 : 1;
           // Score sound removed: coin collection has its own chime.
           onScore(p);
+          if (cfg.diff === 'EXTREME' && score % 8 === 0 && score <= 80) {
+            toasts.push({text: tr('EXTREME_LEVEL') + ' ' + extremeLevel(), plain: true, t: 95});
+            tone(380, 700, 0.18, 'triangle', 0.06);
+          }
         }
       }
       pipes = pipes.filter(p => p.x + PW + 4 > 0);
@@ -2465,7 +2524,7 @@ function toggleFS() {
       [tr('FPS_LIMIT'), cfg.fps === 'MAX' ? tr('MAX') : cfg.fps, d => { cfg.fps = cyc(['60', '90', '120', 'MAX'], cfg.fps, d); }],
       [tr('SHOW_FPS'), onoff(cfg.showFps), () => { cfg.showFps = !cfg.showFps; }]
     ];
-    if (settingsFrom === 'MENU') rows.push([tr('DIFFICULTY'), displayValue(cfg.diff), d => { cfg.diff = cyc(['EASY', 'NORMAL', 'HARD'], cfg.diff, d); }]);
+    if (settingsFrom === 'MENU') rows.push([tr('DIFFICULTY'), displayValue(cfg.diff), d => { cfg.diff = cyc(['EASY', 'NORMAL', 'HARD', 'EXTREME'], cfg.diff, d); }]);
     rows.push(
       [tr('BIRD_SKIN'), itemName({kind:'BIRDS',name:SKINS[cfg.skin].name}), d => { let i = cfg.skin; do { i = wrap(SKINS.length, i, d); } while (!skinOK(i)); cfg.skin = i; }],
       [
@@ -2486,7 +2545,7 @@ function toggleFS() {
     let q = pos(rows.length);
     btn(q.x, q.y, bw, h, resetArmed ? tr('PRESS_RESET') : tr('RESET_PROGRESS'), () => {
       if (!resetArmed) { resetArmed = true; return; }
-      Object.assign(save, { best: { EASY: 0, NORMAL: 0, HARD: 0 }, games: 0, flaps: 0, pipes: 0, earnedCoins: 0, ach: {} });
+      Object.assign(save, { best: { EASY: 0, NORMAL: 0, HARD: 0, EXTREME: 0 }, games: 0, flaps: 0, pipes: 0, earnedCoins: 0, ach: {} });
       cfg.skin = 0; profile.av.skin = 0; wallet.coins = 0; wallet.owned = []; wallet.maps=[];wallet.trails=[];cfg.map='CITY';cfg.trail='NONE';saveProfile(); saveWallet(); saveGame(); saveCfg(); resetArmed = false;
     }, { id: 'reset', size: fs });
     q = pos(rows.length + 1);
@@ -2564,6 +2623,8 @@ function toggleFS() {
     }
 
     if (screen === 'PAUSE') drawPause();
+    if (cfg.diff === 'EXTREME' && !screen && state === 'PLAYING')
+      txt(tr('EXTREME') + ' · ' + extremeLevel(), W / 2, 48, 10, '#ffd23f', 'center', false);
     if (screen === 'SETTINGS') drawSettings();
     if (screen === 'ACH') drawAch();
     if (screen === 'MAPS') drawMaps();
@@ -2826,11 +2887,14 @@ fit();
 <script>
 // Independent account-dialog localization; does not depend on Firebase loading.
 (() => {
+  // Extra account-stat label in all supported UI languages.
+  const extraStatLabels={EN:'EXTREME BEST',RU:'РЕКОРД ЭКСТРИМ',ZH:'极限模式最高分',ES:'RÉCORD EXTREMO',PT:'RECORDE EXTREMO'};
   const strings = {"EN":{"SUBTITLE":"YOUR CLOUD ACCOUNT","SIGNIN_PROMPT":"Sign in to save your profile in the cloud.","GOOGLE":"CONTINUE WITH GOOGLE","EMAIL_LOGIN":"SIGN IN WITH EMAIL","REGISTER":"CREATE ACCOUNT","BACK":"← BACK","EMAIL_LABEL":"EMAIL","PASS_LABEL":"PASSWORD","PASS_PH":"At least 6 characters","LOGIN":"SIGN IN","REGISTER_GO":"REGISTER","RESET":"Forgot password?","STATS_BTN":"PLAYER STATISTICS","LOGOUT":"SIGN OUT","STATS_TITLE":"PLAYER STATS","STATS_BACK":"← BACK","SYNC_TITLE":"CHOOSE YOUR SAVE","SYNC_DESC":"Cloud progress found. Choose which version to keep. The other will be replaced.","SYNC_CLOUD":"LOAD CLOUD SAVE","SYNC_LOCAL":"KEEP DEVICE SAVE","LOGOUT_TITLE":"SIGN OUT","LOGOUT_MESSAGE":"Your latest changes will be uploaded first.","LOGOUT_CONFIRM":"SAVE AND SIGN OUT","LOGOUT_FORCE":"SIGN OUT WITHOUT SYNC","CANCEL":"CANCEL","ACCOUNT":"ACCOUNT","ACCOUNT_GUEST":"ACCOUNT / SIGN IN","MODE_LOGIN":"SIGN IN WITH EMAIL","MODE_REGISTER":"CREATE ACCOUNT","CONNECTED":"Account connected.","GUEST_PROMPT":"Play as a guest or sign in.","SYNC_LOCAL_STATE":"LOCAL","SYNC_PENDING":"WAITING TO SAVE","SYNC_PENDING_NETWORK":"WAITING FOR CONNECTION","SYNC_SAVING":"SYNCING","SYNC_SAVED":"SAVED TO CLOUD","SYNC_CHECK":"CHECKING CLOUD","SYNC_UNAVAILABLE":"CLOUD UNAVAILABLE","SYNC_COMPARE":"THIS DEVICE: best {a}, coins {b}. CLOUD: best {c}, coins {d}.","ERR_EMAIL":"Enter a valid email address.","ERR_PASSWORD":"Enter your password.","ERR_WEAK":"Password must have at least 6 characters.","ERR_AUTH_GENERIC":"Unable to complete this action. Please try again.","ERR_INVALID_EMAIL":"Invalid email address.","ERR_USED_EMAIL":"This email is already registered.","ERR_BAD_CREDENTIAL":"Incorrect email or password.","ERR_MISSING_USER":"Account not found.","ERR_NOT_ALLOWED":"This sign-in method is disabled.","ERR_DOMAIN":"The website domain is not authorized in Firebase.","ERR_POPUP_BLOCKED":"Google sign-in popup was blocked.","ERR_POPUP_CLOSED":"Google sign-in popup was closed.","ERR_NETWORK":"Could not connect to Firebase.","RESET_SENT":"If the address is registered, a reset email has been sent.","LOGOUT_BUSY":"Finishing the current save…","LOGOUT_TIMEOUT":"Saving is still in progress. Try again shortly.","LOGOUT_OFFLINE":"Cloud is offline. Changes will stay in this account’s local copy. Retry or sign out without syncing.","OFFLINE_EMPTY":"Cloud unavailable and no local copy of this account. Please sign in when online.","ST_EASY":"EASY BEST","ST_NORMAL":"NORMAL BEST","ST_HARD":"HARD BEST","ST_GAMES":"GAMES","ST_PIPES":"PIPES PASSED","ST_FLAPS":"TOTAL FLAPS","ST_EARNED":"COINS EARNED","ST_BALANCE":"COIN BALANCE","ST_ACH":"ACHIEVEMENTS","PLAYER":"PLAYER","PROVIDER":"SIGN-IN METHOD","STORAGE":"SAVE STATUS","PASS_PROVIDER":"Email / Password","SAVE_PROFILE_ERROR":"Could not save your profile: ","LOGOUT_ERROR":"Sign-out error: ","GENERIC_ACTION":"Action failed: "},"RU":{"SUBTITLE":"ВАШ ОБЛАЧНЫЙ АККАУНТ","SIGNIN_PROMPT":"Войдите, чтобы сохранить профиль в облаке.","GOOGLE":"ПРОДОЛЖИТЬ С GOOGLE","EMAIL_LOGIN":"ВОЙТИ ЧЕРЕЗ EMAIL","REGISTER":"СОЗДАТЬ АККАУНТ","BACK":"← НАЗАД","EMAIL_LABEL":"EMAIL","PASS_LABEL":"ПАРОЛЬ","PASS_PH":"Не менее 6 символов","LOGIN":"ВОЙТИ В АККАУНТ","REGISTER_GO":"ЗАРЕГИСТРИРОВАТЬСЯ","RESET":"Забыли пароль?","STATS_BTN":"СТАТИСТИКА ИГРОКА","LOGOUT":"ВЫЙТИ ИЗ АККАУНТА","STATS_TITLE":"СТАТИСТИКА","STATS_BACK":"← НАЗАД","SYNC_TITLE":"ВЫБОР СОХРАНЕНИЯ","SYNC_DESC":"Найден облачный прогресс. Выберите версию. Другая будет заменена.","SYNC_CLOUD":"ЗАГРУЗИТЬ ИЗ ОБЛАКА","SYNC_LOCAL":"ОСТАВИТЬ НА УСТРОЙСТВЕ","LOGOUT_TITLE":"ВЫХОД ИЗ АККАУНТА","LOGOUT_MESSAGE":"Сначала сохраним последние изменения в облаке.","LOGOUT_CONFIRM":"СОХРАНИТЬ И ВЫЙТИ","LOGOUT_FORCE":"ВЫЙТИ БЕЗ СИНХРОНИЗАЦИИ","CANCEL":"ОТМЕНА","ACCOUNT":"АККАУНТ","ACCOUNT_GUEST":"АККАУНТ / ВХОД","MODE_LOGIN":"ВОЙТИ ЧЕРЕЗ EMAIL","MODE_REGISTER":"СОЗДАТЬ АККАУНТ","CONNECTED":"Аккаунт подключён.","GUEST_PROMPT":"Играйте как гость или войдите в аккаунт.","SYNC_LOCAL_STATE":"ЛОКАЛЬНО","SYNC_PENDING":"ОЖИДАЕТ СОХРАНЕНИЯ","SYNC_PENDING_NETWORK":"ОЖИДАЕТ СЕТИ","SYNC_SAVING":"СИНХРОНИЗАЦИЯ","SYNC_SAVED":"СОХРАНЕНО В ОБЛАКЕ","SYNC_CHECK":"ПРОВЕРЯЕМ ОБЛАКО","SYNC_UNAVAILABLE":"ОБЛАКО НЕДОСТУПНО","SYNC_COMPARE":"ЭТО УСТРОЙСТВО: рекорд {a}, монеты {b}. ОБЛАКО: рекорд {c}, монеты {d}.","ERR_EMAIL":"Введите корректный email.","ERR_PASSWORD":"Введите пароль.","ERR_WEAK":"Пароль должен содержать минимум 6 символов.","ERR_AUTH_GENERIC":"Не удалось выполнить действие. Попробуйте ещё раз.","ERR_INVALID_EMAIL":"Неверный формат email.","ERR_USED_EMAIL":"Этот email уже зарегистрирован.","ERR_BAD_CREDENTIAL":"Неверный email или пароль.","ERR_MISSING_USER":"Аккаунт с таким email не найден.","ERR_NOT_ALLOWED":"Этот способ входа отключён.","ERR_DOMAIN":"Домен сайта не разрешён в Firebase.","ERR_POPUP_BLOCKED":"Окно Google заблокировано браузером.","ERR_POPUP_CLOSED":"Окно Google было закрыто.","ERR_NETWORK":"Нет связи с Firebase.","RESET_SENT":"Если адрес зарегистрирован, письмо для сброса пароля отправлено.","LOGOUT_BUSY":"Дожидаемся текущего сохранения…","LOGOUT_TIMEOUT":"Сохранение ещё выполняется. Попробуйте чуть позже.","LOGOUT_OFFLINE":"Облако недоступно. Изменения останутся в локальной копии. Повторите или выйдите без синхронизации.","OFFLINE_EMPTY":"Нет облачного доступа и локальной копии. Повторите вход при подключении к сети.","ST_EASY":"РЕКОРД ЛЕГКО","ST_NORMAL":"РЕКОРД НОРМАЛЬНО","ST_HARD":"РЕКОРД СЛОЖНО","ST_GAMES":"ИГРЫ","ST_PIPES":"ПРОЙДЕНО ТРУБ","ST_FLAPS":"ВСЕГО ВЗМАХОВ","ST_EARNED":"МОНЕТ ЗАРАБОТАНО","ST_BALANCE":"БАЛАНС МОНЕТ","ST_ACH":"ДОСТИЖЕНИЯ","PLAYER":"ИГРОК","PROVIDER":"СПОСОБ ВХОДА","STORAGE":"СОХРАНЕНИЕ","PASS_PROVIDER":"Email / Пароль","SAVE_PROFILE_ERROR":"Ошибка сохранения профиля: ","LOGOUT_ERROR":"Ошибка выхода: ","GENERIC_ACTION":"Ошибка действия: "},"ZH":{"SUBTITLE":"云端账户","SIGNIN_PROMPT":"登录以将个人资料保存至云端。","GOOGLE":"使用 GOOGLE 继续","EMAIL_LOGIN":"通过邮箱登录","REGISTER":"创建账户","BACK":"← 返回","EMAIL_LABEL":"邮箱","PASS_LABEL":"密码","PASS_PH":"至少 6 个字符","LOGIN":"登录","REGISTER_GO":"注册","RESET":"忘记密码？","STATS_BTN":"玩家数据","LOGOUT":"退出账户","STATS_TITLE":"玩家数据","STATS_BACK":"← 返回","SYNC_TITLE":"选择存档","SYNC_DESC":"发现云端进度。请选择保留的版本，另一个版本将被覆盖。","SYNC_CLOUD":"加载云端存档","SYNC_LOCAL":"保留设备存档","LOGOUT_TITLE":"退出账户","LOGOUT_MESSAGE":"我们将先保存最新的更改。","LOGOUT_CONFIRM":"保存并退出","LOGOUT_FORCE":"不云同步直接退出","CANCEL":"取消","ACCOUNT":"账户","ACCOUNT_GUEST":"账户 / 登录","MODE_LOGIN":"邮箱登录","MODE_REGISTER":"创建账户","CONNECTED":"账户已连接。","GUEST_PROMPT":"以游客身份游玩或登录。","SYNC_LOCAL_STATE":"本地","SYNC_PENDING":"等待保存","SYNC_PENDING_NETWORK":"等待网络","SYNC_SAVING":"同步中","SYNC_SAVED":"已保存到云端","SYNC_CHECK":"检查云端","SYNC_UNAVAILABLE":"云端不可用","SYNC_COMPARE":"此设备：最高分 {a}，金币 {b}。云端：最高分 {c}，金币 {d}。","ERR_EMAIL":"请输入有效邮箱。","ERR_PASSWORD":"请输入密码。","ERR_WEAK":"密码至少需要 6 个字符。","ERR_AUTH_GENERIC":"操作失败，请重试。","ERR_INVALID_EMAIL":"邮箱格式无效。","ERR_USED_EMAIL":"此邮箱已注册。","ERR_BAD_CREDENTIAL":"邮箱或密码错误。","ERR_MISSING_USER":"未找到此账户。","ERR_NOT_ALLOWED":"此登录方式已禁用。","ERR_DOMAIN":"Firebase 未授权此网站域名。","ERR_POPUP_BLOCKED":"Google 登录弹窗被阻止。","ERR_POPUP_CLOSED":"Google 登录弹窗已关闭。","ERR_NETWORK":"无法连接 Firebase。","RESET_SENT":"若邮箱已注册，重置邮件已发送。","LOGOUT_BUSY":"正在完成保存…","LOGOUT_TIMEOUT":"正在保存，请稍后重试。","LOGOUT_OFFLINE":"云端离线。更改保存在此账户的本地副本中。可重试或直接退出。","OFFLINE_EMPTY":"云端不可用且没有本地副本，请联网后重试。","ST_EASY":"简单模式最高分","ST_NORMAL":"普通模式最高分","ST_HARD":"困难模式最高分","ST_GAMES":"对局","ST_PIPES":"通过管道","ST_FLAPS":"总拍翅次数","ST_EARNED":"获得金币","ST_BALANCE":"金币余额","ST_ACH":"成就","PLAYER":"玩家","PROVIDER":"登录方式","STORAGE":"保存状态","PASS_PROVIDER":"邮箱 / 密码","SAVE_PROFILE_ERROR":"保存资料失败：","LOGOUT_ERROR":"退出失败：","GENERIC_ACTION":"操作失败："},"ES":{"SUBTITLE":"TU CUENTA EN LA NUBE","SIGNIN_PROMPT":"Inicia sesión para guardar tu perfil en la nube.","GOOGLE":"CONTINUAR CON GOOGLE","EMAIL_LOGIN":"INICIAR SESIÓN CON EMAIL","REGISTER":"CREAR CUENTA","BACK":"← VOLVER","EMAIL_LABEL":"EMAIL","PASS_LABEL":"CONTRASEÑA","PASS_PH":"Al menos 6 caracteres","LOGIN":"INICIAR SESIÓN","REGISTER_GO":"REGISTRARSE","RESET":"¿Olvidaste la contraseña?","STATS_BTN":"ESTADÍSTICAS","LOGOUT":"CERRAR SESIÓN","STATS_TITLE":"ESTADÍSTICAS","STATS_BACK":"← VOLVER","SYNC_TITLE":"ELEGIR PARTIDA","SYNC_DESC":"Se encontró progreso en la nube. Elige qué versión conservar.","SYNC_CLOUD":"CARGAR DESDE LA NUBE","SYNC_LOCAL":"CONSERVAR EN EL DISPOSITIVO","LOGOUT_TITLE":"CERRAR SESIÓN","LOGOUT_MESSAGE":"Primero guardaremos los últimos cambios.","LOGOUT_CONFIRM":"GUARDAR Y SALIR","LOGOUT_FORCE":"SALIR SIN SINCRONIZAR","CANCEL":"CANCELAR","ACCOUNT":"CUENTA","ACCOUNT_GUEST":"CUENTA / ENTRAR","MODE_LOGIN":"INICIAR SESIÓN CON EMAIL","MODE_REGISTER":"CREAR CUENTA","CONNECTED":"Cuenta conectada.","GUEST_PROMPT":"Juega como invitado o inicia sesión.","SYNC_LOCAL_STATE":"LOCAL","SYNC_PENDING":"PENDIENTE DE GUARDAR","SYNC_PENDING_NETWORK":"SIN CONEXIÓN","SYNC_SAVING":"SINCRONIZANDO","SYNC_SAVED":"GUARDADO EN LA NUBE","SYNC_CHECK":"REVISANDO LA NUBE","SYNC_UNAVAILABLE":"NUBE NO DISPONIBLE","SYNC_COMPARE":"ESTE DISPOSITIVO: récord {a}, monedas {b}. NUBE: récord {c}, monedas {d}.","ERR_EMAIL":"Introduce un email válido.","ERR_PASSWORD":"Introduce tu contraseña.","ERR_WEAK":"La contraseña debe tener al menos 6 caracteres.","ERR_AUTH_GENERIC":"No se pudo completar la acción. Inténtalo de nuevo.","ERR_INVALID_EMAIL":"Email no válido.","ERR_USED_EMAIL":"Este email ya está registrado.","ERR_BAD_CREDENTIAL":"Email o contraseña incorrectos.","ERR_MISSING_USER":"No se encontró la cuenta.","ERR_NOT_ALLOWED":"Este método de acceso está desactivado.","ERR_DOMAIN":"El dominio no está autorizado en Firebase.","ERR_POPUP_BLOCKED":"Se bloqueó la ventana de Google.","ERR_POPUP_CLOSED":"Se cerró la ventana de Google.","ERR_NETWORK":"No se pudo conectar con Firebase.","RESET_SENT":"Si el correo está registrado, se ha enviado un enlace de recuperación.","LOGOUT_BUSY":"Terminando el guardado…","LOGOUT_TIMEOUT":"El guardado sigue en curso. Inténtalo después.","LOGOUT_OFFLINE":"La nube no está disponible. Los cambios quedan en la copia local de esta cuenta. Puedes reintentar o salir.","OFFLINE_EMPTY":"No hay acceso a la nube ni copia local. Conéctate y vuelve a entrar.","ST_EASY":"RÉCORD FÁCIL","ST_NORMAL":"RÉCORD NORMAL","ST_HARD":"RÉCORD DIFÍCIL","ST_GAMES":"PARTIDAS","ST_PIPES":"TUBOS SUPERADOS","ST_FLAPS":"ALETEOS","ST_EARNED":"MONEDAS GANADAS","ST_BALANCE":"SALDO DE MONEDAS","ST_ACH":"LOGROS","PLAYER":"JUGADOR","PROVIDER":"TIPO DE ACCESO","STORAGE":"GUARDADO","PASS_PROVIDER":"Email / Contraseña","SAVE_PROFILE_ERROR":"Error al guardar el perfil: ","LOGOUT_ERROR":"Error al cerrar sesión: ","GENERIC_ACTION":"Error de acción: "},"PT":{"SUBTITLE":"SUA CONTA NA NUVEM","SIGNIN_PROMPT":"Entre para salvar seu perfil na nuvem.","GOOGLE":"CONTINUAR COM GOOGLE","EMAIL_LOGIN":"ENTRAR COM EMAIL","REGISTER":"CRIAR CONTA","BACK":"← VOLTAR","EMAIL_LABEL":"EMAIL","PASS_LABEL":"SENHA","PASS_PH":"Pelo menos 6 caracteres","LOGIN":"ENTRAR","REGISTER_GO":"CADASTRAR","RESET":"Esqueceu a senha?","STATS_BTN":"ESTATÍSTICAS","LOGOUT":"SAIR DA CONTA","STATS_TITLE":"ESTATÍSTICAS","STATS_BACK":"← VOLTAR","SYNC_TITLE":"ESCOLHER PROGRESSO","SYNC_DESC":"Progresso salvo na nuvem encontrado. Escolha qual versão manter.","SYNC_CLOUD":"CARREGAR DA NUVEM","SYNC_LOCAL":"MANTER NO DISPOSITIVO","LOGOUT_TITLE":"SAIR DA CONTA","LOGOUT_MESSAGE":"Primeiro vamos salvar as alterações.","LOGOUT_CONFIRM":"SALVAR E SAIR","LOGOUT_FORCE":"SAIR SEM SINCRONIZAR","CANCEL":"CANCELAR","ACCOUNT":"CONTA","ACCOUNT_GUEST":"CONTA / ENTRAR","MODE_LOGIN":"ENTRAR COM EMAIL","MODE_REGISTER":"CRIAR CONTA","CONNECTED":"Conta conectada.","GUEST_PROMPT":"Jogue como visitante ou entre.","SYNC_LOCAL_STATE":"LOCAL","SYNC_PENDING":"AGUARDANDO SALVAR","SYNC_PENDING_NETWORK":"AGUARDANDO REDE","SYNC_SAVING":"SINCRONIZANDO","SYNC_SAVED":"SALVO NA NUVEM","SYNC_CHECK":"VERIFICANDO NUVEM","SYNC_UNAVAILABLE":"NUVEM INDISPONÍVEL","SYNC_COMPARE":"ESTE DISPOSITIVO: recorde {a}, moedas {b}. NUVEM: recorde {c}, moedas {d}.","ERR_EMAIL":"Digite um email válido.","ERR_PASSWORD":"Digite sua senha.","ERR_WEAK":"A senha deve ter pelo menos 6 caracteres.","ERR_AUTH_GENERIC":"Não foi possível concluir a ação. Tente novamente.","ERR_INVALID_EMAIL":"Email inválido.","ERR_USED_EMAIL":"Este email já está cadastrado.","ERR_BAD_CREDENTIAL":"Email ou senha incorretos.","ERR_MISSING_USER":"Conta não encontrada.","ERR_NOT_ALLOWED":"Este método de login está desativado.","ERR_DOMAIN":"O domínio não foi autorizado no Firebase.","ERR_POPUP_BLOCKED":"A janela do Google foi bloqueada.","ERR_POPUP_CLOSED":"A janela do Google foi fechada.","ERR_NETWORK":"Não foi possível conectar ao Firebase.","RESET_SENT":"Se o email estiver cadastrado, enviamos a redefinição de senha.","LOGOUT_BUSY":"Finalizando salvamento…","LOGOUT_TIMEOUT":"Salvamento ainda em andamento. Tente novamente.","LOGOUT_OFFLINE":"Nuvem indisponível. As alterações ficam na cópia local da conta. Tente novamente ou saia sem sincronizar.","OFFLINE_EMPTY":"Nuvem e cópia local indisponíveis. Conecte-se e tente novamente.","ST_EASY":"RECORDE FÁCIL","ST_NORMAL":"RECORDE NORMAL","ST_HARD":"RECORDE DIFÍCIL","ST_GAMES":"PARTIDAS","ST_PIPES":"CANOS SUPERADOS","ST_FLAPS":"BATIDAS DE ASA","ST_EARNED":"MOEDAS GANHAS","ST_BALANCE":"SALDO DE MOEDAS","ST_ACH":"CONQUISTAS","PLAYER":"JOGADOR","PROVIDER":"TIPO DE LOGIN","STORAGE":"SALVAMENTO","PASS_PROVIDER":"Email / Senha","SAVE_PROFILE_ERROR":"Erro ao salvar perfil: ","LOGOUT_ERROR":"Erro ao sair: ","GENERIC_ACTION":"Erro na ação: "}};
   const currentLang = () => {
     try { const lang = JSON.parse(localStorage.getItem('flyingBirdCfg') || '{}').lang;return strings[lang] ? lang : 'EN'; }
     catch(e) { return 'EN'; }
   };
+  for (const [lang, value] of Object.entries(extraStatLabels)) strings[lang].ST_EXTREME = value;
   const trans = key => (strings[currentLang()] || strings.EN)[key] || strings.EN[key] || key;
   window.flyingBirdAuthText = trans;
   const text = (id,key) => {const el=document.getElementById(id);if(el)el.textContent=trans(key);};
@@ -3034,6 +3098,7 @@ fit();
       pendingProfileSave = pendingProfileSave.catch(()=>{}).then(async()=>{
         if (auth.currentUser?.uid !== uid) return;
         await updateDoc(doc(db,'players',uid),{nick,avatar});
+        window.dispatchEvent(new CustomEvent('flyingbird:profile-saved',{detail:{uid}}));
       }).catch(e => { error.textContent = t('SAVE_PROFILE_ERROR') + (e.code || e.message); });
     });
     // Validate inputs before sending them to Firebase, and show useful errors.
@@ -3113,7 +3178,7 @@ fit();
       const p = readProgress(); const v = p.save || {}, w = p.wallet || {};
       const rows = [
         [t('ST_EASY'),v.best?.EASY||0],[t('ST_NORMAL'),v.best?.NORMAL||0],
-        [t('ST_HARD'),v.best?.HARD||0],[t('ST_GAMES'),v.games||0],
+        [t('ST_HARD'),v.best?.HARD||0],[t('ST_EXTREME'),v.best?.EXTREME||0],[t('ST_GAMES'),v.games||0],
         [t('ST_PIPES'),v.pipes||0],[t('ST_FLAPS'),v.flaps||0],
         [t('ST_EARNED'),v.earnedCoins ?? '—'],[t('ST_BALANCE'),w.coins||0],
         [t('ST_ACH'),Object.values(v.ach||{}).filter(Boolean).length+'/10']
@@ -3212,7 +3277,7 @@ fit();
     window.addEventListener('online',()=>{if(pendingSave) scheduleProgressSave();});
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden' && pendingSave){clearTimeout(syncTimer);flushProgress();}});
     const chooseProgress = (local,cloud) => new Promise(resolve=>{
-      const best=p=>Math.max(0,Number(p?.save?.best?.EASY)||0,Number(p?.save?.best?.NORMAL)||0,Number(p?.save?.best?.HARD)||0);
+      const best=p=>Math.max(0,Number(p?.save?.best?.EASY)||0,Number(p?.save?.best?.NORMAL)||0,Number(p?.save?.best?.HARD)||0,Number(p?.save?.best?.EXTREME)||0);
       el('syncDetails').textContent=t('SYNC_COMPARE').replace('{a}',best(local)).replace('{b}',local.wallet?.coins||0).replace('{c}',best(cloud)).replace('{d}',cloud.wallet?.coins||0);
       el('syncError').textContent='';syncPanel.hidden=false;panel.hidden=true;
       el('syncUseCloud').onclick=()=>{syncPanel.hidden=true;resolve('cloud');};
@@ -3313,8 +3378,11 @@ fit();
         await syncProfile(user);
         if(auth.currentUser?.uid!==user.uid)return;
         await startProgressSync(user);
+        window.flyingBirdPublicReadyUid=user.uid;
+        window.dispatchEvent(new CustomEvent('flyingbird:account-ready',{detail:{uid:user.uid}}));
         panel.hidden=true;
       } else {
+        window.flyingBirdPublicReadyUid=null;
         profileOwner=null;
         if(currentIdentity && currentIdentity!=='guest') cacheCurrent(currentIdentity);
         stopProgressSync();
@@ -3345,9 +3413,16 @@ RU:{title:'ДРУЗЬЯ',intro:'Поиск игроков, заявки, дру�
 ES:{title:'AMIGOS',intro:'Buscar jugadores, solicitudes y estado en línea',refresh:'↻ Actualizar',publish:'Actualizar perfil',friends:'Amigos',requests:'Solicitudes',blocked:'Bloqueados',searchTitle:'Buscar por Player ID',search:'Buscar',myFriends:'Mis amigos',incoming:'Recibidas',outgoing:'Enviadas',blockedTitle:'Jugadores bloqueados',presenceSettings:'Estado de conexión',databaseHint:'Pega la URL exacta de Realtime Database desde Firebase Console.',connect:'Conectar',emptyFriends:'Aún no tienes amigos.',emptyRequests:'No hay solicitudes.',emptyBlocked:'No hay usuarios bloqueados.',login:'Inicia sesión para ver a tus amigos.',invalid:'Player ID inválido.',notFound:'No se encontró ese ID.',self:'Es tu propio ID.',send:'Añadir amigo',cancel:'Cancelar',accept:'Aceptar',reject:'Rechazar',unfriend:'Eliminar amigo',block:'Bloquear',unblock:'Desbloquear',confirmUnfriend:'¿Eliminar a este amigo?',confirmBlock:'¿Bloquear y eliminar amistad?',confirmUnblock:'¿Desbloquear jugador?',yes:'Listo.',searchResult:'Jugador encontrado',noCard:'Perfil público no publicado',pending:'Pendiente',accepted:'Amigos',rejected:'Rechazada',online:'En línea',offline:'Desconectado',connecting:'Conectando…',unknown:'Estado oculto',lastSeen:'Última vez',wait:'Cargando…',error:'Error de Firebase',dbMissing:'Introduce la URL de Realtime Database para ver estados.',dbReady:'Realtime Database conectada.',dbBad:'URL de base de datos inválida.',dbReload:'URL guardada. Recarga el juego.',permissions:'Estado no disponible: comprueba las reglas de Presence.',count:'amigos',cardUpdated:'Perfil público actualizado.',idConflict:'Player ID no vinculado a esta cuenta.',truncated:'Resultados parciales (límite de 50).',signIn:'Iniciar sesión',cannotRefresh:'Error al cargar amigos.',statusSharing:'Estado compartido con amigos autorizados.',blockChanged:'Bloqueos actualizados.',requestChanged:'Solicitud actualizada.'},
 PT:{title:'AMIGOS',intro:'Buscar jogadores, pedidos e estado online',refresh:'↻ Atualizar',publish:'Atualizar cartão',friends:'Amigos',requests:'Pedidos',blocked:'Bloqueados',searchTitle:'Buscar pelo Player ID',search:'Buscar',myFriends:'Meus amigos',incoming:'Recebidos',outgoing:'Enviados',blockedTitle:'Jogadores bloqueados',presenceSettings:'Configurações de status online',databaseHint:'Cole a URL exata do Realtime Database no Firebase Console.',connect:'Conectar',emptyFriends:'Nenhum amigo ainda.',emptyRequests:'Sem pedidos.',emptyBlocked:'Ninguém bloqueado.',login:'Entre na conta para ver amigos.',invalid:'Player ID inválido.',notFound:'Player ID não encontrado.',self:'Este ID é seu.',send:'Adicionar amigo',cancel:'Cancelar pedido',accept:'Aceitar',reject:'Recusar',unfriend:'Remover amigo',block:'Bloquear',unblock:'Desbloquear',confirmUnfriend:'Remover este amigo?',confirmBlock:'Bloquear e desfazer amizade?',confirmUnblock:'Desbloquear jogador?',yes:'Concluído.',searchResult:'Jogador encontrado',noCard:'Cartão público não publicado',pending:'Pendente',accepted:'Amigos',rejected:'Recusado',online:'Online',offline:'Offline',connecting:'Conectando…',unknown:'Status oculto',lastSeen:'Última vez',wait:'Carregando…',error:'Erro do Firebase',dbMissing:'Digite a URL do Realtime Database para ver status.',dbReady:'Realtime Database conectada.',dbBad:'URL do banco de dados inválida.',dbReload:'URL salva. Recarregue o jogo.',permissions:'Status indisponível: confira as regras de Presence.',count:'amigos',cardUpdated:'Cartão público atualizado.',idConflict:'Player ID não vinculado à conta.',truncated:'Resultados parciais (limite 50).',signIn:'Entrar',cannotRefresh:'Não foi possível carregar amigos.',statusSharing:'Status visível aos amigos autorizados.',blockChanged:'Bloqueios atualizados.',requestChanged:'Pedido atualizado.'},
 ZH:{title:'好友',intro:'搜索玩家、好友申请和在线状态',refresh:'↻ 刷新',publish:'更新公开资料',friends:'好友',requests:'申请',blocked:'黑名单',searchTitle:'通过 Player ID 搜索',search:'搜索',myFriends:'我的好友',incoming:'收到的申请',outgoing:'发出的申请',blockedTitle:'已屏蔽玩家',presenceSettings:'在线状态设置',databaseHint:'粘贴 Firebase Console 中 Realtime Database 的完整网址。',connect:'连接',emptyFriends:'暂无好友。',emptyRequests:'暂无申请。',emptyBlocked:'暂无屏蔽玩家。',login:'请先登录账号使用好友功能。',invalid:'Player ID 格式不正确。',notFound:'未找到该 ID。',self:'这是你的 Player ID。',send:'添加好友',cancel:'取消申请',accept:'接受',reject:'拒绝',unfriend:'删除好友',block:'屏蔽',unblock:'解除屏蔽',confirmUnfriend:'确定删除这位好友？',confirmBlock:'屏蔽并删除好友？',confirmUnblock:'解除屏蔽此玩家？',yes:'完成。',searchResult:'找到玩家',noCard:'尚未发布公开资料',pending:'等待中',accepted:'已是好友',rejected:'已拒绝',online:'在线',offline:'离线',connecting:'连接中…',unknown:'状态不可见',lastSeen:'上次在线',wait:'加载中…',error:'Firebase 错误',dbMissing:'请输入 Realtime Database 网址以启用在线状态。',dbReady:'Realtime Database 已连接。',dbBad:'数据库网址无效。',dbReload:'网址已保存，请刷新游戏。',permissions:'无法查看状态：请检查 Presence 权限。',count:'位好友',cardUpdated:'公开资料已更新。',idConflict:'Player ID 未绑定当前账号。',truncated:'部分结果可能未显示（50 条限制）。',signIn:'登录',cannotRefresh:'无法加载好友。',statusSharing:'在线状态仅与已授权好友共享。',blockChanged:'黑名单已更新。',requestChanged:'申请已更新。'}};
+const MORE_STR={
+EN:{viewProfile:'View profile',profileTitle:'PLAYER PROFILE',profileStats:'STATISTICS',statsMissing:'Statistics have not been published yet.',statsDenied:'Cannot load statistics. Check publicStats Firestore rules.',loadingProfile:'Loading player profile…',profileSkin:'Avatar skin',stEasy:'Easy best',stNormal:'Normal best',stHard:'Hard best',stExtreme:'Extreme best',stGames:'Games',stPipes:'Pipes passed',stFlaps:'Total flaps',stEarned:'Coins earned',stAchievements:'Achievements',profilePublishFailed:'Unable to publish public profile.'},
+RU:{viewProfile:'Профиль',profileTitle:'ПРОФИЛЬ ИГРОКА',profileStats:'СТАТИСТИКА',statsMissing:'Статистика ещё не опубликована.',statsDenied:'Не удаётся загрузить статистику. Проверь правила publicStats в Firestore.',loadingProfile:'Загружаем профиль…',profileSkin:'Скин аватара',stEasy:'Рекорд: легко',stNormal:'Рекорд: нормально',stHard:'Рекорд: сложно',stExtreme:'Рекорд: экстрим',stGames:'Игр',stPipes:'Пройдено труб',stFlaps:'Взмахов',stEarned:'Заработано монет',stAchievements:'Достижения',profilePublishFailed:'Не удалось опубликовать профиль.'},
+ZH:{viewProfile:'个人资料',profileTitle:'玩家资料',profileStats:'统计',statsMissing:'统计尚未公开。',statsDenied:'无法读取统计。请检查 Firestore publicStats 规则。',loadingProfile:'加载资料…',profileSkin:'头像装扮',stEasy:'简单纪录',stNormal:'普通纪录',stHard:'困难纪录',stExtreme:'极限纪录',stGames:'场次',stPipes:'管道',stFlaps:'拍翅',stEarned:'获得金币',stAchievements:'成就',profilePublishFailed:'无法发布公开资料。'},
+ES:{viewProfile:'Ver perfil',profileTitle:'PERFIL DEL JUGADOR',profileStats:'ESTADÍSTICAS',statsMissing:'Aún no hay estadísticas públicas.',statsDenied:'No se pueden leer las estadísticas. Revisa las reglas publicStats.',loadingProfile:'Cargando perfil…',profileSkin:'Aspecto de avatar',stEasy:'Récord fácil',stNormal:'Récord normal',stHard:'Récord difícil',stExtreme:'Récord extremo',stGames:'Partidas',stPipes:'Tubos',stFlaps:'Aleteos',stEarned:'Monedas ganadas',stAchievements:'Logros',profilePublishFailed:'No se pudo publicar el perfil.'},
+PT:{viewProfile:'Ver perfil',profileTitle:'PERFIL DO JOGADOR',profileStats:'ESTATÍSTICAS',statsMissing:'Ainda não há estatísticas públicas.',statsDenied:'Não é possível carregar estatísticas. Confira as regras publicStats.',loadingProfile:'Carregando perfil…',profileSkin:'Aparência do avatar',stEasy:'Recorde fácil',stNormal:'Recorde normal',stHard:'Recorde difícil',stExtreme:'Recorde extremo',stGames:'Partidas',stPipes:'Canos',stFlaps:'Batidas de asa',stEarned:'Moedas ganhas',stAchievements:'Conquistas',profilePublishFailed:'Falha ao publicar perfil.'}
+};
 let lang='EN';function locale(){try{return JSON.parse(localStorage.getItem('flyingBirdCfg')||'{}').lang||'EN';}catch{return 'EN';}}
-function T(k){return (STR[lang]||STR.EN)[k]||STR.EN[k]||k}
-function applyLang(){lang=locale();if(!STR[lang])lang='EN';for(const node of modal.querySelectorAll('[data-fbf]'))node.textContent=T(node.dataset.fbf);const a=$('accountFriends');if(a)a.textContent='👥 '+T('friends');}
+function T(k){return MORE_STR[lang]?.[k] || (STR[lang]||STR.EN)[k] || MORE_STR.EN[k] || STR.EN[k] || k}
+function applyLang(){lang=locale();if(!STR[lang])lang='EN';for(const node of modal.querySelectorAll('[data-fbf]'))node.textContent=T(node.dataset.fbf);const a=$('accountFriends');if(a)a.textContent='👥 '+T('friends');$('fbfProfileClose').textContent='← '+T('viewProfile');$('fbfProfileStatsTitle').textContent=T('profileStats');}
 function note(text,bad=false){const e=$('fbfNotice');e.hidden=!text;e.classList.toggle('err',bad);e.textContent=text||'';}
 function err(e){return e?.code||e?.message||String(e)}
 function registered(){return !!(auth.currentUser&&!auth.currentUser.isAnonymous)}
@@ -3359,15 +3434,15 @@ $('fbfDatabaseUrl').value=setupUrl;
 function setBusy(v){busy=v;for(const id of ['fbfRefresh','fbfPublish','fbfSearchBtn'])$(id).disabled=v||!registered()}
 function ownUid(){return auth.currentUser?.uid||null}
 function checkLogin(){if(registered())return true;note(T('login'),true);return false}
-function resetFriends(){known=[];blocks=new Set();friends=new Map();cards=new Map();for(const off of friendUnwatch.values())off();friendUnwatch.clear();friendPresenceCache.clear();for(const id of ['fbfFriends','fbfIncoming','fbfOutgoing','fbfBlocked','fbfSearchResult'])$(id).replaceChildren();$('fbfCount').textContent='—'}
+function resetFriends(){readyUid=null;clearTimeout(autoPublishTimer);closePlayerProfile();known=[];blocks=new Set();friends=new Map();cards=new Map();for(const off of friendUnwatch.values())off();friendUnwatch.clear();friendPresenceCache.clear();for(const id of ['fbfFriends','fbfIncoming','fbfOutgoing','fbfBlocked','fbfSearchResult'])$(id).replaceChildren();$('fbfCount').textContent='—'}
 function empty(container,s){container.appendChild(el('div',s,'fbfMuted'))}
 function cardTitle(uid){const card=cards.get(uid);return card?.nick||T('noCard')}
-function avatar(uid){
+function avatar(uid,large=false){
   const data=cards.get(uid)?.avatar||{};
-  const canvas=el('canvas',null,'fbfAvatar');canvas.width=32;canvas.height=32;
+  const canvas=el('canvas',null,large?'fbfAvatar fbfLargeAvatar':'fbfAvatar');canvas.width=large?96:32;canvas.height=large?96:32;
   canvas.style.imageRendering='pixelated';canvas.setAttribute('aria-label','Bird avatar');
   const c=canvas.getContext('2d');if(!c)return canvas;
-  const bgs=['#ff6b9d','#ffd23f','#4cd964','#4da3ff','#b9a0ff','#ff7b2e','#2ec4b6','#e8e8f5'];
+  const bgs=window.flyingBirdFriendAvatarBackgrounds || ['#ff6b9d','#ffd23f','#4cd964','#4da3ff','#b9a0ff','#ff7b2e','#2ec4b6','#e8e8f5'];
   const n=Math.max(0,Math.floor(Number(data.bg)||0))%bgs.length;
   const pal=window.flyingBirdFriendSkinPalette||[];
   const s=pal[Math.max(0,Math.floor(Number(data.skin)||0))]||pal[0]||{body:'#ffd23f',hi:'#ffe98a',wing:'#ff9f1c',belly:'#fff4d6'};
@@ -3381,12 +3456,58 @@ function avatar(uid){
   c.fillStyle='#fff';c.fillRect(19,11,6,6);
   c.fillStyle='#1a1033';c.fillRect(23,13,3,3);
   c.fillStyle='#ff9f1c';c.fillRect(26,18,5,3);
+  if(large){
+    // Pixel-perfect upscale of the identical friend-list avatar.
+    const pixels=document.createElement('canvas');pixels.width=32;pixels.height=32;
+    pixels.getContext('2d').drawImage(canvas,0,0);
+    c.imageSmoothingEnabled=false;c.clearRect(0,0,96,96);c.drawImage(pixels,0,0,32,32,0,0,96,96);
+  }
   return canvas;
 }
 function pair(d,uid){return d.fromUid===uid?d.toUid:d.toUid===uid?d.fromUid:null}
 function pendingFor(peer){return known.filter(d=>pair(d,ownUid())===peer&&['pending','accepted'].includes(d.status))}
-function cardLines(container,uid,playerId){const row=el('div',null,'fbfRow');row.append(avatar(uid),el('strong',cardTitle(uid)));container.appendChild(row);const sub=el('div',(cards.get(uid)?.playerId||playerId||'—'),'fbfMuted');container.appendChild(sub)}
+function cardLines(container,uid,playerId){
+  const row=el('div',null,'fbfIdentity');
+  const name=el('div',null,'fbfIdentityText');
+  name.append(el('strong',cardTitle(uid)),el('small',cards.get(uid)?.playerId||playerId||'—'));
+  row.append(avatar(uid),name);container.appendChild(row);
+  if(!blocks.has(uid))row.append(action(T('viewProfile'),()=>openPlayerProfile(uid,playerId),'fbfSmall fbfSecondary'));
+}
 async function fetchPublic(uid){if(cards.has(uid))return cards.get(uid);try{const s=await getDocFromServer(doc(db,'publicProfiles',uid));if(s.exists()){cards.set(uid,s.data());return s.data()}}catch(e){}return null}
+
+let profileViewSeq=0;
+function profileStat(label,value){
+  const box=el('div',null,'fbfStat');box.append(el('strong',String(value??0)),el('small',label));return box;
+}
+async function openPlayerProfile(uid,fallbackId){
+  if(!registered()||blocks.has(uid))return;
+  const seq=++profileViewSeq,overlay=$('fbfProfile');
+  overlay.hidden=false;
+  $('fbfProfileTitle').textContent=cardTitle(uid);
+  $('fbfProfileId').textContent=cards.get(uid)?.playerId||fallbackId||'—';
+  const a=cards.get(uid)?.avatar||{},skins=window.flyingBirdFriendSkinPalette||[];
+  $('fbfProfileSkin').textContent=T('profileSkin')+': '+(skins[Math.max(0,Number(a.skin)||0)]?.name||'CLASSIC');
+  $('fbfProfileAvatarSlot').replaceChildren(avatar(uid,true));
+  $('fbfProfileStats').replaceChildren();$('fbfProfileMessage').textContent=T('loadingProfile');
+  try{
+    const snap=await getDocFromServer(doc(db,'publicStats',uid));
+    if(seq!==profileViewSeq||overlay.hidden||ownUid()===null)return;
+    if(!snap.exists()){$('fbfProfileMessage').textContent=T('statsMissing');return;}
+    const st=snap.data(),best=st.best||{};
+    const fields=[
+      [T('stEasy'),best.EASY],[T('stNormal'),best.NORMAL],
+      [T('stHard'),best.HARD],[T('stExtreme'),best.EXTREME],
+      [T('stGames'),st.games],[T('stPipes'),st.pipes],
+      [T('stFlaps'),st.flaps],[T('stEarned'),st.earnedCoins],
+      [T('stAchievements'),st.achievements]
+    ];
+    $('fbfProfileStats').replaceChildren(...fields.map(([l,v])=>profileStat(l,v)));
+    $('fbfProfileMessage').textContent='';
+  }catch(e){if(seq===profileViewSeq)$('fbfProfileMessage').textContent=T('statsDenied')+' ('+err(e)+')';}
+}
+function closePlayerProfile(){++profileViewSeq;$('fbfProfile').hidden=true}
+$('fbfProfileClose').addEventListener('click',closePlayerProfile);
+
 function shortDate(v){return typeof v==='number'?new Date(v).toLocaleString(lang==='RU'?'ru-RU':lang==='ZH'?'zh-CN':lang==='ES'?'es-ES':lang==='PT'?'pt-BR':'en-US'):''}
 function getPresenceStatus(uid){const b=modal.querySelector(`[data-fbf-presence="${uid}"]`);if(!b)return;return b}
 function renderPresence(uid,data,unavailable=false){const status=getPresenceStatus(uid);if(!status)return;const cnt=data?.connections?Object.keys(data.connections).length:0;status.className='fbfChip '+(unavailable?'unavailable':cnt?'online':'offline');status.replaceChildren(el('span',null,'fbfDot'));let msg=unavailable?T('unknown'):cnt?T('online'):T('offline');if(!cnt&&!unavailable&&Number.isFinite(data?.lastOnline))msg+=' · '+T('lastSeen')+': '+shortDate(data.lastOnline);status.appendChild(el('span',msg));}
@@ -3395,7 +3516,7 @@ function render(){const me=ownUid();const f=$('fbfFriends'),inc=$('fbfIncoming')
 const ins=known.filter(d=>d.toUid===me),outs=known.filter(d=>d.fromUid===me);for(const [box,list,dir] of [[inc,ins,'in'],[out,outs,'out']]){if(!list.length)empty(box,T('emptyRequests'));for(const r of list){const peer=dir==='in'?r.fromUid:r.toUid;const item=el('div',null,'fbfItem');cardLines(item,peer,dir==='out'?r.toPlayerId:null);item.appendChild(el('div',T(r.status)||r.status,'fbfMuted'));const buttons=el('div',null,'fbfRow');if(r.status==='pending'&&dir==='in'){buttons.append(action(T('accept'),()=>respond(r.id,'accepted'),'fbfSmall'),action(T('reject'),()=>respond(r.id,'rejected'),'fbfSmall fbfSecondary'))}else if(r.status==='pending'&&dir==='out'){buttons.append(action(T('cancel'),()=>deleteRequest(r.id),'fbfSmall fbfSecondary'))}else if(r.status==='rejected'){buttons.append(action(T('cancel'),()=>deleteRequest(r.id),'fbfSmall fbfSecondary'))}if(['pending','accepted'].includes(r.status)&&peer!==me&&!blocks.has(peer))buttons.append(action(T('block'),()=>blockUser(peer),'fbfSmall fbfDanger'));item.appendChild(buttons);box.appendChild(item)}}
 if(!blocks.size)empty(bl,T('emptyBlocked'));for(const id of blocks){const item=el('div',null,'fbfItem');cardLines(item,id,null);item.appendChild(action(T('unblock'),()=>unblock(id),'fbfSmall fbfSecondary'));bl.appendChild(item)}subscribeFriendPresence();}
 async function refresh(){if(!checkLogin()||busy)return;const me=ownUid(),seq=authSeq;setBusy(true);note(T('wait'));try{const base=collection(db,'friendRequests');const [inS,outS,blockedS]=await Promise.all([getDocsFromServer(query(base,where('toUid','==',me),limit(50))),getDocsFromServer(query(base,where('fromUid','==',me),limit(50))),getDocsFromServer(query(collection(db,'blocks',me,'users'),limit(100)))]);if(seq!==authSeq||ownUid()!==me)return;known=[...new Map([...inS.docs,...outS.docs].map(s=>[s.id,{...s.data(),id:s.id}])).values()];blocks=new Set(blockedS.docs.map(d=>d.id));friends.clear();for(const d of known){const peer=pair(d,me);if(d.status==='accepted'&&peer&&!blocks.has(peer))friends.set(peer,{playerId:d.fromUid===me?d.toPlayerId:null})}cards.clear();await Promise.all([...new Set([...friends.keys(),...blocks,...known.map(d=>pair(d,me)).filter(Boolean)])].map(fetchPublic));if(seq!==authSeq||ownUid()!==me)return;render();let trunc=inS.size>=50||outS.size>=50;if(dbRealtime)await syncPresenceAccess(me,new Set(friends.keys()),trunc);if(trunc)note(T('truncated'));else note('');}catch(e){note(T('cannotRefresh')+' '+err(e),true)}finally{if(seq===authSeq)setBusy(false)}}
-async function search(){if(!checkLogin()||busy)return;const id=$('fbfSearchId').value.trim().toUpperCase(),b=$('fbfSearchResult');b.replaceChildren();if(!validId(id)){note(T('invalid'),true);return}setBusy(true);try{const s=await getDocFromServer(doc(db,'playerIds',id));if(!s.exists()){note(T('notFound'),true);return}const uid=s.data().uid;if(!uid||uid===ownUid()){note(T('self'),true);return}const c=await fetchPublic(uid),item=el('div',null,'fbfItem');cardLines(item,uid,id);item.appendChild(el('div',T('searchResult'),'fbfMuted'));const buttons=el('div',null,'fbfRow');if(blocks.has(uid))buttons.append(action(T('unblock'),()=>unblock(uid),'fbfSmall'));else{if(!known.some(d=>pair(d,ownUid())===uid&&['pending','accepted'].includes(d.status)))buttons.append(action(T('send'),()=>sendRequest(uid,id),'fbfSmall'));buttons.append(action(T('block'),()=>blockUser(uid),'fbfSmall fbfDanger'));}item.appendChild(buttons);b.appendChild(item);note('');}catch(e){note(T('error')+': '+err(e),true)}finally{setBusy(false)}}
+async function search(){if(!checkLogin()||busy)return;const id=$('fbfSearchId').value.trim().toUpperCase(),b=$('fbfSearchResult');b.replaceChildren();if(!validId(id)){note(T('invalid'),true);return}setBusy(true);try{const s=await getDocFromServer(doc(db,'playerIds',id));if(!s.exists()){note(T('notFound'),true);return}const uid=s.data().uid;if(!uid||uid===ownUid()){note(T('self'),true);return}cards.delete(uid);await fetchPublic(uid);const item=el('div',null,'fbfItem');cardLines(item,uid,id);item.appendChild(el('div',T('searchResult'),'fbfMuted'));const buttons=el('div',null,'fbfRow');if(blocks.has(uid))buttons.append(action(T('unblock'),()=>unblock(uid),'fbfSmall'));else{if(!known.some(d=>pair(d,ownUid())===uid&&['pending','accepted'].includes(d.status)))buttons.append(action(T('send'),()=>sendRequest(uid,id),'fbfSmall'));buttons.append(action(T('block'),()=>blockUser(uid),'fbfSmall fbfDanger'));}item.appendChild(buttons);b.appendChild(item);note('');}catch(e){note(T('error')+': '+err(e),true)}finally{setBusy(false)}}
 async function sendRequest(uid,id){if(!checkLogin())return;setBusy(true);try{const me=ownUid();await setDoc(doc(db,'friendRequests',me+'_'+uid),{fromUid:me,toUid:uid,toPlayerId:id,status:'pending',createdAt:serverTimestamp()});note(T('requestChanged'));await refreshSafe()}catch(e){note(T('error')+': '+err(e),true)}finally{setBusy(false)}}
 async function respond(id,status){if(!checkLogin())return;setBusy(true);try{await updateDoc(doc(db,'friendRequests',id),{status,respondedAt:serverTimestamp()});note(T('requestChanged'));await refreshSafe()}catch(e){note(T('error')+': '+err(e),true)}finally{setBusy(false)}}
 async function deleteRequest(id){setBusy(true);try{await deleteDoc(doc(db,'friendRequests',id));await refreshSafe();note(T('requestChanged'))}catch(e){note(T('error')+': '+err(e),true)}finally{setBusy(false)}}
@@ -3404,7 +3525,60 @@ async function blockUser(uid){if(!checkLogin()||uid===ownUid()||!confirm(T('conf
 async function unblock(uid){if(!confirm(T('confirmUnblock')))return;setBusy(true);try{await deleteDoc(doc(db,'blocks',ownUid(),'users',uid));await refreshSafe();note(T('blockChanged'));}catch(e){note(T('error')+': '+err(e),true)}finally{setBusy(false)}}
 // Internal helper avoids reentrant busy gate when actions refresh after a write.
 async function refreshSafe(){setBusy(false);try{await refresh()}finally{setBusy(true)}}
-async function publishOwn(){if(!checkLogin()||busy)return;setBusy(true);try{const me=ownUid(),s=await getDocFromServer(doc(db,'players',me));if(!s.exists())throw Error('Missing own player profile');const p=s.data();if(!validId(p.id))throw Error(T('invalid'));const ix=await getDocFromServer(doc(db,'playerIds',p.id));if(!ix.exists()||ix.data().uid!==me)throw Error(T('idConflict'));if(typeof p.nick!=='string'||!p.avatar||typeof p.avatar!=='object')throw Error('Invalid own profile');await setDoc(doc(db,'publicProfiles',me),{playerId:p.id,nick:p.nick,avatar:p.avatar});note(T('cardUpdated'));}catch(e){note(T('error')+': '+err(e),true)}finally{setBusy(false)}}
+let readyUid=null,autoPublishTimer=null,publicPublishing=false;
+function publicStatsPayload(){
+  let progress={};try{progress=JSON.parse(localStorage.getItem('flyingBirdSave')||'{}')}catch{}
+  const safeNumber=x=>Math.min(100000000,Math.max(0,Math.floor(Number(x)||0)));
+  const best={};for(const mode of ['EASY','NORMAL','HARD','EXTREME'])best[mode]=safeNumber(progress.best?.[mode]);
+  return {best,games:safeNumber(progress.games),pipes:safeNumber(progress.pipes),
+    flaps:safeNumber(progress.flaps),earnedCoins:safeNumber(progress.earnedCoins),
+    achievements:Object.values(progress.ach||{}).filter(Boolean).length,
+    updatedAt:serverTimestamp()};
+}
+async function publishOwnData(showNotice=false){
+  const uid=ownUid();if(!registered()||!uid||readyUid!==uid)return;
+  if(publicPublishing){if(!showNotice)schedulePublicUpdate(1800);return;}
+  publicPublishing=true;
+  let cardError=null,statError=null;
+  try{
+    const s=await getDocFromServer(doc(db,'players',uid));
+    if(ownUid()!==uid||readyUid!==uid)return;
+    if(!s.exists())throw Error('Missing player profile');
+    const p=s.data();if(!validId(p.id))throw Error(T('invalid'));
+    // Validate the ID mapping before publishing a searchable public identity.
+    const ix=await getDocFromServer(doc(db,'playerIds',p.id));
+    if(!ix.exists()||ix.data().uid!==uid)throw Error(T('idConflict'));
+    if(typeof p.nick!=='string'||!p.avatar||typeof p.avatar!=='object')throw Error('Missing player avatar');
+    await setDoc(doc(db,'publicProfiles',uid),{playerId:p.id,nick:p.nick,avatar:p.avatar});
+    cards.set(uid,{playerId:p.id,nick:p.nick,avatar:p.avatar});
+  }catch(e){cardError=e}
+  try{
+    if(ownUid()===uid&&readyUid===uid)await setDoc(doc(db,'publicStats',uid),publicStatsPayload());
+  }catch(e){statError=e}
+  publicPublishing=false;
+  if(showNotice){
+    if(cardError||statError)note(T('profilePublishFailed')+' '+[cardError,statError].filter(Boolean).map(err).join(' / '),true);
+    else note(T('cardUpdated'));
+  }
+  if(!modal.hidden&&activeTab==='friends')void refresh();
+}
+async function publishOwn(){if(!checkLogin()||busy)return;setBusy(true);try{await publishOwnData(true)}finally{setBusy(false)}}
+function schedulePublicUpdate(delay=2400){
+  if(!registered()||readyUid!==ownUid())return;
+  clearTimeout(autoPublishTimer);
+  autoPublishTimer=setTimeout(()=>void publishOwnData(false),delay);
+}
+window.addEventListener('flyingbird:account-ready',e=>{
+  if(e.detail?.uid!==ownUid())return;
+  readyUid=e.detail.uid;
+  schedulePublicUpdate(500);
+});
+window.addEventListener('flyingbird:profile-saved',e=>{
+  if(e.detail?.uid===ownUid())schedulePublicUpdate(350);
+});
+window.addEventListener('flyingbird:progress-changed',()=>schedulePublicUpdate(3000));
+window.addEventListener('online',()=>schedulePublicUpdate(600));
+
 function validUrl(str){try{const url=new URL(str);return url.protocol==='https:'&&/^(flying-bird-d6832)([.-][a-z0-9-]+)*\.(firebasedatabase\.app|firebaseio\.com)$/.test(url.hostname)&&url.pathname==='/'&&!url.search&&!url.hash&&!url.username&&!url.password?url.origin:null}catch{return null}}
 async function connectPresence(){const raw=$('fbfDatabaseUrl').value.trim(),url=validUrl(raw);if(!url){note(T('dbBad'),true);return}if(dbRealtime&&setupUrl!==url){localStorage.setItem('flyingBirdRTDBUrlV1',url);note(T('dbReload'));return}setupUrl=url;localStorage.setItem('flyingBirdRTDBUrlV1',url);dbRealtime=dbRealtime||getDatabase(app,url);$('fbfPresenceInfo').textContent=T('dbReady');note(T('dbReady'));if(registered()){startPresence(ownUid());await syncPresenceAccess(ownUid(),new Set(friends.keys()));subscribeFriendPresence()}}
 // Friends-only visibility at RTDB level is based on an owner-maintained access list.
@@ -3415,20 +3589,22 @@ async function revokePresenceAccess(uid){if(dbRealtime&&ownUid())await remove(re
 async function logoutPresence(){presenceVersion++;unwatchConnected?.();unwatchConnected=null;for(const u of friendUnwatch.values())u();friendUnwatch.clear();const c=onlineConn,l=onlineLast;onlineConn=null;onlineLast=null;if(c){try{await remove(c)}catch{}try{await onDisconnect(c).cancel()}catch{}}if(l){try{await set(l,rtdbTimestamp())}catch{}try{await onDisconnect(l).cancel()}catch{}}}
 window.flyingBirdBeforeSignOut=logoutPresence;
 function startPresence(uid){if(!dbRealtime||!uid)return;presenceVersion++;const run=presenceVersion;unwatchConnected?.();unwatchConnected=onValue(ref(dbRealtime,'.info/connected'),snap=>{if(run!==presenceVersion||ownUid()!==uid||!snap.val())return;void (async()=>{const c=push(ref(dbRealtime,'presence/'+uid+'/connections')),l=ref(dbRealtime,'presence/'+uid+'/lastOnline');try{await onDisconnect(c).remove();await onDisconnect(l).set(rtdbTimestamp());if(run!==presenceVersion||ownUid()!==uid){await onDisconnect(c).cancel();return}await set(c,true);onlineConn=c;onlineLast=l;$('fbfPresenceInfo').textContent=T('dbReady')}catch(e){$('fbfPresenceInfo').textContent=T('error')+': '+err(e)}})()},e=>{$('fbfPresenceInfo').textContent=T('error')+': '+err(e)})}
-function openFriends(){applyLang();if(!registered()){document.getElementById('accountBtn')?.click();return}document.getElementById('authPanel').hidden=true;modal.hidden=false;setActiveTab('friends');void refresh()}
-function closeFriends(){modal.hidden=true}
-function setActiveTab(name){activeTab=name;for(const n of ['friends','requests','blocked']){$('fbf'+n[0].toUpperCase()+n.slice(1)+'Pane').hidden=n!==name;modal.querySelector('[data-fbf-tab="'+n+'"]').setAttribute('aria-selected',String(n===name))}}
+function openFriends(){closePlayerProfile();applyLang();if(!registered()){document.getElementById('accountBtn')?.click();return}document.getElementById('authPanel').hidden=true;modal.hidden=false;setActiveTab('friends');void refresh()}
+function closeFriends(){closePlayerProfile();modal.hidden=true}
+function setActiveTab(name){closePlayerProfile();activeTab=name;for(const n of ['friends','requests','blocked']){$('fbf'+n[0].toUpperCase()+n.slice(1)+'Pane').hidden=n!==name;modal.querySelector('[data-fbf-tab="'+n+'"]').setAttribute('aria-selected',String(n===name))}}
 window.flyingBirdOpenFriends=openFriends;
 $('fbfClose').onclick=closeFriends;modal.addEventListener('click',e=>{if(e.target===modal)closeFriends()});
-modal.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();closeFriends()}});
-document.addEventListener('keydown',e=>{if(!modal.hidden){e.stopImmediatePropagation();if(e.key==='Escape'){e.preventDefault();closeFriends()}}},true);
+modal.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();if(!$('fbfProfile').hidden)closePlayerProfile();else closeFriends()}});
+document.addEventListener('keydown',e=>{if(!modal.hidden){e.stopImmediatePropagation();if(e.key==='Escape'){e.preventDefault();if(!$('fbfProfile').hidden)closePlayerProfile();else closeFriends()}}},true);
 for(const b of modal.querySelectorAll('[data-fbf-tab]'))b.addEventListener('click',()=>setActiveTab(b.dataset.fbfTab));
 $('fbfRefresh').onclick=refresh;$('fbfSearchBtn').onclick=search;$('fbfPublish').onclick=publishOwn;$('fbfConnect').onclick=connectPresence;
 $('fbfSearchId').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();void search()}});
 $('accountFriends').onclick=openFriends;
 window.addEventListener('flyingbird:progress-changed',applyLang);
 let previousUid=null;
-onAuthStateChanged(auth,async user=>{const seq=++authSeq,uid=user&&!user.isAnonymous?user.uid:null;if(previousUid&&previousUid!==uid){void logoutPresence();resetFriends()}previousUid=uid;setBusy(false);if(!uid){resetFriends();if(!modal.hidden)closeFriends();return}if(setupUrl){const url=validUrl(setupUrl);if(url){try{dbRealtime=dbRealtime||getDatabase(app,url);startPresence(uid);$('fbfPresenceInfo').textContent=T('dbReady')}catch(e){$('fbfPresenceInfo').textContent=err(e)}}}else $('fbfPresenceInfo').textContent=T('dbMissing');await refresh();if(seq!==authSeq)return;});
+onAuthStateChanged(auth,async user=>{const seq=++authSeq,uid=user&&!user.isAnonymous?user.uid:null;if(previousUid&&previousUid!==uid){void logoutPresence();resetFriends()}previousUid=uid;setBusy(false);if(!uid){resetFriends();if(!modal.hidden)closeFriends();return}
+if(window.flyingBirdPublicReadyUid===uid){readyUid=uid;schedulePublicUpdate(800)}
+if(setupUrl){const url=validUrl(setupUrl);if(url){try{dbRealtime=dbRealtime||getDatabase(app,url);startPresence(uid);$('fbfPresenceInfo').textContent=T('dbReady')}catch(e){$('fbfPresenceInfo').textContent=err(e)}}}else $('fbfPresenceInfo').textContent=T('dbMissing');await refresh();if(seq!==authSeq)return;});
 applyLang();
 </script>
 </body>
