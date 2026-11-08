@@ -4256,6 +4256,15 @@ function renderInvites(){const box=$('fbMpInvites');box.replaceChildren();const 
 let unMatch=null, race=null, raceSnapshot=null, raceOnDisconnect=null, raceRaf=0;
 let raceServerOffset=0, raceLastPublish=0, racePublishBusy=false, raceLastTick=-1, raceStarting=false, raceConnectionUnsub=null;
 const raceRoot=code=>'multiplayerMatches/'+code;
+// /.info is a Firebase client-side metadata namespace. get() attempts a server
+// read and may fail with "Invalid token in path". Read it with onValue() instead.
+function readRaceServerOffset(){
+ return new Promise((resolve,reject)=>{
+  onValue(ref(db,'.info/serverTimeOffset'),snapshot=>{
+   const n=Number(snapshot.val());resolve(Number.isFinite(n)?n:0);
+  },reject,{onlyOnce:true});
+ });
+}
 const RACE_FPS=60, RACE_STEP=1000/RACE_FPS, RACE_PHASE=1800;
 const RACE_GRAVITY=.26, RACE_FLAP=-4.4, RACE_PIPE_WIDTH=52;
 const RACE_WORDS={
@@ -4365,8 +4374,7 @@ async function raceExit(){if(race?.me.alive)await raceFinish('DNF');try{await ra
 function raceCleanup(){raceConnectionUnsub?.();raceConnectionUnsub=null;cancelAnimationFrame(raceRaf);raceRaf=0;race=null;raceSnapshot=null;raceOnDisconnect=null;raceCanvas.width=320;raceCanvas.height=480;raceUI.hidden=true;}
 async function beginRace(payload,code){if(!payload||race||raceStarting||!payload.roster?.[ownUid()]||!payload.meta)return;raceStarting=true;try{
  const meta={...payload.meta,roster:payload.roster};const w=raceWorld(meta.layout);if(meta.layout!==currentLayout()){say(T('layoutMismatch'),true);return}
- let offset=0;try{offset=(await get(ref(db,'.info/serverTimeOffset'))).val()||0}catch{}
- raceServerOffset=Number(offset)||0;
+ raceServerOffset=await readRaceServerOffset();
  const now=Date.now()+raceServerOffset;if(now>meta.startAt+1800){say(RT('noRestart'),true);return}
  const local={y:w.ground*.42,vy:0,tick:0,score:0,elapsedMs:0,alive:true,status:'ALIVE'};
  race={code,meta,world:w,course:[],ghosts:new Map(),cards:new Map(),me:local,simTick:0,flapQueued:false,finished:false,startFlash:22,lastScoreboardAt:0};raceSnapshot=payload;
@@ -4380,14 +4388,15 @@ async function beginRace(payload,code){if(!payload||race||raceStarting||!payload
  raceSetStatus('');raceLastPublish=0;raceRaf=requestAnimationFrame(raceFrame);raceUpdateFromServer(payload)
  }catch(e){raceSetStatus((e?.code||e?.message||String(e)),true);if(race?.me.alive)void raceFinish('DNF')}finally{raceStarting=false}}
 function watchRace(code){unMatch?.();unMatch=onValue(ref(db,raceRoot(code)),snapshot=>{if(roomCode!==code)return;if(!snapshot.exists())return;const data=snapshot.val();if(!race&&data.roster?.[ownUid()]&&serverClock()<data.meta?.startAt+2000)void beginRace(data,code);else if(race?.code===code)raceUpdateFromServer(data)},e=>{if(race?.me.alive)void raceFinish('DNF');say(T('error')+': MATCH_READ · '+e.message,true)});}
-async function startSurvivalMatch(){if(!db||!roomData||!roomCode||roomData.hostUid!==ownUid()||!readyForMatch()){say(T('mustReady'),true);return}const code=roomCode,players=memberSeats();if(players.length<2)return;setBusy(true);try{
- const offsetSnap=await get(ref(db,'.info/serverTimeOffset'));const offset=Number(offsetSnap.val())||0;const now=Date.now()+offset;
+async function startSurvivalMatch(){if(!db||!roomData||!roomCode||roomData.hostUid!==ownUid()||!readyForMatch()){say(T('mustReady'),true);return}const code=roomCode,players=memberSeats();if(players.length<2)return;setBusy(true);let stage='CLOCK_OFFSET';try{
+ const offset=await readRaceServerOffset();const now=Date.now()+offset;
  const roster={},live={};const world=raceWorld(roomData.meta.layout);
  for(const [,p] of players){roster[p.uid]=true;live[p.uid]={status:'ALIVE',tick:0,y:Math.round(world.ground*.42),vy:0,score:0,elapsedMs:0,lastSeen:rtStamp()}}
  const seed=new Uint32Array(1);crypto.getRandomValues(seed);
  const meta={hostUid:ownUid(),seed:seed[0]%2147483647,startAt:now+6000,createdAt:rtStamp(),map:roomData.meta.map,diff:roomData.meta.diff,layout:roomData.meta.layout,version:roomData.meta.version};
+ stage='WRITE_MATCH';
  await set(ref(db,raceRoot(code)),{meta,roster,players:live});say('');
- }catch(e){say(RT('startError')+': '+(e?.code||e?.message||String(e)),true)}finally{setBusy(false)}}
+ }catch(e){console.error('[Flying Bird Multiplayer] Start failed',{stage,roomCode:code,error:e});say(RT('startError')+': '+stage+' · '+(e?.code||e?.message||String(e)),true)}finally{setBusy(false)}}
 window.addEventListener('resize',raceFit);window.addEventListener('orientationchange',raceFit);
 raceCanvas.addEventListener('pointerdown',e=>{e.preventDefault();raceFlap()});
 window.addEventListener('keydown',e=>{if(race&&!raceUI.hidden){if(['Space','ArrowUp','KeyW','Enter','Escape'].includes(e.code)){e.preventDefault();e.stopImmediatePropagation()}if(['Space','ArrowUp','KeyW','Enter'].includes(e.code))raceFlap();else if(e.code==='Escape')raceExitPrompt()}},true);
