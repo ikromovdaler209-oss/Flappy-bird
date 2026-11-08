@@ -499,7 +499,7 @@ body::before {
       if (!['EN','ZH','RU','ES','PT'].includes(cfg.lang)) cfg.lang = 'EN';
       if (!MAPS[cfg.map]) cfg.map = 'CITY';
       cfg.fps = String(cfg.fps);
-      if (!['60','90','120','MAX'].includes(cfg.fps)) cfg.fps = 'MAX';
+      if (cfg.fps !== 'MAX' && !/^\d{2,3}$/.test(cfg.fps)) cfg.fps = 'MAX';
       if (!['AUTO','HIGH','LOW','OFF'].includes(cfg.particleQuality)) cfg.particleQuality = 'AUTO';
     }
     if (data.save && typeof data.save === 'object') {
@@ -559,7 +559,7 @@ body::before {
   };
   if (!MAPS[cfg.map]) cfg.map = 'CITY';
   cfg.fps = String(cfg.fps);
-  if (!['60', '90', '120', 'MAX'].includes(cfg.fps)) cfg.fps = 'MAX';
+  if (cfg.fps !== 'MAX' && !/^\d{2,3}$/.test(cfg.fps)) cfg.fps = 'MAX';
   function initWeather() {   // snow on the mountains, rising embers on the volcano
     const n = cfg.map === 'MOUNTAINS' ? Math.round(W * H / 2200) : cfg.map === 'VOLCANO' ? Math.round(W * H / 5000) : 0;
     weather = Array.from({ length: n }, () => ({ x: Math.random() * W, y: Math.random() * H, s: Math.random() < 0.3 ? 2 : 1, p: Math.random() * 6.28 }));
@@ -2651,7 +2651,7 @@ function toggleFS() {
       [tr('COLOR_MODE'), displayValue(cfg.cb), d => { cfg.cb = cyc(Object.keys(PIPES), cfg.cb, d); }],
       [tr('REDUCE_EFFECTS'), onoff(cfg.fx), () => { cfg.fx = !cfg.fx; }],
       [tr('PARTICLE_QUALITY'), displayValue(cfg.particleQuality), d => { cfg.particleQuality = cyc(['AUTO','HIGH','LOW','OFF'], cfg.particleQuality, d); }],
-      [tr('FPS_LIMIT'), cfg.fps === 'MAX' ? tr('MAX') : cfg.fps, d => { cfg.fps = cyc(['60', '90', '120', 'MAX'], cfg.fps, d); }],
+      [tr('FPS_LIMIT'), cfg.fps === 'MAX' ? tr('MAX') + ' (' + displayHz() + ')' : cfg.fps, d => { const o = fpsOptions(); cfg.fps = cyc(o, o.includes(cfg.fps) ? cfg.fps : 'MAX', d); }],
       [tr('SHOW_FPS'), onoff(cfg.showFps), () => { cfg.showFps = !cfg.showFps; }]
     ];
     rows.push(
@@ -2790,7 +2790,12 @@ function toggleFS() {
     const coinCenter = rightEdge - labelWidth - 9 - 14;
     drawCoin(coinCenter, 18, {static: true});
     txt(balanceText, rightEdge, 18, coinFont, '#fff2a6', 'right');
-    if (cfg.showFps) txt('FPS ' + fpsShown, W - 8, 34, 10, '#9fe870', 'right');
+    if (cfg.showFps) {
+      // Second number = the longest gap between two drawn frames in the last ~second.
+      const ratio = fpsExpect > 0 ? worstShown / fpsExpect : 0;
+      txt('FPS ' + fpsShown + ' | ' + (worstShown ? Math.round(worstShown) : '-') + 'ms', W - 8, 34, 10,
+        ratio > 2.2 ? '#ff6b6b' : ratio > 1.5 ? '#ffd23f' : '#9fe870', 'right');
+    }
     if (focus >= btns.length) focus = 0;
   }
 
@@ -2951,10 +2956,28 @@ fit();
 
   // ---------- Loop ----------
   // The simulation always runs at a fixed 60 updates/sec (same physics for everyone, which multiplayer needs).
-  // The FPS limit only changes how often we draw; above 60 the motion is interpolated between updates.
+  // The FPS limit only changes how often we draw.
+  //  * ~60 Hz display: "locked" mode. Exactly one physics step per frame (no 0/2-step beat that looked
+  //    like stutter), drawn without interpolation, so there is no extra input latency.
+  //  * Any other refresh rate (90/120/144...): fixed steps + interpolation between them.
   const STEP = 1000 / 60;
   let last = performance.now(), acc = 0, nextDraw = 0, fpsN = 0, fpsT = last, fpsShown = 0;
+  let worstCur = 0, worstPrev = 0, worstShown = 0, fpsExpect = 0, lastDrawAt = 0;
   let activeFpsCap = cfg.fps;
+  const dtHist = []; let refreshDt = 0, locked = false, fpsChecked = false;
+
+  // Real display refresh (what the browser delivers), snapped to common values.
+  function displayHz() {
+    const hz = refreshDt > 0 ? 1000 / refreshDt : 60;
+    for (const k of [30, 48, 50, 60, 72, 75, 90, 100, 120, 144, 165, 180, 240, 360]) if (Math.abs(hz - k) / k < 0.04) return k;
+    return Math.round(hz);
+  }
+  // Only limits that divide the refresh rate evenly (e.g. 120 Hz -> 60, 40, 30) give even frame pacing.
+  function fpsOptions() {
+    const hz = displayHz(), list = ['MAX'];
+    for (let k = 2; k <= 4; k++) { const v = String(Math.round(hz / k)); if (+v >= 30 && !list.includes(v)) list.push(v); }
+    return list;
+  }
 
   const prev = { by: 0, br: 0, gx: 0, bx: 0 };
   function snap() {
@@ -2965,7 +2988,7 @@ fit();
   }
   const lerp = (a, b, t) => (a === undefined || Math.abs(b - a) > 60 ? b : a + (b - a) * t);
   function drawInterp(a) {
-    if (fpsShown <= 70 || a >= 1) { draw(); return; }
+    if (a >= 1 || a <= 0) { draw(); return; }
     const sv = { by: bird.y, br: bird.rot, gx: groundX, bx: bgX };
     const ps = pipes.map(p => [p.x, p.top]), qs = particles.map(q => [q.x, q.y]), ws = weather.map(w => [w.x, w.y]);
     bird.y = lerp(prev.by, bird.y, a); bird.rot = lerp(prev.br, bird.rot, a);
@@ -2981,21 +3004,53 @@ fit();
     }
   }
   function loop(now) {
-    acc += Math.max(0,Math.min(now - last, 100));
+    const raw = now - last;
     last = now;
-    while (acc >= STEP) { snap(); update(); acc -= STEP; }
-    // rAF is synchronized with the display. Requested limits ABOVE its refresh
-    // rate simply draw every available frame without speeding up gameplay.
+    // After a long stall (tab switch) do not replay the lost time as a burst of physics steps.
+    const dt = raw > 100 ? STEP : Math.max(0, raw);
+
+    // Track the display's real frame interval (low percentile of recent rAF gaps, so slow frames do not skew it).
+    if (raw > 3 && raw < 50) {
+      dtHist.push(raw); if (dtHist.length > 30) dtHist.shift();
+      if (dtHist.length >= 20) refreshDt = [...dtHist].sort((x, y) => x - y)[Math.floor(dtHist.length * 0.2)];   // low percentile: drops only make frames longer
+    }
+    const wasLocked = locked;
+    if (refreshDt > 0) {
+      if (!locked && Math.abs(refreshDt - STEP) < 1.5) locked = true;
+      else if (locked && Math.abs(refreshDt - STEP) > 2.5) locked = false;
+    }
+    if (locked !== wasLocked) acc = 0;
+    // A saved limit that does not fit this display (e.g. old 90 on a 120 Hz screen) falls back to MAX once.
+    if (!fpsChecked && dtHist.length >= 30) {
+      fpsChecked = true;
+      if (cfg.fps !== 'MAX' && !fpsOptions().includes(cfg.fps)) { cfg.fps = 'MAX'; saveCfg(); }
+    }
+
+    acc += dt;
+    if (locked) {
+      const n = Math.min(6, Math.max(0, Math.round(acc / STEP)));
+      for (let i = 0; i < n; i++) { snap(); update(); }
+      acc -= n * STEP;
+      if (Math.abs(acc) > STEP) acc = 0;   // safety resync
+    } else {
+      while (acc >= STEP) { snap(); update(); acc -= STEP; }
+    }
+
     const cap = cfg.fps === 'MAX' ? 0 : 1000 / Number(cfg.fps);
     if (cfg.fps !== activeFpsCap) {
       activeFpsCap = cfg.fps;
       nextDraw = now; // switching limits must not inherit an old deadline
       fpsN = 0;
       fpsT = now;
+      worstCur = worstPrev = worstShown = 0;
     }
-    if (!cap || now + 0.35 >= nextDraw) {
-      drawInterp(acc / STEP);
+    // Half a refresh interval of tolerance: a frame that arrives a hair early is still "on time".
+    const tol = cap ? Math.max(0.35, Math.min(refreshDt || 0, cap) * 0.5) : 0;
+    if (!cap || now + tol >= nextDraw) {
+      if (locked) draw(); else drawInterp(acc / STEP);
       fpsN++;
+      if (lastDrawAt) { const gap = now - lastDrawAt; if (gap < 250 && gap > worstCur) worstCur = gap; }
+      lastDrawAt = now;
       if (cap) {
         nextDraw += cap;
         if (nextDraw < now - cap) nextDraw = now + cap;
@@ -3003,6 +3058,9 @@ fit();
     }
     if (now - fpsT >= 500) {
       fpsShown = Math.round(fpsN * 1000 / (now - fpsT));
+      worstShown = Math.max(worstCur, worstPrev);
+      worstPrev = worstCur; worstCur = 0;
+      fpsExpect = cap ? Math.max(cap, refreshDt || 0) : (refreshDt || STEP);
       fpsN = 0;
       fpsT = now;
     }
