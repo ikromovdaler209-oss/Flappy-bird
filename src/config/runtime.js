@@ -1,4 +1,4 @@
-    window.FLYING_BIRD_RTDB_URL = '';
+    window.FLYING_BIRD_RTDB_URL = 'https://flying-bird-d6832-default-rtdb.europe-west1.firebasedatabase.app/';
     window.flyingBirdGetRTDBURL = function () {
       const valid = value => {
         try {
