@@ -4164,9 +4164,34 @@ function attach(code,slot){clearListeners();roomCode=code;mySeat=slot;const toke
  unKicked=onValue(ref(db,roomPath(code)+'/bans/'+ownUid()),snap=>{if(token!==roomToken)return;if(snap.val()===true){try{const x=new Set(lastCodes());x.add(code);localStorage.setItem('flyingBirdMpKickedV1',JSON.stringify([...x].slice(-50)))}catch{}void leaveRoom({silent:true,kicked:true});say(T('kicked'),true)}});
 }
 function validRoom(r){return r&&r.meta&&[3,5,10].includes(r.meta.capacity)&&['PORTRAIT','LANDSCAPE'].includes(r.meta.layout)}
-async function createRoom(){if(busy)return;if(!ownUid()){say(T('noAuth'),true);return}if(!setDb()){say(T('needUrl'),true);return}setBusy(true);say(T('pending'));try{let code;for(let i=0;i<6;i++){const v=randCode();const snap=await get(ref(db,roomPath(v)));if(!snap.exists()){code=v;break}}if(!code)throw Error('Cannot allocate room code');const uid=ownUid(),data={hostUid:uid,meta:{capacity:Number($('fbMpCapacity').value),layout:$('fbMpLayout').value,map:$('fbMpMap').value,diff:$('fbMpDifficulty').value,version:0,createdAt:rtStamp()},seatOf:{[uid]:'0'},slots:{'0':{uid,ready:false,rev:0,joinedAt:rtStamp()}}};await set(ref(db,roomPath(code)),data);
- const seatRef=ref(db,roomPath(code)+'/slots/0');await onDisconnect(seatRef).remove();say('');attach(code,'0');
- }catch(e){say(T('error')+': '+e.message,true)}finally{setBusy(false)}}
+async function createRoom(){
+ if(busy)return;
+ if(!ownUid()){say(T('noAuth'),true);return}
+ if(!setDb()){say(T('needUrl'),true);return}
+ setBusy(true);say(T('pending'));
+ let stage='CHECK_CODE',code='',roomSaved=false;
+ try{
+  for(let i=0;i<6;i++){
+   const candidate=randCode();
+   const snap=await get(ref(db,roomPath(candidate)));
+   if(!snap.exists()){code=candidate;break}
+  }
+  if(!code)throw Error('Cannot allocate room code');
+  stage='WRITE_ROOM';
+  const uid=ownUid(),data={hostUid:uid,meta:{capacity:Number($('fbMpCapacity').value),layout:$('fbMpLayout').value,map:$('fbMpMap').value,diff:$('fbMpDifficulty').value,version:0,createdAt:rtStamp()},seatOf:{[uid]:'0'},slots:{'0':{uid,ready:false,rev:0,joinedAt:rtStamp()}}};
+  await set(ref(db,roomPath(code)),data);
+  roomSaved=true;
+  stage='REGISTER_ONDISCONNECT';
+  const seatRef=ref(db,roomPath(code)+'/slots/0');
+  await onDisconnect(seatRef).remove();
+  say('');attach(code,'0');
+ }catch(e){
+  const codeText=(typeof e?.code==='string'?e.code:'')||'';
+  const detail=stage+' · '+(codeText||e?.message||String(e));
+  console.error('[Flying Bird Multiplayer] Create room failed:',{stage,roomSaved,roomCode:code,error:e});
+  say(T('error')+': '+detail+(roomSaved?' · Room was written but disconnect cleanup failed. Check multiplayerRooms in RTDB.':'') ,true);
+ }finally{setBusy(false)}
+}
 async function joinRoom(input){if(busy)return;const code=parseCode(input);if(!codeValid(code)){say(T('notFound'),true);return}if(!ownUid()){say(T('noAuth'),true);return}if(!setDb()){say(T('needUrl'),true);return}if(lastCodes().includes(code)){say(T('banned'),true);return}setBusy(true);say(T('pending'));try{const s=await get(ref(db,roomPath(code)));if(!s.exists())throw Error(T('notFound'));const room=s.val();if(room.bans?.[ownUid()])throw Error(T('banned'));if(!validRoom(room))throw Error(T('notFound'));if(room.meta.layout!==currentLayout())throw Error(T('layoutMismatch'));const existing=Object.entries(room.slots||{}).find(([,v])=>v?.uid===ownUid());if(existing){attach(code,existing[0]);say('');return}
  const indexRef=ref(db,roomPath(code)+'/seatOf/'+ownUid());let seat=null;const claimed=room.seatOf?.[ownUid()];if(typeof claimed==='string'&&!room.slots?.[claimed]){seat=claimed} else {for(let i=0;i<room.meta.capacity;i++){if(!room.slots?.[String(i)]){seat=String(i);break}}}
  if(seat===null)throw Error(T('full'));await set(indexRef,seat);
