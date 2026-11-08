@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0f0c29">
+  <meta name="application-name" content="Flying Bird">
+  <meta name="flying-bird-build" content="2.3-refactor">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Flying Bird">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Flying Bird</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+  <link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles/game.css">
+  <link rel="stylesheet" href="styles/overlays.css">
+  <link rel="stylesheet" href="styles/multiplayer.css">
+  <!-- Public RTDB URL can be configured once in src/config/runtime.js. -->
+  <script src="src/config/runtime.js"></script>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<input id="nick" maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false">
+<button id="accountBtn" type="button">ACCOUNT / ВХОД</button>
+
+<button id="fbLbShortcut" type="button" hidden aria-label="Leaderboards">🏆 RANKS</button>
+<div id="fbLbPanel" hidden role="dialog" aria-modal="true" aria-labelledby="fbLbTitle">
+ <div id="fbLbBox">
+  <button id="fbLbClose" type="button" aria-label="Close">×</button>
+  <h2 id="fbLbTitle">🏆 LEADERBOARDS</h2>
+  <p id="fbLbIntro" class="lbHint"></p>
+  <div class="lbScopes" role="group" aria-label="Leaderboard group">
+    <button type="button" data-lb-scope="friends" aria-pressed="true">FRIENDS</button>
+    <button type="button" data-lb-scope="global" aria-pressed="false">GLOBAL</button>
+  </div>
+  <div class="lbModes" role="group" aria-label="Leaderboard metric">
+    <button type="button" data-lb-mode="EASY" aria-pressed="false">EASY</button>
+    <button type="button" data-lb-mode="NORMAL" aria-pressed="false">NORMAL</button>
+    <button type="button" data-lb-mode="HARD" aria-pressed="false">HARD</button>
+    <button type="button" data-lb-mode="EXTREME" aria-pressed="false">EXTREME</button>
+    <button type="button" data-lb-mode="COINS" aria-pressed="true">COINS</button>
+  </div>
+  <div class="lbRow"><button id="fbLbRefresh" type="button">↻ Refresh</button><span id="fbLbCount" class="lbHint"></span></div>
+  <div id="fbLbList" aria-live="polite"></div>
+  <div id="fbLbGlobalControls" class="lbGlobalControls" hidden>
+    <div class="lbRow"><strong id="fbLbJoinLabel">GLOBAL PARTICIPATION</strong><button id="fbLbJoin" type="button">Join</button></div>
+    <div id="fbLbJoinHint" class="lbHint"></div>
+  </div>
+  <p class="lbHint" id="fbLbFairness"></p>
+  <p class="lbState" id="fbLbStatus" role="status" aria-live="polite"></p>
+ </div>
+</div>
+<div id="syncIndicator" hidden aria-live="polite">● ЛОКАЛЬНО</div>
+<div id="authPanel" hidden role="dialog" aria-modal="true" aria-labelledby="authTitle">
+  <div id="authBox">
+    <button id="authClose" type="button" aria-label="Закрыть">×</button>
+    <h2 id="authTitle">FLYING BIRD</h2>
+    <p class="authSubtitle">YOUR CLOUD ACCOUNT</p>
+    <p id="authStatus">Войдите, чтобы сохранить профиль в облаке.</p>
+    <div id="authChoices">
+      <button id="authChooseGoogle" type="button"><span aria-hidden="true" style="font:bold 19px Arial;color:#4285f4">G</span> ПРОДОЛЖИТЬ С GOOGLE</button>
+      <button id="authChooseLogin" type="button">ВОЙТИ ЧЕРЕЗ EMAIL</button>
+      <button id="authChooseRegister" type="button">СОЗДАТЬ АККАУНТ</button>
+    </div>
+    <div id="authFields" hidden>
+      <button id="authBack" type="button">← НАЗАД</button>
+      <p id="authModeTitle" class="authModeTitle"></p>
+      <label for="authEmail">EMAIL</label>
+      <input id="authEmail" type="email" placeholder="name@example.com" autocomplete="email">
+      <label for="authPassword">ПАРОЛЬ</label>
+      <input id="authPassword" type="password" placeholder="Не менее 6 символов" autocomplete="current-password">
+      <button id="authLogin" class="authPrimary" type="button" hidden>ВОЙТИ В АККАУНТ</button>
+      <button id="authRegister" class="authPrimary" type="button" hidden>ЗАРЕГИСТРИРОВАТЬСЯ</button>
+      <button id="authReset" type="button">Забыли пароль?</button>
+    </div>
+    <div id="accountDetails" hidden>
+      <div class="detail"><span>ИГРОК</span><span id="accountNick">—</span></div>
+      <div class="detail"><span>PLAYER ID</span><span id="accountId">—</span></div>
+      <div class="detail"><span>EMAIL</span><span id="accountEmail">—</span></div>
+      <div class="detail"><span>СПОСОБ ВХОДА</span><span id="accountProvider">—</span></div>
+      <div class="detail"><span>СОХРАНЕНИЕ</span><span id="accountSync">—</span></div>
+      <button id="accountStats" type="button">СТАТИСТИКА ИГРОКА</button>
+      <button id="accountFriends" type="button">👥 FRIENDS</button>
+    </div>
+    <button id="authLogout" type="button" hidden>ВЫЙТИ ИЗ АККАУНТА</button>
+    <p id="authError" role="status" aria-live="polite"></p>
+  </div>
+</div>
+<div id="syncPanel" hidden role="dialog" aria-modal="true" aria-labelledby="syncTitle">
+  <div id="syncBox">
+    <h2 id="syncTitle">ВЫБОР СОХРАНЕНИЯ</h2>
+    <p>Найден облачный прогресс. Выберите, какую версию оставить. Второй вариант будет заменён.</p>
+    <p id="syncDetails"></p>
+    <button id="syncUseCloud" type="button">ЗАГРУЗИТЬ ИЗ ОБЛАКА</button>
+    <button id="syncUseLocal" type="button">ОСТАВИТЬ ЭТО УСТРОЙСТВО</button>
+    <p id="syncError" role="status" aria-live="polite"></p>
+  </div>
+</div>
+<div id="statsPanel" hidden role="dialog" aria-modal="true" aria-labelledby="statsTitle"><div class="fbDialog">
+  <h2 id="statsTitle">PLAYER STATS</h2><div id="statsGrid" class="fbStats"></div>
+  <button id="statsClose" class="secondary" type="button">← НАЗАД</button>
+</div></div>
+<div id="logoutPanel" hidden role="dialog" aria-modal="true" aria-labelledby="logoutTitle"><div class="fbDialog">
+  <h2 id="logoutTitle">ВЫХОД ИЗ АККАУНТА</h2>
+  <p id="logoutMessage">Сначала сохраним последние изменения в облаке.</p>
+  <button id="logoutConfirm" type="button">СОХРАНИТЬ И ВЫЙТИ</button>
+  <button id="logoutForce" class="secondary" type="button" hidden>ВЫЙТИ БЕЗ СИНХРОНИЗАЦИИ</button>
+  <button id="logoutCancel" class="secondary" type="button">ОТМЕНА</button>
+</div></div>
+<div id="fbfPanel" hidden role="dialog" aria-modal="true" aria-labelledby="fbfTitle">
+  <div id="fbfBox">
+    <button type="button" id="fbfClose" aria-label="Close">×</button>
+    <h2 id="fbfTitle" data-fbf="title">FRIENDS</h2>
+    <p class="fbfMuted" data-fbf="intro">Friends and invitations · Flying Bird</p>
+    <div class="fbfRow"><button id="fbfRefresh" type="button" class="fbfSecondary" data-fbf="refresh">↻ Refresh</button><span id="fbfCount" class="fbfMuted">—</span></div>
+    <div id="fbfNotice" class="fbfNotice" role="status" aria-live="polite" hidden></div>
+    <div id="fbfPublishHealth" class="fbfNotice" role="status" aria-live="polite" hidden></div>
+    <div class="fbfTabs" role="tablist" aria-label="Friends pages">
+      <button type="button" data-fbf-tab="friends" role="tab" aria-controls="fbfFriendsPane" aria-selected="true" data-fbf="friends">Friends</button>
+      <button type="button" data-fbf-tab="requests" role="tab" aria-controls="fbfRequestsPane" aria-selected="false" data-fbf="requests">Requests</button>
+      <button type="button" data-fbf-tab="blocked" role="tab" aria-controls="fbfBlockedPane" aria-selected="false" data-fbf="blocked">Blocked</button>
+    </div>
+    <div id="fbfFriendsPane" class="fbfPane" role="tabpanel">
+      <h3 data-fbf="searchTitle">Find by Player ID</h3>
+      <div id="fbfSearchRow"><input id="fbfSearchId" maxlength="12" placeholder="FB-XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Player ID"><button id="fbfSearchBtn" type="button" data-fbf="search">Search</button></div>
+      <div id="fbfSearchResult"></div>
+      <h3 data-fbf="myFriends">My friends</h3><div id="fbfFriends" class="fbfScroll"></div>
+    </div>
+    <div id="fbfRequestsPane" class="fbfPane" role="tabpanel" hidden>
+      <h3 data-fbf="incoming">Incoming</h3><div id="fbfIncoming" class="fbfScroll"></div>
+      <h3 data-fbf="outgoing">Outgoing</h3><div id="fbfOutgoing" class="fbfScroll"></div>
+    </div>
+    <div id="fbfBlockedPane" class="fbfPane" role="tabpanel" hidden>
+      <h3 data-fbf="blockedTitle">Blocked players</h3><div id="fbfBlocked" class="fbfScroll"></div>
+    </div>
+    <section id="fbfProfile" hidden aria-labelledby="fbfProfileTitle">
+      <div id="fbfProfileCard">
+        <button type="button" id="fbfProfileClose">← BACK</button>
+        <div id="fbfProfileHeader">
+          <div id="fbfProfileAvatarSlot"></div>
+          <div id="fbfProfileMeta"><strong id="fbfProfileTitle">PLAYER</strong>
+            <small id="fbfProfileId">—</small>
+            <small id="fbfProfileSkin">—</small></div>
+        </div>
+        <h3 id="fbfProfileStatsTitle">PLAYER STATISTICS</h3>
+        <div id="fbfProfileStats" aria-live="polite"></div>
+        <p id="fbfProfileMessage" class="fbfMuted"></p>
+      </div>
+    </section>
+    <details class="fbfConfig"><summary data-fbf="presenceSettings">Online status settings</summary>
+      <p class="fbfMuted" data-fbf="databaseHint">Paste your exact Realtime Database URL from Firebase Console → Realtime Database → Data.</p>
+      <div class="fbfSettingsRow"><input id="fbfDatabaseUrl" type="url" placeholder="https://…firebasedatabase.app" spellcheck="false" aria-label="Realtime Database URL"><button id="fbfConnect" type="button" data-fbf="connect">Connect</button></div>
+      <p class="fbfMuted" id="fbfPresenceInfo"></p>
+    </details>
+  </div>
+</div>
+<!-- Profile visibility: appearance is always searchable; details obey Firestore rules. -->
+<div id="fbPrivacyPanel" hidden role="dialog" aria-modal="true" aria-labelledby="fbPrivacyTitle">
+  <div id="fbPrivacyBox">
+    <button id="fbPrivacyClose" type="button" aria-label="Close">×</button>
+    <h2 id="fbPrivacyTitle">PROFILE PRIVACY</h2>
+    <p id="fbPrivacyIntro">Choose who can see your records and statistics. Your nickname and avatar remain visible in friend search.</p>
+    <div id="fbPrivacyModes" role="group" aria-label="Who can view detailed profile">
+      <button type="button" data-fb-privacy="hidden"><strong>🔒 Hidden</strong><small>Statistics are private, even to friends.</small></button>
+      <button type="button" data-fb-privacy="friends"><strong>👥 Friends only</strong><small>Accepted friends can see details.</small></button>
+      <button type="button" data-fb-privacy="public"><strong>🌐 Public</strong><small>Any signed-in player can see details.</small></button>
+    </div>
+    <p id="fbPrivacyStatus" role="status" aria-live="polite"></p>
+    <button id="fbPrivacyDone" type="button">BACK TO PROFILE</button>
+  </div>
+</div>
+
+
+<!-- Room setup and lobby are separate from the solo canvas; the match engine comes in Update 2. -->
+<div id="fbMpPanel" hidden role="dialog" aria-modal="true" aria-labelledby="fbMpTitle">
+ <div id="fbMpBox">
+  <button id="fbMpClose" type="button" aria-label="Close">×</button>
+  <h2 id="fbMpTitle">🐤 MULTIPLAYER</h2>
+  <p id="fbMpSubtitle" class="mpHint"></p>
+  <div id="fbMpNotice" class="mpNotice" role="status" aria-live="polite" hidden></div>
+  <div id="fbMpHome">
+   <div class="mpSplit"><button id="fbMpGoCreate" type="button">CREATE ROOM</button><button id="fbMpGoJoin" type="button" class="secondary">JOIN ROOM</button></div>
+   <div class="mpField"><label for="fbMpCode">Room code or invitation link</label><input id="fbMpCode" type="text" maxlength="256" spellcheck="false" autocapitalize="off" placeholder="FBM-XXXX-XXXX"></div>
+   <button id="fbMpJoin" class="mpFull" type="button">JOIN BY CODE</button>
+   <div class="mpDivider"></div>
+   <h3 id="fbMpInvitesTitle">INVITATIONS</h3><div id="fbMpInvites" class="mpScroll"></div>
+   <details><summary id="fbMpDbTitle">Realtime Database connection</summary>
+    <p id="fbMpDbHint" class="mpHint"></p><div class="mpField"><input id="fbMpDbUrl" type="url" placeholder="https://…firebasedatabase.app" spellcheck="false"></div>
+    <button id="fbMpSaveDb" type="button" class="secondary">SAVE DATABASE URL</button>
+   </details>
+  </div>
+  <div id="fbMpCreate" hidden>
+   <div class="mpSplit">
+    <div class="mpField"><label for="fbMpCapacity">Players</label><select id="fbMpCapacity"><option value="3">3 players</option><option value="5" selected>5 players</option><option value="10">10 players</option></select></div>
+    <div class="mpField"><label for="fbMpLayout">Orientation</label><select id="fbMpLayout"><option value="PORTRAIT">Portrait</option><option value="LANDSCAPE">Landscape</option></select></div>
+   </div>
+   <div class="mpSplit"><div class="mpField"><label for="fbMpMap">Map</label><select id="fbMpMap"></select></div>
+    <div class="mpField"><label for="fbMpDifficulty">Difficulty</label><select id="fbMpDifficulty"><option>EASY</option><option selected>NORMAL</option><option>HARD</option><option>EXTREME</option></select></div></div>
+   <div class="mpRow"><button id="fbMpCreateRoom" type="button">CREATE</button><button id="fbMpCreateBack" type="button" class="secondary">BACK</button></div>
+   <p id="fbMpCreateInfo" class="mpHint"></p>
+  </div>
+  <div id="fbMpLobby" hidden>
+    <div class="mpRow"><span id="fbMpRoomCode" class="mpCode">—</span><button id="fbMpCopy" type="button" class="secondary">COPY CODE</button><button id="fbMpCopyLink" type="button" class="secondary">INVITE LINK</button></div>
+    <p id="fbMpRoomInfo" class="mpHint"></p>
+    <div class="mpSplit"><div class="mpField"><label for="fbMpLobbyCapacity">Players</label><select id="fbMpLobbyCapacity"><option value="3">3</option><option value="5">5</option><option value="10">10</option></select></div>
+    <div class="mpField"><label for="fbMpLobbyDifficulty">Difficulty</label><select id="fbMpLobbyDifficulty"><option>EASY</option><option>NORMAL</option><option>HARD</option><option>EXTREME</option></select></div></div>
+    <div class="mpField"><label for="fbMpLobbyMap">Map</label><select id="fbMpLobbyMap"></select></div>
+    <div class="mpRow"><button id="fbMpApplyConfig" type="button" class="secondary">SAVE ROOM SETTINGS</button><span id="fbMpLayoutInfo" class="mpHint"></span></div>
+    <h3 id="fbMpPlayersTitle">PLAYERS</h3><div id="fbMpPlayers" class="mpScroll"></div>
+    <div class="mpSplit"><button id="fbMpReady" type="button">I'M READY</button><button id="fbMpStart" type="button" disabled>START MATCH</button></div>
+    <p id="fbMpStartInfo" class="mpHint"></p>
+    <div class="mpDivider"></div><h3 id="fbMpInviteTitle">INVITE FRIENDS</h3>
+    <div class="mpRow"><button id="fbMpLoadFriends" type="button" class="secondary">LOAD FRIENDS</button><button id="fbMpShare" type="button" class="secondary">SHARE LINK</button></div>
+    <div id="fbMpFriends" class="mpScroll"></div>
+    <button id="fbMpLeave" type="button" class="danger mpFull">LEAVE ROOM</button>
+  </div>
+ </div>
+</div>
+
+
+<div id="fbMpRace" hidden role="dialog" aria-modal="true" aria-labelledby="fbMpRaceTitle">
+ <div id="fbMpRaceTop"><div><strong id="fbMpRaceTitle">LAST BIRD STANDING</strong><small id="fbMpRaceSub" style="display:block">TAP / SPACE TO FLAP</small></div><div class="mpRaceActions"><button id="fbMpRaceFullscreen" type="button" aria-label="Toggle fullscreen">⛶ FULLSCREEN</button><button id="fbMpRaceExit" type="button">EXIT MATCH</button></div></div>
+ <div id="fbMpRaceField"><canvas id="fbMpRaceCanvas" width="320" height="480" aria-label="Multiplayer flight course"></canvas></div>
+ <div id="fbMpRaceScoreboard" aria-live="off"></div>
+ <div id="fbMpRaceStatus" role="status" aria-live="polite"></div>
+ <div id="fbMpRaceFinal" hidden><div id="fbMpRaceFinalInner"><h2 id="fbMpRaceFinalTitle">MATCH RESULTS</h2><p id="fbMpRaceFinalSub"></p><p id="fbMpRaceMyStats"></p><div id="fbMpRaceResults"></div><button id="fbMpRaceExitFinal" type="button">EXIT TO MENU</button></div></div>
+</div>
+<script src="src/game/solo.js"></script>
+
+<script src="src/ui/account-localization.js"></script>
+
+<!-- Configure Firebase below after registering your web app in Firebase Console. -->
+<script type="module" src="src/firebase/account-cloud.js"></script>
+<script type="module" src="src/firebase/friends.js"></script>
+<script type="module" src="src/firebase/leaderboards.js"></script>
+<script type="module" src="src/multiplayer/multiplayer.js"></script>
+
+</body>
+</html>
