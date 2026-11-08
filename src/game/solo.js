@@ -2708,6 +2708,63 @@ fit();
   // Multiplayer art bridge: reuse EXACT solo map, atmosphere, pipe, bird-skin and trail
   // drawing functions, without changing physics, save files, equipped cosmetics or UI.
   // A synchronous canvas copy makes it safe to keep the main game in its original IIFE.
+  // Multiplayer particles use the SAME trail palette and specialised trailMark()
+  // renderer as the solo mode, with persistent particles instead of a static preview.
+  const multiplayerTrailTracks = new Map();
+  let multiplayerTrailSession = null, multiplayerTrailFrame = 0;
+  function drawMultiplayerTrails(scene, g) {
+    const session = String(scene.matchId||'')+':'+scene.world.w+'x'+scene.world.h;
+    if(session!==multiplayerTrailSession){multiplayerTrailTracks.clear();multiplayerTrailSession=session;multiplayerTrailFrame=0;}
+    const now=performance.now();
+    const dt=multiplayerTrailFrame?Math.max(.2,Math.min(3,(now-multiplayerTrailFrame)/16.667)):1;
+    multiplayerTrailFrame=now;
+    const enabled=!cfg.fx&&cfg.particleQuality!=='OFF';
+    const quality=cfg.particleQuality==='HIGH'?3:cfg.particleQuality==='LOW'?1:(scene.world.w<450?1:2);
+    const present = new Set();
+    for(const player of scene.birds||[]){
+      if(!player.id)continue;
+      const id=String(player.id),type=String(player.trail||'NONE');present.add(id);
+      let track=multiplayerTrailTracks.get(id);
+      if(!track){track={particles:[],emission:0,type};multiplayerTrailTracks.set(id,track)}
+      if(track.type!==type){track.particles=[];track.emission=0;track.type=type}
+      const def=TRAILS.find(t=>t.id===type);
+      for(const particle of track.particles){
+        particle.life-=dt;particle.x+=particle.vx*dt;particle.y+=particle.vy*dt;
+        if(type==='SHADOW'){particle.size+=.1*dt;particle.vx*=Math.pow(.97,dt)}
+        else if(type==='FROST')particle.vy+=.012*dt;
+        else if(type==='HEART')particle.vy-=.012*dt;
+        else if(type==='STARDUST')particle.vx*=Math.pow(.98,dt);
+      }
+      track.particles=track.particles.filter(p=>p.life>0);
+      if(enabled&&def&&player.active!==false){
+        track.emission+=quality*dt;
+        const count=Math.min(9,Math.floor(track.emission));track.emission-=count;
+        for(let i=0;i<count;i++){
+          if(type==='HEART'&&Math.random()<.5)continue;
+          const life=17+Math.random()*16;
+          track.particles.push({x:player.x-4+Math.random()*3,y:player.y+8+(Math.random()-.5)*9,
+            vx:-1.3-Math.random()*1.5,vy:(Math.random()-.5)*1.2,
+            life,max:life,col:def.colors[Math.floor(Math.random()*def.colors.length)],
+            size:2+Math.random()*3,k:type,i:Math.floor(now/16)+i,
+            opacity:Math.max(0,Math.min(1,Number(player.alpha??1)))});
+        }
+        if(track.particles.length>120)track.particles.splice(0,track.particles.length-120);
+      }
+      for(const p of track.particles){
+        const alpha=Math.max(0,p.life/p.max)*p.opacity;
+        if(NEWTR[p.k])trailMark(p.k,p.x,p.y,p.size,p.i,alpha,ticks);
+        else{
+          g.globalAlpha=alpha;g.fillStyle=p.col;
+          g.fillRect(Math.round(p.x),Math.round(p.y),Math.max(1,Math.round(p.size)),Math.max(1,Math.round(p.size)));
+          // A subtle inner sparkle makes classic trails match the lively solo particle effect.
+          if(p.size>=3&&p.i%3===0){g.globalAlpha=alpha*.5;g.fillStyle='#fff';g.fillRect(Math.round(p.x)+1,Math.round(p.y)+1,1,1)}
+          g.globalAlpha=1;
+        }
+      }
+    }
+    for(const [id,track] of multiplayerTrailTracks)if(!present.has(id)){multiplayerTrailTracks.delete(id)}
+    g.globalAlpha=1;
+  }
   window.flyingBirdMultiplayerArt = function(scene, destination) {
     if (!scene || !destination || !scene.world || !MAPS[scene.map]) return false;
     const keep={W,H,GROUND,L,ticks,bgX,groundX,map:cfg.map,ctx};
@@ -2727,13 +2784,9 @@ fit();
         drawBackground();drawAtmos();
         for(const pipe of (scene.pipes||[]))drawPipe(pipe);
         drawGround();
+        drawMultiplayerTrails(scene,g);
         for(const player of (scene.birds||[])){
           const sk=SKINS[Math.max(0,Math.min(SKINS.length-1,Math.floor(Number(player.skin)||0)))];
-          if(player.trail && player.trail!=='NONE' && !cfg.fx && cfg.particleQuality!=='OFF'){
-            g.save();g.globalAlpha=Math.min(1,Number(player.alpha)||1);
-            drawPreviewTrail(player.trail,player.x+6,player.y+9,ticks*.16,player.alpha<.8?.56:.82);
-            g.restore();
-          }
           g.save();
           g.globalAlpha=Math.max(0,Math.min(1,Number(player.alpha)||1));
           g.translate(Math.round(player.x+10),Math.round(player.y+8));

@@ -79,7 +79,7 @@ function validId(s){return /^FB-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(s)}
 function el(tag,text,cls){const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;return e}
 function action(label,fn,cls=''){const e=el('button',label,cls);e.type='button';e.addEventListener('click',()=>{if(!busy){Promise.resolve(fn()).catch(x=>note(T('error')+': '+err(x),true));}});return e}
 let busy=false,authSeq=0,known=[],blocks=new Set(),friends=new Map(),cards=new Map(),cardProblems=new Map(),friendUnwatch=new Map(),friendPresenceCache=new Map(),dbRealtime=null,onlineConn=null,onlineLast=null,unwatchConnected=null,presenceVersion=0,setupUrl=(window.flyingBirdGetRTDBURL?.() || localStorage.getItem('flyingBirdRTDBUrlV1') || ''),activeTab='friends';
-$('fbfDatabaseUrl').value=setupUrl;
+// Presence is connected automatically from the project-wide RTDB configuration.
 function setBusy(v){busy=v;for(const id of ['fbfRefresh','fbfSearchBtn'])$(id).disabled=v||!registered()}
 function ownUid(){return auth.currentUser?.uid||null}
 function checkLogin(){if(registered())return true;note(T('login'),true);return false}
@@ -310,7 +310,7 @@ window.addEventListener('online',()=>schedulePublicUpdate(300));
 window.addEventListener('visibilitychange',()=>{if(!document.hidden)schedulePublicUpdate(400)});
 
 function validUrl(str){try{const url=new URL(str);return url.protocol==='https:'&&/^(flying-bird-d6832)([.-][a-z0-9-]+)*\.(firebasedatabase\.app|firebaseio\.com)$/.test(url.hostname)&&url.pathname==='/'&&!url.search&&!url.hash&&!url.username&&!url.password?url.origin:null}catch{return null}}
-async function connectPresence(){const raw=$('fbfDatabaseUrl').value.trim(),url=validUrl(raw);if(!url){note(T('dbBad'),true);return}if(dbRealtime&&setupUrl!==url){localStorage.setItem('flyingBirdRTDBUrlV1',url);note(T('dbReload'));return}setupUrl=url;localStorage.setItem('flyingBirdRTDBUrlV1',url);dbRealtime=dbRealtime||getDatabase(app,url);$('fbfPresenceInfo').textContent=T('dbReady');note(T('dbReady'));if(registered()){startPresence(ownUid());await syncPresenceAccess(ownUid(),new Set(friends.keys()));subscribeFriendPresence()}}
+// Presence starts automatically on sign-in; there is no public database editor.
 // Friends-only visibility at RTDB level is based on an owner-maintained access list.
 // During this Spark/client prototype it mirrors accepted Firestore requests when online.
 // A trusted backend must reconcile stale shares for production/revocations.
@@ -334,7 +334,7 @@ $('fbfClose').onclick=closeFriends;modal.addEventListener('click',e=>{if(e.targe
 modal.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();if(!$('fbfProfile').hidden)closePlayerProfile();else closeFriends()}});
 document.addEventListener('keydown',e=>{if(!modal.hidden){e.stopImmediatePropagation();if(e.key==='Escape'){e.preventDefault();if(!$('fbfProfile').hidden)closePlayerProfile();else closeFriends()}}},true);
 for(const b of modal.querySelectorAll('[data-fbf-tab]'))b.addEventListener('click',()=>setActiveTab(b.dataset.fbfTab));
-$('fbfRefresh').onclick=refresh;$('fbfSearchBtn').onclick=search;$('fbfConnect').onclick=connectPresence;
+$('fbfRefresh').onclick=refresh;$('fbfSearchBtn').onclick=search;
 $('fbfSearchId').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();void search()}});
 $('accountFriends').onclick=openFriends;
 window.addEventListener('flyingbird:progress-changed',applyLang);

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0f0c29">
   <meta name="application-name" content="Flying Bird">
-  <meta name="flying-bird-build" content="2.3-refactor">
+  <meta name="flying-bird-build" content="2.4-invites-trails">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Flying Bird">
@@ -151,11 +151,8 @@
         <p id="fbfProfileMessage" class="fbfMuted"></p>
       </div>
     </section>
-    <details class="fbfConfig"><summary data-fbf="presenceSettings">Online status settings</summary>
-      <p class="fbfMuted" data-fbf="databaseHint">Paste your exact Realtime Database URL from Firebase Console → Realtime Database → Data.</p>
-      <div class="fbfSettingsRow"><input id="fbfDatabaseUrl" type="url" placeholder="https://…firebasedatabase.app" spellcheck="false" aria-label="Realtime Database URL"><button id="fbfConnect" type="button" data-fbf="connect">Connect</button></div>
-      <p class="fbfMuted" id="fbfPresenceInfo"></p>
-    </details>
+    <!-- Online presence connects automatically using src/config/runtime.js. -->
+    <p id="fbfPresenceInfo" hidden aria-live="polite"></p>
   </div>
 </div>
 <!-- Profile visibility: appearance is always searchable; details obey Firestore rules. -->
@@ -188,10 +185,7 @@
    <button id="fbMpJoin" class="mpFull" type="button">JOIN BY CODE</button>
    <div class="mpDivider"></div>
    <h3 id="fbMpInvitesTitle">INVITATIONS</h3><div id="fbMpInvites" class="mpScroll"></div>
-   <details><summary id="fbMpDbTitle">Realtime Database connection</summary>
-    <p id="fbMpDbHint" class="mpHint"></p><div class="mpField"><input id="fbMpDbUrl" type="url" placeholder="https://…firebasedatabase.app" spellcheck="false"></div>
-    <button id="fbMpSaveDb" type="button" class="secondary">SAVE DATABASE URL</button>
-   </details>
+   <!-- RTDB endpoint is configured by the project owner in src/config/runtime.js. -->
   </div>
   <div id="fbMpCreate" hidden>
    <div class="mpSplit">
