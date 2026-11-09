@@ -90,6 +90,7 @@
   };
   placeAccountButton();
   window.addEventListener('resize', placeAccountButton);
+  window.addEventListener('flyingbird:layout', placeAccountButton);
   window.addEventListener('orientationchange', () => requestAnimationFrame(placeAccountButton));
   window.visualViewport?.addEventListener('resize', placeAccountButton);
   document.addEventListener('fullscreenchange', () => requestAnimationFrame(placeAccountButton));

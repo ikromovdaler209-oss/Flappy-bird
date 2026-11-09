@@ -22,6 +22,7 @@
   const save = store.get('flyingBirdSave', { best: { EASY: 0, NORMAL: 0, HARD: 0, EXTREME: 0 }, games: 0, flaps: 0, pipes: 0, earnedCoins: 0, ach: {} });
   // Older saves have only three difficulty records; initialize EXTREME safely.
   save.best = Object.assign({EASY:0,NORMAL:0,HARD:0,EXTREME:0}, save.best || {});
+  window.flyingBirdRenderFps = () => cfg.fps;
   const saveCfg = () => { store.set('flyingBirdCfg', cfg); window.dispatchEvent(new Event('flyingbird:progress-changed')); };
   const saveGame = () => { store.set('flyingBirdSave', save); window.dispatchEvent(new Event('flyingbird:progress-changed')); };
   const bestNow = () => save.best[cfg.diff] || 0;
@@ -251,6 +252,8 @@
   function endNick(ok) {
     if (!editing) return;
     editing = false; nickEl.style.display = 'none'; document.body.classList.remove('nick-editing');
+    nickEl.blur();
+    queueFit();
     if (!ok) return;
     const v = cleanNick(nickEl.value);
     if (Array.from(v).length >= 3) { profile.nick = v; saveProfile(); }
@@ -586,7 +589,18 @@ if (!initialized) {
   }
 
   // ---------- Particles ----------
+  const coarsePointer = matchMedia('(pointer: coarse)');
+  const particleReducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  function particleLevel() {
+    if (cfg.fx || cfg.particleQuality === 'OFF') return 0;
+    if (cfg.particleQuality === 'LOW') return 1;
+    if (cfg.particleQuality === 'HIGH') return 3;
+    return coarsePointer.matches || particleReducedMotion.matches ? 1 : 2;
+  }
   function burst(x, y, n, spd, life, cols = ['#fff']) {
+    const quality = particleLevel();
+    if (!quality) return;
+    n = Math.min(Math.ceil(n * quality / 3), Math.max(0, 160 - particles.length));
     for (let i = 0; i < n; i++) {
       const a = Math.random() * 6.28, s = Math.random() * spd;
       particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life,
@@ -674,6 +688,7 @@ if (!initialized) {
     if (pop > 0) pop = Math.max(0, pop - 0.08);
     toasts.forEach(t => t.t--); toasts = toasts.filter(t => t.t > 0);
 
+    if (!particleLevel()) { particles.length = 0; trailParticles.length = 0; }
     for (const p of particles) { p.x += p.vx; p.y += p.vy; p.vy += 0.06; p.life--; }
     particles = particles.filter(p => p.life > 0);
     for(const p of trailParticles){p.x+=p.vx;p.y+=p.vy;p.life--;
@@ -681,7 +696,7 @@ if (!initialized) {
     trailParticles=trailParticles.filter(p=>p.life>0);
     if(state==='PLAYING'&&!screen&&cfg.trail!=='NONE'&&cfg.particleQuality!=='OFF'&&!cfg.fx){
       const t=TRAILS.find(t=>t.id===cfg.trail);
-      if(t){const count=cfg.particleQuality==='HIGH'?3:cfg.particleQuality==='LOW'?1:(W<450?1:2);
+      if(t){const count=particleLevel();
         for(let i=0;i<count;i++)if(!(t.id==='HEART'&&ticks%3))trailParticles.push({x:bird.x-4,y:bird.y+bird.h/2+(Math.random()-.5)*9,vx:-1.3-Math.random()*1.5,vy:(Math.random()-.5)*1.2,life:17+Math.random()*16,max:33,col:t.colors[Math.floor(Math.random()*t.colors.length)],size:2+Math.random()*3,k:t.id,i:(ticks+i)|0});
         if(trailParticles.length>120)trailParticles.splice(0,trailParticles.length-120);
       }
@@ -1574,9 +1589,11 @@ if (!initialized) {
   }
 
   function drawWeather() {
-    if (cfg.fx || cfg.cb === 'HIGH CONTRAST' || !weather.length) return;
+    const quality = particleLevel();
+    if (!quality || cfg.cb === 'HIGH CONTRAST' || !weather.length) return;
     const snow = cfg.map === 'MOUNTAINS';
-    for (const w of weather) {
+    for (let i = 0; i < weather.length; i += quality === 1 ? 3 : quality === 2 ? 2 : 1) {
+      const w = weather[i];
       ctx.globalAlpha = snow ? 0.9 : 0.5 + 0.5 * Math.abs(Math.sin(ticks / 8 + w.p * 5));
       ctx.fillStyle = snow ? '#fff' : (w.p > 3.1 ? '#ff9a3c' : '#ffd27a');
       ctx.fillRect(Math.floor(w.x), Math.floor(w.y), w.s, w.s);
@@ -1886,13 +1903,19 @@ if (!initialized) {
   const fullscreenNow = () =>
   !!(document.fullscreenElement || document.webkitFullscreenElement);
 
-function fullscreenUnavailable() {
-  const messages = {
+function fullscreenUnavailable(unsupported = false) {
+  const messages = unsupported && coarsePointer.matches ? {
     EN: 'Use Add to Home Screen for fullscreen',
     RU: 'Для полного экрана: «На экран Домой»',
     ZH: '添加到主屏幕以全屏运行',
     ES: 'Añade a inicio para pantalla completa',
     PT: 'Adicione à tela inicial para tela cheia'
+  } : {
+    EN: 'Fullscreen unavailable. Try again from the game.',
+    RU: 'Полный экран недоступен. Попробуйте ещё раз из игры.',
+    ZH: '全屏不可用，请从游戏中重试。',
+    ES: 'Pantalla completa no disponible. Inténtalo desde el juego.',
+    PT: 'Tela cheia indisponível. Tente novamente no jogo.'
   };
 
   toasts.push({
@@ -1902,7 +1925,9 @@ function fullscreenUnavailable() {
   });
 }
 
+let fullscreenPending = false;
 function toggleFS() {
+  if (fullscreenPending) return;
   const root = document.documentElement;
   const active = fullscreenNow();
 
@@ -1911,7 +1936,7 @@ function toggleFS() {
     : (root.requestFullscreen || root.webkitRequestFullscreen);
 
   if (!action) {
-    fullscreenUnavailable();
+    fullscreenUnavailable(true);
     return;
   }
 
@@ -1919,7 +1944,8 @@ function toggleFS() {
     const result = action.call(active ? document : root);
 
     if (result && result.catch) {
-      result.catch(fullscreenUnavailable);
+      fullscreenPending = true;
+      result.catch(() => fullscreenUnavailable()).finally(() => { fullscreenPending = false; queueFit(); });
     }
   } catch (e) {
     fullscreenUnavailable();
@@ -1927,8 +1953,8 @@ function toggleFS() {
 }
   function drawMenu() {
     if (L) {
-      title('FLYING', W / 2 - 8, 70, 46, '#ffd23f', 'right');
-      title('BIRD', W / 2 + 8, 70, 46, '#ff6b9d', 'left');
+      title('FLYING', W / 2 - 8, 70, 40, '#ffd23f', 'right');
+      title('BIRD', W / 2 + 8, 70, 40, '#ff6b9d', 'left');
     } else {
       title('FLYING', W / 2, 105, 48, '#ffd23f', 'center');
       title('BIRD', W / 2, 155, 48, '#ff6b9d', 'center');
@@ -1938,16 +1964,18 @@ function toggleFS() {
     // Keep the title and the menu in separate vertical bands on both layouts.
     // The former BEST line is intentionally removed from the main menu; records
     // remain available on the difficulty and profile screens.
-    const bw = 200, bx = Math.round(W / 2 - bw / 2), y0 = L ? 104 : 190, st = L ? 29 : 28, menuBh = L ? 29 : 26;
+    const bw = L ? 220 : 200, menuBh = L ? 40 : 30;
+    const menuX = i => L ? W / 2 - bw - 10 + (i % 2) * (bw + 20) : W / 2 - bw / 2;
+    const menuY = i => L ? 114 + Math.floor(i / 2) * 48 : 190 + i * 32;
     const got = ACH.filter(a => save.ach[a.id]).length;
-    btn(bx, y0, bw, menuBh, tr('PLAY'), () => { screen = 'MAPS'; mapPage = Math.floor(Math.max(0,MAP_KEYS.indexOf(cfg.map))/(L?4:3)); focus = 0; });
-    btn(bx, y0 + st, bw, menuBh, tr('PROFILE'), () => { screen = 'PROFILE'; focus = 0; });
-    btn(bx, y0 + st * 2, bw, menuBh, ({EN:'FRIENDS',RU:'ДРУЗЬЯ',ZH:'好友',ES:'AMIGOS',PT:'AMIGOS'})[cfg.lang]||'FRIENDS', () => window.flyingBirdOpenFriends?.());
-    btn(bx, y0 + st * 3, bw, menuBh, ({EN:'MULTIPLAYER',RU:'МУЛЬТИПЛЕЕР',ZH:'多人游戏',ES:'MULTIJUGADOR',PT:'MULTIJOGADOR'})[cfg.lang]||'MULTIPLAYER', () => window.flyingBirdOpenMultiplayer?.(), {size: 12});
-    btn(bx, y0 + st * 4, bw, menuBh, tr('ACHIEVEMENTS') + ' ' + got + '/' + ACH.length, () => { screen = 'ACH'; focus = 0; }, { size: 12 });
-    btn(bx, y0 + st * 5, bw, menuBh, tr('SHOP'), () => { screen = 'SHOP'; focus = 0; });
-    btn(bx, y0 + st * 6, bw, menuBh, tr('INVENTORY'), () => { screen = 'INVENTORY'; focus = 0; });
-    btn(bx, y0 + st * 7, bw, menuBh, tr('SETTINGS'), () => { settingsFrom = 'MENU'; screen = 'SETTINGS'; focus = 0; });
+    btn(menuX(0), menuY(0), bw, menuBh, tr('PLAY'), () => { screen = 'MAPS'; mapPage = Math.floor(Math.max(0,MAP_KEYS.indexOf(cfg.map))/(L?4:3)); focus = 0; });
+    btn(menuX(1), menuY(1), bw, menuBh, tr('PROFILE'), () => { screen = 'PROFILE'; focus = 0; });
+    btn(menuX(2), menuY(2), bw, menuBh, ({EN:'FRIENDS',RU:'ДРУЗЬЯ',ZH:'好友',ES:'AMIGOS',PT:'AMIGOS'})[cfg.lang]||'FRIENDS', () => window.flyingBirdOpenFriends?.());
+    btn(menuX(3), menuY(3), bw, menuBh, ({EN:'MULTIPLAYER',RU:'МУЛЬТИПЛЕЕР',ZH:'多人游戏',ES:'MULTIJUGADOR',PT:'MULTIJOGADOR'})[cfg.lang]||'MULTIPLAYER', () => window.flyingBirdOpenMultiplayer?.(), {size: 12});
+    btn(menuX(4), menuY(4), bw, menuBh, tr('ACHIEVEMENTS') + ' ' + got + '/' + ACH.length, () => { screen = 'ACH'; focus = 0; }, { size: 12 });
+    btn(menuX(5), menuY(5), bw, menuBh, tr('SHOP'), () => { screen = 'SHOP'; focus = 0; });
+    btn(menuX(6), menuY(6), bw, menuBh, tr('INVENTORY'), () => { screen = 'INVENTORY'; focus = 0; });
+    btn(menuX(7), menuY(7), bw, menuBh, tr('SETTINGS'), () => { settingsFrom = 'MENU'; screen = 'SETTINGS'; focus = 0; });
   }
 
   // Unified cosmetics catalogue. The legacy numeric skin indices are preserved for cloud-save compatibility.
@@ -2134,14 +2162,14 @@ function toggleFS() {
       else if(glow>.02){ctx.fillStyle='rgba(186,229,255,'+(glow*.55)+')';ctx.fillRect(x+2,tabY+2,tw-4,2);}
       txtFit(tr(t==='MAPS'?'MAPS_TAB':t),x+tw/2,tabY+14,11,tw-8,chosen?BROWN:'#e9efff','center',false);
     });
-    const items=catalog(tab,inventory),cols=L?3:2,per=L?6:(H>=630?6:4),pages=Math.max(1,Math.ceil(items.length/per));
+    const items=catalog(tab,inventory),cols=L?3:2,per=L?(coarsePointer.matches?3:6):(H>=630?6:4),pages=Math.max(1,Math.ceil(items.length/per));
     const pg=Math.max(0,Math.min(page,pages-1));
     if(inventory)inventoryPage=pg;else shopPage=pg;
     const shown=items.slice(pg*per,(pg+1)*per);
     const rows=Math.max(1,Math.ceil(shown.length/cols)),gap=9,cardX=13,cardTop=103;
     const cw=(W-cardX*2-gap*(cols-1))/cols;
     const available=Math.max(100,H-cardTop-92);
-    const ch=Math.max(62,Math.min(L?116:170,Math.floor((available-gap*(rows-1))/rows)));
+    const ch=Math.max(62,Math.min(L?(per===3?170:116):170,Math.floor((available-gap*(rows-1))/rows)));
     const hBottom=cardTop+rows*ch+(rows-1)*gap;
     const totalOwned=catalog(tab,false).filter(itemOwned).length;
     txtFit(tr('COLLECTION')+'  '+totalOwned+'/'+catalog(tab,false).length,W/2,95,9,W-40,'#aecfe0','center');
@@ -2152,7 +2180,7 @@ function toggleFS() {
       const status=equipped?tr('ACTIVE'):owned?tr('OWNED'):tr('COST')+' '+item.price;
       // State and price already appear in the caption below; putting a second
       // badge in the narrow landscape text column obscured long item names.
-      if (L) {
+      if (L && per === 6) {
         // Wide-but-short phone layout: keep name, price and buttons beside the art,
         // instead of squeezing them into 70–80px-tall cards.
         const artW=Math.min(74,Math.floor(cw*.36));
@@ -2163,17 +2191,17 @@ function toggleFS() {
         cosmeticLabel(name,rightX+rightW/2,y+16,11,rightW-5,'#fff');
         cosmeticLabel(tab==='MAPS'?tr('MAP_TYPE'):tab==='TRAILS'?tr('TRAIL_TYPE'):tr('BIRD_TYPE'),rightX+rightW/2,y+29,8,rightW-6,'#8fc0ff');
         cosmeticLabel(status,rightX+rightW/2,y+41,9,rightW-5,equipped?'#ffd23f':owned?'#a7f3ce':'#ffdc98');
-        const bY=y+ch-25,bW=(rightW-5)/2;
-        btns.push({x:rightX,y:bY,w:bW,h:19,fn:()=>{
+        const actionH=per===6&&L?24:30, bY=y+ch-actionH-6,bW=(rightW-5)/2;
+        btns.push({x:rightX,y:bY,w:bW,h:actionH,fn:()=>{
           previewItem=item;previewReturn=inventory?'INVENTORY':'SHOP';screen='PREVIEW';focus=0;
         }});
-        tag(tr('PREVIEW'),rightX,bY,bW,19,false,9);
-        btns.push({x:rightX+bW+5,y:bY,w:bW,h:19,fn:()=>{
+        tag(tr('PREVIEW'),rightX,bY,bW,actionH,false,9);
+        btns.push({x:rightX+bW+5,y:bY,w:bW,h:actionH,fn:()=>{
           if(inventory) equipItem(item);else buyItem(item);
         }});
-        tag(equipped?'✓':owned?tr('EQUIP'):tr('BUY'),rightX+bW+5,bY,bW,19,true,9);
+        tag(equipped?'✓':owned?tr('EQUIP'):tr('BUY'),rightX+bW+5,bY,bW,actionH,true,9);
       } else {
-        const artH=Math.max(23,Math.min(ch*.45,ch-72));
+        const artH=Math.max(23,Math.min(ch*.45,ch-90));
         itemArt(item,x+5,y+5,cw-10,artH);
         if(tab==='MAPS')tag(tr('WORLD'),x+7,y+7,48,14,false,7);
         if(isNew(item))tag(tr('NEW'),x+cw-44,y+7,36,14,true,7);
@@ -2182,15 +2210,15 @@ function toggleFS() {
         cosmeticLabel(name,x+cw/2,nameY,12,cw-13,'#fff');
         cosmeticLabel(tab==='MAPS'?tr('MAP_TYPE'):tab==='TRAILS'?tr('TRAIL_TYPE'):tr('BIRD_TYPE'),x+cw/2,nameY+12,8,cw-14,'#8fc0ff');
         cosmeticLabel(status,x+cw/2,nameY+24,9,cw-12,equipped?'#ffd23f':owned?'#a7f3ce':'#ffdc98');
-        const bY=y+ch-25,bW=(cw-15)/2;
-        btns.push({x:x+5,y:bY,w:bW,h:19,fn:()=>{
+        const actionH=per===6&&L?24:30, bY=y+ch-actionH-6,bW=(cw-15)/2;
+        btns.push({x:x+5,y:bY,w:bW,h:actionH,fn:()=>{
           previewItem=item;previewReturn=inventory?'INVENTORY':'SHOP';screen='PREVIEW';focus=0;
         }});
-        tag(tr('PREVIEW'),x+5,bY,bW,19,false,9);
-        btns.push({x:x+10+bW,y:bY,w:bW,h:19,fn:()=>{
+        tag(tr('PREVIEW'),x+5,bY,bW,actionH,false,9);
+        btns.push({x:x+10+bW,y:bY,w:bW,h:actionH,fn:()=>{
           if(inventory) equipItem(item);else buyItem(item);
         }});
-        tag(equipped?'✓':owned?tr('EQUIP'):tr('BUY'),x+10+bW,bY,bW,19,true,9);
+        tag(equipped?'✓':owned?tr('EQUIP'):tr('BUY'),x+10+bW,bY,bW,actionH,true,9);
       }
       if(equipped)stripe(x+1,y+1,cw-2,'#ffd23f');
     });
@@ -2467,8 +2495,9 @@ function toggleFS() {
   }
   // Unified pointer handling avoids duplicate synthetic mouse clicks after a touch.
   canvas.addEventListener('pointerdown', e => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
     e.preventDefault();
+    canvas.focus({preventScroll:true});
     pointer(pt(e));
   }, { passive: false });
   canvas.addEventListener('pointermove', e => {
@@ -2482,7 +2511,9 @@ function toggleFS() {
   canvas.addEventListener('pointercancel',()=>{uiHoverPoint=null;});
 
   window.addEventListener('keydown', e => {
-    if (document.getElementById('fbfPanel')?.hidden === false) return;
+    if (window.flyingBirdMpRaceActive || editing ||
+        e.target.closest?.('input, textarea, select, button, [contenteditable="true"]') ||
+        document.querySelector('[role="dialog"]:not([hidden])')) return;
     const k = e.code, nav = screen || state === 'GAMEOVER', n = btns.length || 1;
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'KeyW', 'KeyS'].includes(k)) e.preventDefault();
     if (e.repeat && !(nav && (k === 'ArrowLeft' || k === 'ArrowRight'))) return;
@@ -2516,6 +2547,7 @@ function toggleFS() {
   // During text entry, the visual viewport shrinks to the keyboard.
   // Keep the game canvas at its original size and move only the input.
   if (editing) { positionNicknameInput(); return; }
+  if (document.activeElement?.matches('input, textarea, select')) return;
 
   const box = document.body.getBoundingClientRect();
   const vw = Math.max(1, box.width - left - right);
@@ -2554,13 +2586,13 @@ function toggleFS() {
     layout(land, width, height);
   }
 
-  const r = Math.max(
-    1,
-    Math.round(scale * (devicePixelRatio || 1))
-  );
+  const r = Math.min(Math.max(1, scale * Math.min(devicePixelRatio || 1, 2)),
+    Math.sqrt(4200000 / (W * H)));
 
-  canvas.width = Math.round(W * r);
-  canvas.height = Math.round(H * r);
+  const backingW = Math.round(W * r), backingH = Math.round(H * r);
+  if (canvas.width !== backingW || canvas.height !== backingH) {
+    canvas.width = backingW; canvas.height = backingH;
+  }
   canvas.style.width = W * scale + 'px';
   canvas.style.height = H * scale + 'px';
   // The HTML account button needs the true logical width (portrait can vary).
@@ -2568,19 +2600,24 @@ function toggleFS() {
   canvas.dataset.logicalHeight = String(H);
   uiHitboxesStale = true;
 
-  ctx.setTransform(r, 0, 0, r, 0, 0);
+  ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
   ctx.imageSmoothingEnabled = false;
-
-
+  window.dispatchEvent(new Event('flyingbird:layout'));
 }
 
-window.addEventListener('resize', fit);
+let fitQueued = false;
+function queueFit() {
+  if (fitQueued) return;
+  fitQueued = true;
+  requestAnimationFrame(() => { fitQueued = false; fit(); });
+}
+window.addEventListener('resize', queueFit);
 window.addEventListener('orientationchange', () => requestAnimationFrame(fit));
 document.addEventListener('fullscreenchange', fit);
 document.addEventListener('webkitfullscreenchange', fit);
 
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', () => editing ? positionNicknameInput() : fit());
+  window.visualViewport.addEventListener('resize', () => editing ? positionNicknameInput() : queueFit());
   window.visualViewport.addEventListener('scroll', positionNicknameInput);
 }
 
@@ -2595,8 +2632,21 @@ fit();
   const STEP = 1000 / 60;
   let last = performance.now(), acc = 0, nextDraw = 0, fpsN = 0, fpsT = last, fpsShown = 0;
   let worstCur = 0, worstPrev = 0, worstShown = 0, fpsExpect = 0, lastDrawAt = 0;
-  let activeFpsCap = cfg.fps;
-  const dtHist = []; let refreshDt = 0, locked = false, fpsChecked = false;
+  let activeFpsCap = cfg.fps, loopRaf = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      cancelAnimationFrame(loopRaf); loopRaf = 0;
+      if (state === 'PLAYING' && !screen) { screen = 'PAUSE'; focus = 0; }
+      if (AC?.state === 'running') AC.suspend().catch(() => {});
+    } else {
+      last = performance.now(); acc = 0; nextDraw = last;
+      fpsT = last; fpsN = 0; lastDrawAt = 0;
+      worstCur = worstPrev = worstShown = 0;
+      dtHist.length = 0; refreshDt = 0; locked = false;
+      if (!loopRaf) loopRaf = requestAnimationFrame(loop);
+    }
+  });
+  const dtHist = []; let refreshDt = 0, locked = false;
 
   // Real display refresh (what the browser delivers), snapped to common values.
   function displayHz() {
@@ -2606,7 +2656,8 @@ fit();
   }
   // Only limits that divide the refresh rate evenly (e.g. 120 Hz -> 60, 40, 30) give even frame pacing.
   function fpsOptions() {
-    const hz = displayHz(), list = ['MAX'];
+    const hz = displayHz(), list = ['MAX', String(hz)];
+    if (cfg.fps !== 'MAX' && !list.includes(cfg.fps)) list.push(cfg.fps);
     for (let k = 2; k <= 4; k++) { const v = String(Math.round(hz / k)); if (+v >= 30 && !list.includes(v)) list.push(v); }
     return list;
   }
@@ -2636,13 +2687,14 @@ fit();
     }
   }
   function loop(now) {
+    if (document.hidden) { loopRaf = 0; return; }
     const raw = now - last;
     last = now;
     // In multiplayer the shared Canvas renderer runs its own animation loop.
     // Do not simulate/redraw the hidden solo world at the same time.
     if (window.flyingBirdMpRaceActive) {
       acc=0;
-      requestAnimationFrame(loop);
+      loopRaf = requestAnimationFrame(loop);
       return;
     }
     // After a long stall (tab switch) do not replay the lost time as a burst of physics steps.
@@ -2659,11 +2711,7 @@ fit();
       else if (locked && Math.abs(refreshDt - STEP) > 2.5) locked = false;
     }
     if (locked !== wasLocked) acc = 0;
-    // A saved limit that does not fit this display (e.g. old 90 on a 120 Hz screen) falls back to MAX once.
-    if (!fpsChecked && dtHist.length >= 30) {
-      fpsChecked = true;
-      if (cfg.fps !== 'MAX' && !fpsOptions().includes(cfg.fps)) { cfg.fps = 'MAX'; saveCfg(); }
-    }
+    // Preserve the chosen cap across displays and temporary refresh-rate changes.
 
     acc += dt;
     if (locked) {
@@ -2675,7 +2723,9 @@ fit();
       while (acc >= STEP) { snap(); update(); acc -= STEP; }
     }
 
-    const cap = cfg.fps === 'MAX' ? 0 : 1000 / Number(cfg.fps);
+    const requestedCap = cfg.fps === 'MAX' ? 0 : 1000 / Number(cfg.fps);
+    // Menus never need 120/240 renders per second; physics still ticks at 60 Hz.
+    const cap = screen ? Math.max(requestedCap, 1000 / 60) : requestedCap;
     if (cfg.fps !== activeFpsCap) {
       activeFpsCap = cfg.fps;
       nextDraw = now; // switching limits must not inherit an old deadline
@@ -2703,7 +2753,7 @@ fit();
       fpsN = 0;
       fpsT = now;
     }
-    requestAnimationFrame(loop);
+    loopRaf = requestAnimationFrame(loop);
   }
 
 
@@ -2721,7 +2771,7 @@ fit();
     const dt=multiplayerTrailFrame?Math.max(.2,Math.min(3,(now-multiplayerTrailFrame)/16.667)):1;
     multiplayerTrailFrame=now;
     const enabled=!cfg.fx&&cfg.particleQuality!=='OFF';
-    const quality=cfg.particleQuality==='HIGH'?3:cfg.particleQuality==='LOW'?1:(scene.world.w<450?1:2);
+    const quality=particleLevel();
     const present = new Set();
     for(const player of scene.birds||[]){
       if(!player.id)continue;
@@ -2804,5 +2854,5 @@ fit();
     finally {ctx=keep.ctx;W=keep.W;H=keep.H;GROUND=keep.GROUND;L=keep.L;ticks=keep.ticks;bgX=keep.bgX;groundX=keep.groundX;cfg.map=keep.map;}
   };
 
-  requestAnimationFrame(loop);
+  loopRaf = requestAnimationFrame(loop);
 })();

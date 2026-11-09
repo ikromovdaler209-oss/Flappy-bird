@@ -60,3 +60,5 @@ window.addEventListener('flyingbird:progress-changed',()=>{if(!panel.hidden){set
 window.addEventListener('online',()=>scheduleSync(250));
 onAuthStateChanged(auth,user=>{const uid=user&&!user.isAnonymous?user.uid:null;privacyBlockedUid=null;void initJoin(uid);if(!panel.hidden){setLanguage();void refresh()}});
 setLanguage();
+
+window.addEventListener('flyingbird:layout',pos);

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0f0c29">
   <meta name="application-name" content="Flying Bird">
-  <meta name="flying-bird-build" content="2.6-networking">
+  <meta name="flying-bird-build" content="2.7-mobile-desktop-polish">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Flying Bird">
@@ -18,12 +18,13 @@
   <link rel="stylesheet" href="styles/game.css">
   <link rel="stylesheet" href="styles/overlays.css">
   <link rel="stylesheet" href="styles/multiplayer.css">
+  <link rel="stylesheet" href="styles/polish.css">
   <!-- Public RTDB URL can be configured once in src/config/runtime.js. -->
   <script src="src/config/runtime.js"></script>
 </head>
 <body>
 
-<canvas id="c"></canvas>
+<canvas id="c" tabindex="0" aria-label="Flying Bird"></canvas>
 <input id="nick" maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false">
 <button id="accountBtn" type="button">ACCOUNT / ВХОД</button>
 
@@ -223,6 +224,7 @@
  <div id="fbMpRaceStatus" role="status" aria-live="polite"></div>
  <div id="fbMpRaceFinal" hidden><div id="fbMpRaceFinalInner"><h2 id="fbMpRaceFinalTitle">MATCH RESULTS</h2><p id="fbMpRaceFinalSub"></p><p id="fbMpRaceMyStats"></p><div id="fbMpRaceResults"></div><button id="fbMpRaceExitFinal" type="button">EXIT TO MENU</button></div></div>
 </div>
+<script src="src/ui/viewport.js"></script>
 <script src="src/game/solo.js"></script>
 
 <script src="src/ui/account-localization.js"></script>

@@ -559,12 +559,21 @@ function raceFrame(){
    }
   }
  }
- raceDraw();
+ if(!document.hidden){
+  const fps=Number(window.flyingBirdRenderFps?.());
+  const interval=Number.isFinite(fps)&&fps>=30?1000/fps:0;
+  const renderNow=performance.now();
+  if(!interval||!r.nextDrawAt||renderNow>=r.nextDrawAt-.5){
+   raceDraw();
+   r.nextDrawAt=interval?Math.max((r.nextDrawAt||renderNow)+interval,renderNow):renderNow;
+  }
+ }
 }
 function raceExitPrompt(){if(!race)return;if(!race.finished&&!confirm(RT('exitConfirm')))return;void raceExit()}
 async function raceExit(){const r=race;if(r?.me.alive)void raceFinish('DNF');
  if(r?.finalWritePromise)await waitRaceWrite(r.finalWritePromise);
- if(document.fullscreenElement===raceUI){try{await document.exitFullscreen()}catch{}}
+ if((document.fullscreenElement||document.webkitFullscreenElement)===raceUI){try{await (document.exitFullscreen||document.webkitExitFullscreen).call(document)}catch{}}
+ try{screen.orientation?.unlock?.()}catch{}
  raceCleanup();modal.hidden=true;await leaveRoom({silent:true});}
 function raceCleanup(){raceCosmeticsUnsub?.();raceCosmeticsUnsub=null;networkBadge.textContent='';window.flyingBirdMpRaceActive=false;raceFeedToken++;racePendingStart=null;raceFeedLoading=false;for(const off of raceFeedSubs)off();raceFeedSubs=[];raceConnectionUnsub?.();raceConnectionUnsub=null;cancelAnimationFrame(raceRaf);raceRaf=0;race=null;raceSnapshot=null;raceOnDisconnect=null;raceCanvas.width=320;raceCanvas.height=480;raceUI.hidden=true;}
 async function beginRace(payload,code){
@@ -691,11 +700,14 @@ async function startSurvivalMatch(){
 }
 
 let raceResizeScheduled=false;function queueRaceFit(){if(raceResizeScheduled)return;raceResizeScheduled=true;requestAnimationFrame(()=>{raceResizeScheduled=false;raceFit()})}window.addEventListener('resize',queueRaceFit);window.addEventListener('orientationchange',queueRaceFit);window.visualViewport?.addEventListener('resize',queueRaceFit);
-raceCanvas.addEventListener('pointerdown',e=>{e.preventDefault();raceFlap()});
+raceCanvas.addEventListener('pointerdown',e=>{if(!e.isPrimary||(e.pointerType==='mouse'&&e.button!==0))return;e.preventDefault();raceFlap()});
 window.addEventListener('keydown',e=>{if(race&&!raceUI.hidden){if(['Space','ArrowUp','KeyW','Enter','Escape'].includes(e.code)){e.preventDefault();e.stopImmediatePropagation()}if(['Space','ArrowUp','KeyW','Enter'].includes(e.code))raceFlap();else if(e.code==='Escape')raceExitPrompt()}},true);
 async function raceToggleFullscreen(){
  try{
-  if(document.fullscreenElement===raceUI){await document.exitFullscreen();return}
+  if(document.fullscreenElement || document.webkitFullscreenElement){
+   const exit=document.exitFullscreen||document.webkitExitFullscreen;
+   if(exit)await exit.call(document);return;
+  }
   if(raceUI.requestFullscreen){await raceUI.requestFullscreen({navigationUI:'hide'});}
   else if(raceUI.webkitRequestFullscreen){raceUI.webkitRequestFullscreen();}
   else{raceSetStatus(lang()==='RU'?'Игра уже занимает весь экран браузера. На iPhone Safari системный fullscreen может быть недоступен.':'The game fills the browser viewport. System fullscreen may not be supported here.');return;}
@@ -706,7 +718,7 @@ async function raceToggleFullscreen(){
  }finally{requestAnimationFrame(raceFit)}
 }
 $('fbMpRaceFullscreen').onclick=()=>void raceToggleFullscreen();
-const raceUpdateFsLabel=()=>{$('fbMpRaceFullscreen').textContent=document.fullscreenElement===raceUI?'⤢ EXIT FULLSCREEN':'⛶ FULLSCREEN';requestAnimationFrame(raceFit)};
+const raceUpdateFsLabel=()=>{$('fbMpRaceFullscreen').textContent=(document.fullscreenElement||document.webkitFullscreenElement)?'⤢ EXIT FULLSCREEN':'⛶ FULLSCREEN';requestAnimationFrame(raceFit)};
 document.addEventListener('fullscreenchange',raceUpdateFsLabel);
 document.addEventListener('webkitfullscreenchange',raceUpdateFsLabel);
 $('fbMpRaceExit').onclick=raceExitPrompt;$('fbMpRaceExitFinal').onclick=()=>void raceExit();
