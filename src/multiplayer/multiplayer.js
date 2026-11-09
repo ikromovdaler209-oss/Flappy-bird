@@ -5,6 +5,7 @@ import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/11.
 import {getFirestore,collection,doc,query,where,limit,getDocsFromServer,getDocFromServer} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 import {getDatabase,ref,get,onValue,set,update,remove,runTransaction,onDisconnect,serverTimestamp as rtStamp} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js';
 import {assessReadyRoom,isFreshPlayerState,newGhostTrack,acceptGhostPacket,ghostPosition,newNetworkStats,noteWriteAck,publishInterval,networkQuality,rankRacePlayers} from './netcode.js';
+import {roundPath,roundFinished,spectatorTarget,nextRoundMeta} from './experience.js';
 const FB_CONFIG={apiKey:'AIzaSyBXhPjfPGPjD6SX6ISyd9UIGcwIGDir2IE',authDomain:'flying-bird-d6832.firebaseapp.com',projectId:'flying-bird-d6832',storageBucket:'flying-bird-d6832.firebasestorage.app',messagingSenderId:'824302202629',appId:'1:824302202629:web:885e30d34fb1ddaa56516c'};
 const app=getApps().length?getApp():initializeApp(FB_CONFIG),auth=getAuth(app),fsdb=getFirestore(app);
 const $=id=>document.getElementById(id), modal=$('fbMpPanel'), alpha='23456789ABCDEFGHJKMNPQRSTUVWXYZ';
@@ -17,6 +18,14 @@ const words={
  ES:{title:'🐤 MULTIJUGADOR',subtitle:'SALAS Y LOBBY · v2.5',create:'CREAR SALA',join:'ENTRAR',joinBy:'ENTRAR POR CÓDIGO',invites:'INVITACIONES',db:'Conexión Realtime Database',dbHint:'Usa la misma URL de Friends.',saveDb:'GUARDAR URL',players:'JUGADORES',map:'Mapa',capacity:'Jugadores',layout:'Orientación',diff:'Dificultad',ready:'LISTO',unready:'CANCELAR LISTO',start:'EMPEZAR',save:'GUARDAR AJUSTES',invite:'INVITAR AMIGOS',load:'CARGAR AMIGOS',share:'COMPARTIR ENLACE',leave:'SALIR DE SALA',copy:'COPIAR CÓDIGO',copyLink:'ENLACE',back:'VOLVER',kick:'EXPULSAR',host:'ANFITRIÓN',readyState:'LISTO',notReady:'NO LISTO',createAction:'CREAR',noAuth:'Inicia sesión para jugar.',needUrl:'Configura la URL de Realtime Database.',notFound:'Sala no encontrada.',banned:'Has sido expulsado y no puedes volver.',full:'Sala llena.',layoutMismatch:'Gira el dispositivo para unirte.',mustReady:'Todos deben estar listos; mínimo dos.',engine:'¡Todos listos! El juego llegará en la actualización 2.',onlyHost:'Solo el anfitrión puede administrar.',settingsChanged:'Ajustes cambiados. Todos deben volver a estar listos.',inviteSent:'Invitación enviada.',inviteFail:'No se pudo invitar; comparte el enlace.',inviteEmpty:'Sin invitaciones.',noFriends:'No se encontraron amigos.',kickConfirm:'¿Expulsar y bloquear permanentemente en esta sala?',kicked:'Has sido expulsado.',left:'Has salido.',joined:'Conectado.',roomClosed:'Sala cerrada.',roomChanged:'Sala cambiada.',error:'Error',pending:'Conectando…',limit:'Solo amigos con permiso de presencia.',pendingLink:'Enlace de invitación detectado.',online:'Lobby activo',startTip:'Todos deben estar listos.',matchPending:'Actualización 1: solo lobby.',inviteJoin:'ENTRAR',inviteDecline:'DESCARTAR',roomLink:'Enlace copiado.',codeCopied:'Código copiado.',orientation:'Orientación',inviteNone:'También puedes compartir el enlace.'},
  PT:{title:'🐤 MULTIJOGADOR',subtitle:'SALAS E LOBBY · v2.5',create:'CRIAR SALA',join:'ENTRAR',joinBy:'ENTRAR COM CÓDIGO',invites:'CONVITES',db:'Conexão Realtime Database',dbHint:'Use a mesma URL da configuração de Friends.',saveDb:'SALVAR URL',players:'JOGADORES',map:'Mapa',capacity:'Jogadores',layout:'Orientação',diff:'Dificuldade',ready:'PRONTO',unready:'CANCELAR',start:'INICIAR',save:'SALVAR CONFIGURAÇÕES',invite:'CONVIDAR AMIGOS',load:'CARREGAR AMIGOS',share:'COMPARTILHAR LINK',leave:'SAIR DA SALA',copy:'COPIAR CÓDIGO',copyLink:'LINK',back:'VOLTAR',kick:'EXPULSAR',host:'ANFITRIÃO',readyState:'PRONTO',notReady:'NÃO PRONTO',createAction:'CRIAR',noAuth:'Entre na conta para jogar.',needUrl:'Informe a URL do banco de dados.',notFound:'Sala não encontrada.',banned:'Você foi expulso e não pode retornar.',full:'Sala cheia.',layoutMismatch:'Gire o dispositivo para entrar.',mustReady:'Todos devem estar prontos, mínimo dois.',engine:'Todos prontos! A partida virá na atualização 2.',onlyHost:'Só o anfitrião pode gerenciar.',settingsChanged:'Configurações alteradas. Todos devem ficar prontos novamente.',inviteSent:'Convite enviado.',inviteFail:'Não foi possível convidar; compartilhe o link.',inviteEmpty:'Sem convites.',noFriends:'Sem amigos carregados.',kickConfirm:'Expulsar e bloquear nesta sala permanentemente?',kicked:'Você foi expulso.',left:'Você saiu.',joined:'Conectado.',roomClosed:'Sala encerrada.',roomChanged:'Sala alterada.',error:'Erro',pending:'Conectando…',limit:'Amigos com permissão de presença.',pendingLink:'Link de sala detectado.',online:'Lobby conectado',startTip:'Todos prontos, mínimo dois.',matchPending:'Atualização 1: apenas lobby.',inviteJoin:'ENTRAR',inviteDecline:'DISPENSAR',roomLink:'Link copiado.',codeCopied:'Código copiado.',orientation:'Orientação',inviteNone:'Compartilhe o link para convidar amigos.'}}
 ;
+const experienceWords={
+ EN:{subtitle:'ROOMS & MATCHES · v2.8',rematch:'REMATCH',waitHost:'WAITING FOR HOST',roundInfo:'The host opens the next round. Everyone presses Ready again.',spectating:'SPECTATING',previous:'PREVIOUS',next:'NEXT',waitingResults:'Waiting for final results…',readyCount:'READY',connected:'CONNECTED',connecting:'CONNECTING',offline:'OFFLINE',preparing:'PREPARING RACE',lobby:'RETURN TO ROOM',createInvite:'Create a room to invite this friend.',inviteSent:'INVITATION SENT',inviteBusy:'SENDING…',inviteFail:'Could not invite. Check friendship and online-status permissions.',noFriends:'No available friends.',inviteNone:'Invite friends below or directly from your friends list.',personalResult:'YOUR RESULT',place:'PLACE',survival:'SURVIVAL TIME',roundChanged:'New round. Press Ready when you are ready.',invite:'INVITE',inRoom:'IN ROOM',locked:'MATCH IN PROGRESS'},
+ RU:{subtitle:'КОМНАТЫ И МАТЧИ · v2.8',rematch:'РЕВАНШ',waitHost:'ОЖИДАЕМ ХОЗЯИНА',roundInfo:'Хозяин открывает следующий раунд. Всем нужно снова нажать «Готов».',spectating:'НАБЛЮДЕНИЕ',previous:'НАЗАД',next:'ДАЛЕЕ',waitingResults:'Ожидаем итоговые результаты…',readyCount:'ГОТОВЫ',connected:'ПОДКЛЮЧЕНО',connecting:'ПОДКЛЮЧЕНИЕ',offline:'НЕТ СВЯЗИ',preparing:'ПОДГОТОВКА ГОНКИ',lobby:'ВЕРНУТЬСЯ В КОМНАТУ',createInvite:'Создай комнату, чтобы пригласить этого друга.',inviteSent:'ПРИГЛАШЕНИЕ ОТПРАВЛЕНО',inviteBusy:'ОТПРАВКА…',inviteFail:'Не удалось пригласить. Проверь дружбу и разрешения показа онлайна.',noFriends:'Нет доступных друзей.',inviteNone:'Приглашай друзей здесь или прямо из списка друзей.',personalResult:'ТВОЙ РЕЗУЛЬТАТ',place:'МЕСТО',survival:'ВРЕМЯ ВЫЖИВАНИЯ',roundChanged:'Новый раунд. Нажми «Готов», когда будешь готов.',invite:'ПРИГЛАСИТЬ',inRoom:'В КОМНАТЕ',locked:'МАТЧ ИДЁТ'},
+ ZH:{subtitle:'房间与比赛 · v2.8',rematch:'再来一局',waitHost:'等待房主',roundInfo:'房主开启下一轮后，所有人需要重新准备。',spectating:'观战',previous:'上一位',next:'下一位',waitingResults:'等待最终结果…',readyCount:'已准备',connected:'已连接',connecting:'连接中',offline:'离线',preparing:'比赛准备中',lobby:'返回房间',createInvite:'创建房间后邀请这位好友。',inviteSent:'邀请已发送',inviteBusy:'发送中…',inviteFail:'邀请失败，请检查好友和在线状态权限。',noFriends:'暂无可邀请好友。',inviteNone:'在此或好友列表中邀请。',personalResult:'你的成绩',place:'名次',survival:'生存时间',roundChanged:'新一轮，请重新准备。',invite:'邀请',inRoom:'已在房间',locked:'比赛进行中'},
+ ES:{subtitle:'SALAS Y PARTIDAS · v2.8',rematch:'REVANCHA',waitHost:'ESPERANDO AL ANFITRIÓN',roundInfo:'El anfitrión abre la siguiente ronda. Todos deben prepararse de nuevo.',spectating:'OBSERVANDO',previous:'ANTERIOR',next:'SIGUIENTE',waitingResults:'Esperando resultados…',readyCount:'LISTOS',connected:'CONECTADO',connecting:'CONECTANDO',offline:'SIN CONEXIÓN',preparing:'PREPARANDO CARRERA',lobby:'VOLVER A LA SALA',createInvite:'Crea una sala para invitar a este amigo.',inviteSent:'INVITACIÓN ENVIADA',inviteBusy:'ENVIANDO…',inviteFail:'Comprueba la amistad y los permisos de presencia.',noFriends:'No hay amigos disponibles.',inviteNone:'Invita aquí o desde tu lista de amigos.',personalResult:'TU RESULTADO',place:'PUESTO',survival:'TIEMPO DE SUPERVIVENCIA',roundChanged:'Nueva ronda. Confirma que estás listo.',invite:'INVITAR',inRoom:'EN LA SALA',locked:'PARTIDA EN CURSO'},
+ PT:{subtitle:'SALAS E PARTIDAS · v2.8',rematch:'REVANCHE',waitHost:'AGUARDANDO O ANFITRIÃO',roundInfo:'O anfitrião abre a próxima rodada. Todos devem ficar prontos novamente.',spectating:'ASSISTINDO',previous:'ANTERIOR',next:'PRÓXIMO',waitingResults:'Aguardando resultados…',readyCount:'PRONTOS',connected:'CONECTADO',connecting:'CONECTANDO',offline:'SEM CONEXÃO',preparing:'PREPARANDO CORRIDA',lobby:'VOLTAR À SALA',createInvite:'Crie uma sala para convidar este amigo.',inviteSent:'CONVITE ENVIADO',inviteBusy:'ENVIANDO…',inviteFail:'Confira a amizade e as permissões de presença.',noFriends:'Nenhum amigo disponível.',inviteNone:'Convide aqui ou pela lista de amigos.',personalResult:'SEU RESULTADO',place:'POSIÇÃO',survival:'TEMPO DE SOBREVIVÊNCIA',roundChanged:'Nova rodada. Confirme que está pronto.',invite:'CONVIDAR',inRoom:'NA SALA',locked:'PARTIDA EM ANDAMENTO'}
+};
+for(const [language,values] of Object.entries(experienceWords))Object.assign(words[language],values);
 const T=k=>(words[lang()]||words.EN)[k]||words.EN[k]||k;
 const ownUid=()=>auth.currentUser&&!auth.currentUser.isAnonymous?auth.currentUser.uid:null;
 const roomPath=code=>'multiplayerRooms/'+code;
@@ -26,8 +35,9 @@ const currentLayout=()=>innerWidth>=innerHeight?'LANDSCAPE':'PORTRAIT';
 function parseCode(input){const v=String(input||'').trim();try{const u=new URL(v,location.href);const q=u.searchParams.get('fbRoom');if(q)return q.toUpperCase()}catch{}return v.toUpperCase()}
 function dbUrl(v){try{const x=new URL(v);return x.protocol==='https:'&&/^(flying-bird-d6832)([.-][a-z0-9-]+)*\.(firebasedatabase\.app|firebaseio\.com)$/.test(x.hostname)&&x.pathname==='/'&&!x.search&&!x.hash&&!x.username&&!x.password?x.origin:null}catch{return null}}
 let db=null,roomCode=null,roomData=null,mySeat=null,unRoom=null,unKicked=null,unInvites=null,authSeq=0,busy=false,roomToken=0,knownNames=new Map(),invites={},inviteCache=new Set(),matchLaunchPending=false;
-let raceCosmeticsUnsub=null;
-const friendCache=new Map(), lastCodes=()=>JSON.parse(localStorage.getItem('flyingBirdMpKickedV1')||'[]');
+let raceCosmeticsUnsub=null, roomConnectionUnsub=null, roomConnected=false, watchedVersion=null, pendingFriendInvite=null, friendLoadToken=0;
+const pendingInvites=new Map();
+const friendCache=new Map(), lastCodes=()=>{try{return JSON.parse(localStorage.getItem('flyingBirdMpKickedV1')||'[]')}catch{return []}};
 // Each invite is checked against the live room. A recipient can delete their own stale invite.
 const inviteRoomUnsubs=new Map(),inviteRoomStates=new Map(),inviteCleanupPending=new Set();
 let inviteExpiryTimer=null;
@@ -39,7 +49,7 @@ function localCodeLink(c=roomCode){const u=new URL(location.href);u.searchParams
 async function copy(s){try{await navigator.clipboard.writeText(s)}catch{const t=document.createElement('textarea');t.value=s;document.body.append(t);t.select();document.execCommand('copy');t.remove()}}
 function fillMaps(){for(const id of ['fbMpMap','fbMpLobbyMap']){const e=$(id);e.replaceChildren();for(const m of mapIds){const o=document.createElement('option');o.value=m;o.textContent=m.replaceAll('_',' ');e.append(o)}}}
 fillMaps();
-function renderLabels(){for(const [id,key] of Object.entries({fbMpTitle:'title',fbMpSubtitle:'subtitle',fbMpGoCreate:'create',fbMpGoJoin:'join',fbMpJoin:'joinBy',fbMpInvitesTitle:'invites',fbMpPlayersTitle:'players',fbMpReady:'ready',fbMpStart:'start',fbMpApplyConfig:'save',fbMpInviteTitle:'invite',fbMpLoadFriends:'load',fbMpShare:'share',fbMpLeave:'leave',fbMpCopy:'copy',fbMpCopyLink:'copyLink',fbMpCreateRoom:'createAction',fbMpCreateBack:'back'}))$(id).textContent=T(key);if(roomData)renderLobby()}
+function renderLabels(){for(const [id,key] of Object.entries({fbMpTitle:'title',fbMpSubtitle:'subtitle',fbMpGoCreate:'create',fbMpGoJoin:'join',fbMpJoin:'joinBy',fbMpInvitesTitle:'invites',fbMpPlayersTitle:'players',fbMpReady:'ready',fbMpStart:'start',fbMpApplyConfig:'save',fbMpInviteTitle:'invite',fbMpLeave:'leave',fbMpCopy:'copy',fbMpCopyLink:'copyLink',fbMpCreateRoom:'createAction',fbMpCreateBack:'back'}))$(id).textContent=T(key);if(roomData)renderLobby()}
 async function getCard(uid){if(knownNames.has(uid))return knownNames.get(uid);let c={nick:'PLAYER '+uid.slice(0,5),playerId:'',avatar:{skin:0,bg:0}};try{const s=await getDocFromServer(doc(fsdb,'publicProfiles',uid));if(s.exists())c={...c,...s.data()}}catch{}knownNames.set(uid,c);return c}
 function pic(c){const cv=document.createElement('canvas');cv.width=cv.height=32;cv.className='mpAvatar';const g=cv.getContext('2d');const bgs=window.flyingBirdFriendAvatarBackgrounds||['#ff6b9d'];const pal=window.flyingBirdFriendSkinPalette||[];const a=c?.avatar||{},p=pal[Math.max(0,Number(a.skin)||0)]||pal[0]||{body:'#ffd23f',hi:'#ffe98a',wing:'#ff9f1c',belly:'#fff4d6'},bg=bgs[Math.abs(Number(a.bg)||0)%bgs.length];g.fillStyle=bg;g.fillRect(0,0,32,32);g.fillStyle='#2b1b00';g.fillRect(6,8,22,18);g.fillStyle=p.body;g.fillRect(7,9,19,16);g.fillRect(10,6,13,4);g.fillStyle=p.hi;g.fillRect(11,7,10,3);g.fillStyle=p.wing;g.fillRect(8,17,9,7);g.fillStyle=p.belly;g.fillRect(15,21,9,4);g.fillStyle='#fff';g.fillRect(19,11,6,6);g.fillStyle='#1a1033';g.fillRect(23,13,3,3);g.fillStyle='#ff9f1c';g.fillRect(26,18,5,3);return cv}
 const el=(tag,text,cls)=>{const x=document.createElement(tag);if(text!=null)x.textContent=text;if(cls)x.className=cls;return x};
@@ -59,14 +69,21 @@ function renderLobby(){if(!roomData||!roomCode)return;const host=roomData.hostUi
  $('fbMpRoomCode').textContent=roomCode;$('fbMpRoomInfo').textContent=seats.length+'/'+roomData.meta.capacity+' · '+roomData.meta.layout+' · '+roomData.meta.diff;
  $('fbMpLayoutInfo').textContent=T('orientation')+': '+roomData.meta.layout;
  $('fbMpLobbyCapacity').value=String(roomData.meta.capacity);$('fbMpLobbyDifficulty').value=roomData.meta.diff;$('fbMpLobbyMap').value=roomData.meta.map;
- for(const id of ['fbMpLobbyCapacity','fbMpLobbyDifficulty','fbMpLobbyMap','fbMpApplyConfig'])$(id).disabled=!host||busy;
- $('fbMpReady').textContent=mine&&activeReady(mine[1])?T('unready'):T('ready');$('fbMpReady').disabled=busy||!mine;
- $('fbMpStart').disabled=busy||!host||!!raceSnapshot||matchLaunchPending;$('fbMpStartInfo').textContent=raceSnapshot?RT('noRestart'):matchLaunchPending?T('pending'):readinessExplanation();
+ for(const id of ['fbMpLobbyCapacity','fbMpLobbyDifficulty','fbMpLobbyMap','fbMpApplyConfig'])$(id).disabled=!host||busy||!roomConnected||!!raceSnapshot||matchLaunchPending;
+ $('fbMpReady').textContent=mine&&activeReady(mine[1])?T('unready'):T('ready');$('fbMpReady').disabled=busy||!mine||!roomConnected||!!raceSnapshot;
+ $('fbMpReady').setAttribute('aria-pressed',String(!!mine&&activeReady(mine[1])));
+ const count=seats.filter(([,p])=>activeReady(p)).length;
+ $('fbMpReadySummary').textContent=T('readyCount')+' '+count+' / '+seats.length;
+ $('fbMpConnection').textContent=T(roomConnected?'connected':'offline');
+ $('fbMpConnection').dataset.state=roomConnected?'online':'offline';
+ $('fbMpStart').disabled=busy||!host||!roomConnected||!readyForMatch()||!!raceSnapshot||matchLaunchPending;$('fbMpStartInfo').textContent=raceSnapshot?T('locked'):matchLaunchPending?T('preparing'):readinessExplanation();
  const list=$('fbMpPlayers');list.replaceChildren();for(const [seat,p] of seats){const c=knownNames.get(p.uid)||{nick:'PLAYER '+p.uid.slice(0,5),avatar:{skin:0,bg:0}},entry=el('div',null,'mpCard mpPlayer'),text=el('div',null,'mpIdentity');text.append(el('strong',c.nick+(p.uid===roomData.hostUid?' · '+T('host'):'')),el('small',(c.playerId||p.uid.slice(0,9))+' · #'+(Number(seat)+1)));
  const flag=el('span',activeReady(p)?T('readyState'):T('notReady'),'mpFlag'+(activeReady(p)?' ready':''));entry.append(pic(c),text,flag);
  if(host&&p.uid!==ownUid()&&!raceSnapshot){const b=el('button',T('kick'),'danger');b.type='button';b.onclick=()=>void kick(p.uid);entry.append(b)}list.append(entry)}
+ updateInviteButtons();
+ if(pendingFriendInvite&&roomConnected&&!busy&&!raceSnapshot){const friend=pendingFriendInvite;pendingFriendInvite=null;void invite(friend);}
 }
-function clearListeners(){matchLaunchPending=false;roomToken++;unRoom?.();unKicked?.();unMatch?.();unMatch=null;unRoom=null;unKicked=null;roomCode=null;roomData=null;mySeat=null;raceCleanup();knownNames.clear()}
+function clearListeners(){matchLaunchPending=false;pendingInvites.clear();watchedVersion=null;friendLoadToken++;roomConnectionUnsub?.();roomConnectionUnsub=null;roomConnected=false;roomToken++;unRoom?.();unKicked?.();unMatch?.();unMatch=null;unRoom=null;unKicked=null;roomCode=null;roomData=null;mySeat=null;raceCleanup();knownNames.clear()}
 async function leaveRoom({silent=false,kicked=false,closeRoom=true}={}){const activeRace=race;if(activeRace?.me.alive)void raceFinish('DNF');if(activeRace?.finalWritePromise)await waitRaceWrite(activeRace.finalWritePromise);const code=roomCode,seat=mySeat,data=roomData;clearListeners();show('Home');if(!code||!db)return;const r=ref(db,roomPath(code));try{
  if(!kicked&&seat!==null){const host=data?.hostUid===ownUid(),seats=Object.entries(data?.slots||{}).filter(([,x])=>x?.uid&&x.uid!==ownUid()).sort((a,b)=>Number(a[0])-Number(b[0]));
  if(host&&seats.length){try{await set(ref(db,roomPath(code)+'/hostUid'),seats[0][1].uid)}catch(e){if(!silent)say(T('error')+': '+e.message,true);return}}
@@ -77,17 +94,26 @@ async function leaveRoom({silent=false,kicked=false,closeRoom=true}={}){const ac
  }
  if(!silent)say(kicked?T('kicked'):T('left'));
 }catch(e){if(!silent)say(T('error')+': '+e.message,true)}}
-function attach(code,slot){clearListeners();roomCode=code;mySeat=slot;const token=roomToken,r=ref(db,roomPath(code));show('Lobby');unRoom=onValue(r,s=>{if(token!==roomToken)return;if(!s.exists()){if(race||raceStarting)return;void leaveRoom({silent:true,kicked:true});say(T('roomClosed'),true);return}roomData=s.val();if(roomData.bans?.[ownUid()]===true){void leaveRoom({silent:true,kicked:true});say(T('kicked'),true);return}const seatNow=seatFor(ownUid());if(seatNow===null){if(race||raceStarting)return;void leaveRoom({silent:true,kicked:true});say(T('kicked'),true);return}mySeat=seatNow;
+function attach(code,slot){clearListeners();roomCode=code;mySeat=slot;const token=roomToken,r=ref(db,roomPath(code));show('Lobby');
+ roomConnectionUnsub=onValue(ref(db,'.info/connected'),snap=>{if(token!==roomToken)return;roomConnected=snap.val()===true;renderLobby();if(race?.finished)updateRematchButton();});unRoom=onValue(r,s=>{if(token!==roomToken)return;if(!s.exists()){if(race&&!race.finished)return;void leaveRoom({silent:true,kicked:true});say(T('roomClosed'),true);return}roomData=s.val();if(roomData.bans?.[ownUid()]===true){void leaveRoom({silent:true,kicked:true});say(T('kicked'),true);return}const seatNow=seatFor(ownUid());if(seatNow===null){if(race||raceStarting)return;void leaveRoom({silent:true,kicked:true});say(T('kicked'),true);return}mySeat=seatNow;
  // The old host might have disconnected without transferring privileges; elect one remaining member.
  if(!memberSeats().some(([,p])=>p.uid===roomData.hostUid)&&seatNow===memberSeats()[0]?.[0])void set(ref(db,roomPath(code)+'/hostUid'),ownUid()).catch(()=>{});
+ if(watchedVersion!==roomData.meta.version){
+  const wasRound=watchedVersion!==null;
+  if((document.fullscreenElement||document.webkitFullscreenElement)===raceUI){try{Promise.resolve((document.exitFullscreen||document.webkitExitFullscreen).call(document)).catch(()=>{})}catch{}}
+  watchedVersion=roomData.meta.version;raceCleanup();matchLaunchPending=false;
+  modal.hidden=false;show('Lobby');watchRace(code,watchedVersion);void loadFriends();
+  if(wasRound)say(T('roundChanged'));
+ }
  renderLobby();void refreshPlayers();
+ if(race?.finished)updateRematchButton();
  },err=>{if(token!==roomToken)return;void leaveRoom({silent:true,kicked:true});say(T('kicked')+' ('+err.code+')',true)});
  unKicked=onValue(ref(db,roomPath(code)+'/bans/'+ownUid()),snap=>{if(token!==roomToken)return;if(snap.val()===true){try{const x=new Set(lastCodes());x.add(code);localStorage.setItem('flyingBirdMpKickedV1',JSON.stringify([...x].slice(-50)))}catch{}void leaveRoom({silent:true,kicked:true});say(T('kicked'),true)}});
- watchRace(code);
 }
+
 function validRoom(r){return r&&r.meta&&[3,5,10].includes(r.meta.capacity)&&['PORTRAIT','LANDSCAPE'].includes(r.meta.layout)}
 async function createRoom(){
- if(busy)return;
+ if(busy||roomCode)return;
  if(!ownUid()){say(T('noAuth'),true);return}
  if(!setDb()){say(T('needUrl'),true);return}
  setBusy(true);say(T('pending'));
@@ -107,6 +133,7 @@ async function createRoom(){
   const seatRef=ref(db,roomPath(code)+'/slots/0');
   await onDisconnect(seatRef).remove();
   say('');attach(code,'0');
+
  }catch(e){
   const codeText=(typeof e?.code==='string'?e.code:'')||'';
   const detail=stage+' · '+(codeText||e?.message||String(e));
@@ -114,7 +141,9 @@ async function createRoom(){
   say(T('error')+': '+detail+(roomSaved?' · Room was written but disconnect cleanup failed. Check multiplayerRooms in RTDB.':'') ,true);
  }finally{setBusy(false)}
 }
-async function joinRoom(input){if(busy)return;const code=parseCode(input);if(!codeValid(code)){say(T('notFound'),true);return}if(!ownUid()){say(T('noAuth'),true);return}if(!setDb()){say(T('needUrl'),true);return}if(lastCodes().includes(code)){say(T('banned'),true);return}setBusy(true);say(T('pending'));try{const s=await get(ref(db,roomPath(code)));if(!s.exists())throw Error(T('notFound'));const room=s.val();if(room.bans?.[ownUid()])throw Error(T('banned'));if(!validRoom(room))throw Error(T('notFound'));if(room.meta.layout!==currentLayout())throw Error(T('layoutMismatch'));const existing=Object.entries(room.slots||{}).find(([,v])=>v?.uid===ownUid());if(existing){const played=await get(ref(db,raceRoot(code)+'/meta')).catch(()=>null);if(played?.exists())throw Error(RT('noRestart'));attach(code,existing[0]);void dismissInvite(code);say('');return}
+async function joinRoom(input){if(busy)return;if(roomCode){show('Lobby');return;}const code=parseCode(input);if(!codeValid(code)){say(T('notFound'),true);return}if(!ownUid()){say(T('noAuth'),true);return}if(!setDb()){say(T('needUrl'),true);return}if(lastCodes().includes(code)){say(T('banned'),true);return}setBusy(true);say(T('pending'));try{const s=await get(ref(db,roomPath(code)));if(!s.exists())throw Error(T('notFound'));const room=s.val();if(room.bans?.[ownUid()])throw Error(T('banned'));if(!validRoom(room))throw Error(T('notFound'));if(room.meta.layout!==currentLayout())throw Error(T('layoutMismatch'));
+ const activeRound=await get(ref(db,raceRoot(code,room.meta.version)+'/meta'));if(activeRound.exists())throw Error(RT('noRestart'));
+ const existing=Object.entries(room.slots||{}).find(([,v])=>v?.uid===ownUid());if(existing){attach(code,existing[0]);void dismissInvite(code);say('');return}
  const indexRef=ref(db,roomPath(code)+'/seatOf/'+ownUid());let seat=null;const claimed=room.seatOf?.[ownUid()];if(typeof claimed==='string'&&!room.slots?.[claimed]){seat=claimed} else {for(let i=0;i<room.meta.capacity;i++){if(!room.slots?.[String(i)]){seat=String(i);break}}}
  if(seat===null)throw Error(T('full'));await set(indexRef,seat);
  let joined=false;for(let i=0;i<room.meta.capacity;i++){const n=String((Number(seat)+i)%room.meta.capacity),slotRef=ref(db,roomPath(code)+'/slots/'+n);
@@ -137,7 +166,7 @@ async function kick(uid){if(raceSnapshot)return;if(!roomCode||!roomData||roomDat
  say('');
  }catch(e){say(T('error')+': '+e.message,true)}}
 async function changeReady(){
- if(raceSnapshot||!roomCode||!roomData||mySeat===null||busy)return;
+ if(raceSnapshot||!roomConnected||!roomCode||!roomData||mySeat===null||busy)return;
  const me=roomData.slots?.[mySeat],code=roomCode,seat=mySeat,uid=ownUid();
  if(me?.uid!==uid)return;
  setBusy(true);say('');
@@ -154,10 +183,51 @@ async function changeReady(){
  finally{setBusy(false)}
 }
 async function saveConfig(){if(raceSnapshot)return;if(!roomData||!roomCode||roomData.hostUid!==ownUid()){say(T('onlyHost'),true);return}const m=roomData.meta,capacity=Number($('fbMpLobbyCapacity').value);if(memberSeats().some(([seat])=>Number(seat)>=capacity)){say(T('full'),true);return}const nm={...m,capacity,map:$('fbMpLobbyMap').value,diff:$('fbMpLobbyDifficulty').value,version:m.version+1};try{await set(ref(db,roomPath(roomCode)+'/meta'),nm);say(T('settingsChanged'))}catch(e){say(T('error')+': '+e.message,true)}}
-async function share(){if(!roomCode)return;const url=localCodeLink();if(navigator.share){try{await navigator.share({title:'Flying Bird Multiplayer',text:roomCode,url});return}catch(e){if(e.name==='AbortError')return}}
- await copy(url);say(T('roomLink'))}
-async function loadFriends(){if(!ownUid()||!roomCode)return;const target=$('fbMpFriends');target.textContent=T('pending');friendCache.clear();try{const base=collection(fsdb,'friendRequests'),uid=ownUid(),[a,b]=await Promise.all([getDocsFromServer(query(base,where('fromUid','==',uid),limit(50))),getDocsFromServer(query(base,where('toUid','==',uid),limit(50)))]);const ids=new Set();for(const x of [...a.docs,...b.docs]){const p=x.data();if(p.status==='accepted')ids.add(p.fromUid===uid?p.toUid:p.fromUid)}target.replaceChildren();if(!ids.size){target.textContent=T('noFriends');return}for(const id of ids){const c=await getCard(id);friendCache.set(id,c);const r=el('div',null,'mpCard mpPlayer'),name=el('div',null,'mpIdentity');name.append(el('strong',c.nick),el('small',c.playerId||''));const btn=el('button',T('invite'));btn.type='button';btn.onclick=()=>void invite(id);r.append(pic(c),name,btn);target.append(r)}}catch(e){target.textContent=T('error')+': '+e.message}}
-async function invite(toUid){if(!db||!roomCode||toUid===ownUid())return;try{await set(ref(db,'multiplayerInvites/'+toUid+'/'+roomCode),{fromUid:ownUid(),createdAt:rtStamp(),expiresAt:Date.now()+15*60*1000});say(T('inviteSent'))}catch(e){say(T('inviteFail')+' ('+e.message+')',true)}}
+async function loadFriends(){
+ if(!ownUid()||!roomCode)return;
+ const token=++friendLoadToken,code=roomCode,uid=ownUid(),target=$('fbMpFriends');
+ target.textContent=T('pending');friendCache.clear();
+ try{
+  const base=collection(fsdb,'friendRequests');
+  const [a,b,blocked]=await Promise.all([getDocsFromServer(query(base,where('fromUid','==',uid),limit(50))),getDocsFromServer(query(base,where('toUid','==',uid),limit(50))),getDocsFromServer(query(collection(fsdb,'blocks',uid,'users'),limit(100)))]);
+  const blocks=new Set(blocked.docs.map(x=>x.id)),ids=new Set();
+  for(const x of [...a.docs,...b.docs]){const p=x.data(),peer=p.fromUid===uid?p.toUid:p.fromUid;if(p.status==='accepted'&&!blocks.has(peer))ids.add(peer);}
+  const cards=await Promise.all([...ids].map(async id=>[id,await getCard(id)]));
+  if(token!==friendLoadToken||code!==roomCode||uid!==ownUid())return;
+  target.replaceChildren();if(!cards.length){target.textContent=T('noFriends');return;}
+  for(const [id,c] of cards){friendCache.set(id,c);const row=el('div',null,'mpCard mpPlayer'),name=el('div',null,'mpIdentity');name.append(el('strong',c.nick),el('small',c.playerId||''));
+   const button=el('button',T('invite'));button.type='button';button.dataset.inviteUid=id;
+   button.onclick=async()=>{button.disabled=true;button.textContent=T('inviteBusy');const sent=await invite(id);if(button.isConnected){button.textContent=T(sent?'inviteSent':'invite');button.disabled=sent;}};
+   row.append(pic(c),name,button);target.append(row);
+  }
+  updateInviteButtons();
+ }catch(e){if(token===friendLoadToken)target.textContent=T('error')+': '+e.message;}
+}
+function updateInviteButtons(){
+ for(const button of $('fbMpFriends').querySelectorAll('[data-invite-uid]')){
+  const uid=button.dataset.inviteUid,inRoom=seatFor(uid)!==null;
+  button.disabled=inRoom||!!raceSnapshot||!roomConnected||(Date.now()-(pendingInvites.get(roomCode+'/'+uid)||0)<11000);
+  button.textContent=T(inRoom?'inRoom':raceSnapshot?'locked':(Date.now()-(pendingInvites.get(roomCode+'/'+uid)||0)<11000)?'inviteSent':'invite');
+ }
+}
+async function invite(toUid){
+ if(!db||!roomCode||!roomConnected||raceSnapshot||toUid===ownUid())return false;
+ const code=roomCode,key=code+'/'+toUid,uid=ownUid();
+ if(Date.now()-(pendingInvites.get(key)||0)<11000)return true;
+ pendingInvites.set(key,Date.now());
+ setTimeout(()=>{if(Date.now()-(pendingInvites.get(key)||0)>=11000){pendingInvites.delete(key);updateInviteButtons();}},11100);
+ try{
+  await set(ref(db,'multiplayerInvites/'+toUid+'/'+code),{fromUid:uid,createdAt:rtStamp(),expiresAt:Date.now()+15*60*1000});
+  if(code===roomCode)say(T('inviteSent'));return true;
+ }catch(e){pendingInvites.delete(key);if(code===roomCode)say(T('inviteFail')+' ('+(e.code||e.message)+')',true);return false;}
+ finally{updateInviteButtons();}
+}
+window.flyingBirdInviteFriend=async uid=>{
+ if(!ownUid())return false;
+ if(roomCode){if(raceSnapshot){say(T('locked'),true);return false;}return invite(uid);}
+ pendingFriendInvite=uid;document.getElementById('fbfPanel').hidden=true;
+ open();show('Create');$('fbMpLayout').value=currentLayout();say(T('createInvite'));return null;
+};
 function stopInviteRoomChecks(){
  for(const off of inviteRoomUnsubs.values())off();
  inviteRoomUnsubs.clear();inviteRoomStates.clear();
@@ -229,7 +299,7 @@ function renderInvites(){
 let unMatch=null, race=null, raceSnapshot=null, raceOnDisconnect=null, raceRaf=0;
 let raceServerOffset=0, raceClockReady=false, raceClockUnsub=null, raceStarting=false, raceConnectionUnsub=null;
 let raceFeedSubs=[],raceFeedToken=0,raceFeedLoading=false,racePendingStart=null;
-const raceRoot=code=>'multiplayerMatches/'+code;
+const raceRoot=(code,version=roomData?.meta?.version)=>roundPath(code,version);
 // Use the RTDB client clock offset before creating or entering a room. Every client
 // must agree on the same startAt; local wall-clock skew cannot be trusted.
 function warmRaceClock(){
@@ -260,11 +330,11 @@ function readRaceServerOffset(){
 const RACE_FPS=60, RACE_STEP=1000/RACE_FPS, RACE_PHASE=1800;
 const RACE_GRAVITY=.26, RACE_FLAP=-4.4, RACE_PIPE_WIDTH=52;
 const RACE_WORDS={
- EN:{title:'LAST BIRD STANDING',loading:'Preparing the shared course…',countdown:'READY',go:'GO!',time:'SURVIVAL',alive:'ALIVE',dead:'ELIMINATED',dnf:'DISCONNECTED',survived:'WINNER',winner:'LAST BIRD STANDING!',tie:'SHARED PLACE',finished:'MATCH RESULTS',exit:'EXIT MATCH',exitConfirm:'Leave this match? You will be eliminated and cannot return.',instructions:'TAP / SPACE TO FLAP · Last survivor wins',stage:'SPEED',wait:'WAITING FOR THE START',startError:'Cannot start match',onlineError:'Lost connection: eliminated',roundInfo:'One race per room in this beta. Create a new room for a rematch.',noRestart:'This match has already begun; joining late is disabled.'},
- RU:{title:'ПОСЛЕДНЯЯ ПТИЦА',loading:'Подготовка общей трассы…',countdown:'ПРИГОТОВЬСЯ',go:'ВПЕРЁД!',time:'ВРЕМЯ',alive:'В ИГРЕ',dead:'ВЫБЫЛ',dnf:'ОТКЛЮЧИЛСЯ',survived:'ПОБЕДИТЕЛЬ',winner:'ПОСЛЕДНЯЯ ВЫЖИВШАЯ ПТИЦА!',tie:'ОБЩЕЕ МЕСТО',finished:'РЕЗУЛЬТАТЫ МАТЧА',exit:'ВЫЙТИ ИЗ МАТЧА',exitConfirm:'Покинуть матч? Ты выбываешь и не сможешь вернуться.',instructions:'НАЖМИ / ПРОБЕЛ — ВЗМАХ · ПОБЕЖДАЕТ ПОСЛЕДНИЙ',stage:'СКОРОСТЬ',wait:'ОЖИДАНИЕ СТАРТА',startError:'Не удалось запустить матч',onlineError:'Соединение потеряно: поражение',roundInfo:'Один матч на комнату в этой бета-версии. Для реванша создайте новую комнату.',noRestart:'Матч уже начался, позднее подключение запрещено.'},
- ZH:{title:'最后生存的小鸟',loading:'正在准备共同赛道…',countdown:'准备',go:'开始!',time:'生存时间',alive:'存活',dead:'淘汰',dnf:'掉线',survived:'获胜',winner:'最后生存者获胜!',tie:'并列',finished:'比赛结果',exit:'退出比赛',exitConfirm:'退出将被淘汰且无法重新加入。',instructions:'点击 / 空格 挥翅 · 最后幸存者获胜',stage:'速度',wait:'等待开始',startError:'开始失败',onlineError:'连接中断',roundInfo:'本测试版每间房一局；再赛请新建房间。',noRestart:'比赛已经开始。'},
- ES:{title:'ÚLTIMO PÁJARO EN PIE',loading:'Preparando circuito común…',countdown:'PREPARADOS',go:'¡YA!',time:'SUPERVIVENCIA',alive:'VIVO',dead:'ELIMINADO',dnf:'DESCONECTADO',survived:'GANADOR',winner:'¡ÚLTIMO SUPERVIVIENTE!',tie:'EMPATE',finished:'RESULTADOS',exit:'SALIR',exitConfirm:'¿Salir? Quedarás eliminado sin poder volver.',instructions:'TOCAR / ESPACIO PARA VOLAR',stage:'VELOCIDAD',wait:'ESPERANDO',startError:'No se pudo iniciar',onlineError:'Conexión perdida',roundInfo:'Una carrera por sala en esta beta; crea otra para repetir.',noRestart:'La carrera ya comenzó.'},
- PT:{title:'ÚLTIMO PÁSSARO VIVO',loading:'Preparando percurso…',countdown:'PREPARE-SE',go:'VAI!',time:'SOBREVIVÊNCIA',alive:'VIVO',dead:'ELIMINADO',dnf:'DESCONECTADO',survived:'VENCEDOR',winner:'ÚLTIMO SOBREVIVENTE!',tie:'EMPATE',finished:'RESULTADOS',exit:'SAIR',exitConfirm:'Sair elimina você definitivamente desta partida.',instructions:'TOQUE / ESPAÇO PARA VOAR',stage:'VELOCIDADE',wait:'AGUARDANDO INÍCIO',startError:'Falha ao iniciar',onlineError:'Conexão perdida',roundInfo:'Uma corrida por sala nesta beta; crie outra para revanche.',noRestart:'A partida já começou.'}
+ EN:{title:'LAST BIRD STANDING',loading:'Preparing the shared course…',countdown:'READY',go:'GO!',time:'SURVIVAL',alive:'ALIVE',dead:'ELIMINATED',dnf:'DISCONNECTED',survived:'WINNER',winner:'LAST BIRD STANDING!',tie:'SHARED PLACE',finished:'MATCH RESULTS',exit:'EXIT MATCH',exitConfirm:'Leave this match? You will be eliminated and cannot return.',instructions:'TAP / SPACE TO FLAP · Last survivor wins',stage:'SPEED',wait:'WAITING FOR THE START',startError:'Cannot start match',onlineError:'Lost connection: eliminated',noRestart:'This match has already begun; joining late is disabled.'},
+ RU:{title:'ПОСЛЕДНЯЯ ПТИЦА',loading:'Подготовка общей трассы…',countdown:'ПРИГОТОВЬСЯ',go:'ВПЕРЁД!',time:'ВРЕМЯ',alive:'В ИГРЕ',dead:'ВЫБЫЛ',dnf:'ОТКЛЮЧИЛСЯ',survived:'ПОБЕДИТЕЛЬ',winner:'ПОСЛЕДНЯЯ ВЫЖИВШАЯ ПТИЦА!',tie:'ОБЩЕЕ МЕСТО',finished:'РЕЗУЛЬТАТЫ МАТЧА',exit:'ВЫЙТИ ИЗ МАТЧА',exitConfirm:'Покинуть матч? Ты выбываешь и не сможешь вернуться.',instructions:'НАЖМИ / ПРОБЕЛ — ВЗМАХ · ПОБЕЖДАЕТ ПОСЛЕДНИЙ',stage:'СКОРОСТЬ',wait:'ОЖИДАНИЕ СТАРТА',startError:'Не удалось запустить матч',onlineError:'Соединение потеряно: поражение',noRestart:'Матч уже начался, позднее подключение запрещено.'},
+ ZH:{title:'最后生存的小鸟',loading:'正在准备共同赛道…',countdown:'准备',go:'开始!',time:'生存时间',alive:'存活',dead:'淘汰',dnf:'掉线',survived:'获胜',winner:'最后生存者获胜!',tie:'并列',finished:'比赛结果',exit:'退出比赛',exitConfirm:'退出将被淘汰且无法重新加入。',instructions:'点击 / 空格 挥翅 · 最后幸存者获胜',stage:'速度',wait:'等待开始',startError:'开始失败',onlineError:'连接中断',noRestart:'比赛已经开始。'},
+ ES:{title:'ÚLTIMO PÁJARO EN PIE',loading:'Preparando circuito común…',countdown:'PREPARADOS',go:'¡YA!',time:'SUPERVIVENCIA',alive:'VIVO',dead:'ELIMINADO',dnf:'DESCONECTADO',survived:'GANADOR',winner:'¡ÚLTIMO SUPERVIVIENTE!',tie:'EMPATE',finished:'RESULTADOS',exit:'SALIR',exitConfirm:'¿Salir? Quedarás eliminado sin poder volver.',instructions:'TOCAR / ESPACIO PARA VOLAR',stage:'VELOCIDAD',wait:'ESPERANDO',startError:'No se pudo iniciar',onlineError:'Conexión perdida',noRestart:'La carrera ya comenzó.'},
+ PT:{title:'ÚLTIMO PÁSSARO VIVO',loading:'Preparando percurso…',countdown:'PREPARE-SE',go:'VAI!',time:'SOBREVIVÊNCIA',alive:'VIVO',dead:'ELIMINADO',dnf:'DESCONECTADO',survived:'VENCEDOR',winner:'ÚLTIMO SOBREVIVENTE!',tie:'EMPATE',finished:'RESULTADOS',exit:'SAIR',exitConfirm:'Sair elimina você definitivamente desta partida.',instructions:'TOQUE / ESPAÇO PARA VOAR',stage:'VELOCIDADE',wait:'AGUARDANDO INÍCIO',startError:'Falha ao iniciar',onlineError:'Conexão perdida',noRestart:'A partida já começou.'}
 };
 const RT=k=>(RACE_WORDS[lang()]||RACE_WORDS.EN)[k]||RACE_WORDS.EN[k]||k;
 const raceUI=$('fbMpRace'),raceCanvas=$('fbMpRaceCanvas'),raceCtx=raceCanvas.getContext('2d');
@@ -304,7 +374,7 @@ function pipesNear(tick,session){const {world}=session,speed=courseSpeed(session
 function raceRecord(uid){return raceSnapshot?.players?.[uid]||null}
 function aliveRace(r){return r?.status==='ALIVE'}
 function raceMe(){return raceRecord(ownUid())}
-function formatTime(ms){const secs=Math.max(0,Math.floor((Number(ms)||0)/1000));return String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0')+'.'+Math.floor(Math.max(0,Number(ms)||0)%1000/100)}
+function formatTime(ms){const value=Math.max(0,Math.floor(Number(ms)||0)),secs=Math.floor(value/1000);return String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0')+'.'+String(value%1000).padStart(3,'0')}
 function raceStatusText(s){return s==='DEAD'?RT('dead'):s==='DNF'?RT('dnf'):s==='SURVIVED'?RT('survived'):RT('alive')}
 function raceFit(){
  if(!race || raceUI.hidden)return;
@@ -372,7 +442,7 @@ function equippedRaceCosmetics(){
 function watchRaceCosmetics(code,session){
  raceCosmeticsUnsub?.();raceCosmeticsUnsub=null;
  const uid=ownUid();
- raceCosmeticsUnsub=onValue(ref(db,raceRoot(code)+'/cosmetics'),snap=>{
+ raceCosmeticsUnsub=onValue(ref(db,session.path+'/cosmetics'),snap=>{
   if(race!==session||session.code!==code)return;
   const raw=snap.val()||{};const appearances=Object.create(null);
   for(const [id,choice] of Object.entries(raw)){
@@ -385,7 +455,7 @@ function watchRaceCosmetics(code,session){
  },err=>{if(race===session)console.warn('[Flying Bird MP] Cosmetics read:',err)});
  // This happens during the 10.5-second pre-start countdown; the RTDB rule
  // accepts exactly one immutable record from each roster member until start.
- void set(ref(db,raceRoot(code)+'/cosmetics/'+uid),session.myCosmetics).catch(err=>{
+ void set(ref(db,session.path+'/cosmetics/'+uid),session.myCosmetics).catch(err=>{
   if(race===session){
    console.warn('[Flying Bird MP] Cosmetics publish (install v2.5 RTDB rules):',err);
    raceSetStatus('COSMETICS_SYNC · '+(err?.code||err?.message||String(err)),true);
@@ -401,13 +471,13 @@ function raceDraw(){
  g.clearRect(0,0,w,h);
  const birds=[];
  for(const [uid,p] of Object.entries(raceSnapshot?.players||{})){
-  if(uid===ownUid())continue;
+  if(uid===ownUid()||(!r.me.alive&&p.status!=='ALIVE'))continue;
   const card=r.cards.get(uid)||{},y=ghostY(uid,p);
   const equipped=r.cosmetics?.[uid];
-  birds.push({x:r.world.bx,y:Math.min(r.world.ground-18,Math.max(0,y)),skin:equipped?.skin??(Number(card?.avatar?.skin)||0),alpha:p.status==='ALIVE'?.48:.16,rotation:(Number(p.vy)||0)*.09,trail:equipped?.trail||'NONE',id:uid,active:p.status==='ALIVE'});
+  birds.push({x:r.world.bx,y:Math.min(r.world.ground-18,Math.max(0,y)),skin:equipped?.skin??(Number(card?.avatar?.skin)||0),alpha:uid===r.spectatorUid?1:p.status==='ALIVE'?.48:.16,rotation:(Number(p.vy)||0)*.09,trail:equipped?.trail||'NONE',id:uid,active:p.status==='ALIVE'});
  }
- birds.push({x:r.world.bx,y:r.me.y,skin:r.myCosmetics.skin,alpha:r.me.alive?1:.55,rotation:r.me.vy*.09,trail:r.myCosmetics.trail,id:ownUid(),active:r.me.alive});
- const scene={map:r.meta.map,matchId:r.code,world:r.world,tick,distance:distanceAt(tick,courseSpeed(r.meta.diff)),pipes:pipesNear(tick,r).map(p=>({x:p.x,top:p.top,gap:p.gap,amp:p.amp})),birds};
+ if(r.me.alive)birds.push({x:r.world.bx,y:r.me.y,skin:r.myCosmetics.skin,alpha:r.me.alive?1:.55,rotation:r.me.vy*.09,trail:r.myCosmetics.trail,id:ownUid(),active:r.me.alive});
+ const scene={map:r.meta.map,matchId:r.path,world:r.world,tick,distance:distanceAt(tick,courseSpeed(r.meta.diff)),pipes:pipesNear(tick,r).map(p=>({x:p.x,top:p.top,gap:p.gap,amp:p.amp})),birds};
  const myself=r.me;
  const art=window.flyingBirdMultiplayerArt?.(scene,g);
  if(!art){
@@ -416,7 +486,7 @@ function raceDraw(){
   g.fillStyle='#162c3c';g.fillRect(0,r.world.ground,w,h-r.world.ground);
   for(const b of birds)raceBird(b.x,b.y,b.skin,b.alpha,tick%10<4,b.rotation);
  }
- g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';g.strokeStyle='#19102e';g.lineWidth=4;g.font='bold '+(r.meta.layout==='PORTRAIT'?18:23)+'px Courier New';g.fillStyle='#fffbe8';const msg=!raceClockReady?RT('loading'):remaining>0?(remaining>3.3?RT('countdown'):String(Math.max(1,Math.ceil(remaining)))):r.finished?'':(!myself.alive?'✖ '+raceStatusText(myself.status):'');if(msg){g.strokeText(msg,w*(r.meta.layout==='PORTRAIT'?.36:.5),h*.26);g.fillText(msg,w*(r.meta.layout==='PORTRAIT'?.36:.5),h*.26)}
+ g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';g.strokeStyle='#19102e';g.lineWidth=4;g.font='bold '+(r.meta.layout==='PORTRAIT'?18:23)+'px Courier New';g.fillStyle='#fffbe8';const msg=!raceClockReady?RT('loading'):remaining>0?(remaining>3.3?RT('countdown'):String(Math.max(1,Math.ceil(remaining)))):r.finished?'':(!myself.alive?'':'');if(msg){g.strokeText(msg,w*(r.meta.layout==='PORTRAIT'?.36:.5),h*.26);g.fillText(msg,w*(r.meta.layout==='PORTRAIT'?.36:.5),h*.26)}
  const currentStage=Math.min(16,Math.floor(tick/RACE_PHASE));g.font='bold 12px Courier New';g.textAlign='left';g.fillText(RT('time')+' '+formatTime(elapsed),10,r.meta.layout==='LANDSCAPE'?74:80);g.textAlign='right';g.fillText('⚡ ×'+(1+currentStage*.036).toFixed(2),w-(r.meta.layout==='LANDSCAPE'?62:10),22);
  if(!r.finished&&remaining<=0&&r.startFlash>0){g.font='bold 35px Courier New';g.textAlign='center';g.strokeText(RT('go'),w/2,h*.31);g.fillText(RT('go'),w/2,h*.31);r.startFlash--}
 
@@ -445,24 +515,69 @@ function recordLocalMultiplayerStats(players){
  try{data={...data,...JSON.parse(localStorage.getItem(key)||'{}')}}catch{}
  if(!Array.isArray(data.played))data.played=[];
  const me=players.find(p=>p.uid===ownUid()),isWinner=!!me&&me.rank===1&&me.status!=='DNF';
- if(me&&!data.played.includes(race.code)){
+ if(me&&!data.played.includes(race.path)){
    data.matches=Math.max(0,Number(data.matches)||0)+1;data.wins=Math.max(0,Number(data.wins)||0)+(isWinner?1:0);
-   data.bestMs=Math.max(Number(data.bestMs)||0,Number(me.elapsedMs)||0);data.played.push(race.code);data.played=data.played.slice(-60);
+   data.bestMs=Math.max(Number(data.bestMs)||0,Number(me.elapsedMs)||0);data.played.push(race.path);data.played=data.played.slice(-60);
    try{localStorage.setItem(key,JSON.stringify(data))}catch{}
  }
  $('fbMpRaceMyStats').textContent=lang()==='RU'?'МП СТАТИСТИКА (ЛОКАЛЬНО): МАТЧЕЙ '+data.matches+' · ПОБЕД '+data.wins+' · РЕКОРД '+formatTime(data.bestMs):'MP STATS (LOCAL): MATCHES '+data.matches+' · WINS '+data.wins+' · BEST '+formatTime(data.bestMs);
 }
-function raceResults(){if(!race)return;const r=race;const list=$('fbMpRaceResults');
+function updateRematchButton(){
+ const host=roomData?.hostUid===ownUid(),button=$('fbMpRematch');
+ button.textContent=T(host?'rematch':'waitHost');
+ button.disabled=!host||busy||!roomConnected||!race?.finished||!roundFinished(raceSnapshot)||roomData?.meta?.version!==race?.meta.version;
+}
+async function rematch(){
+ const session=race,code=roomCode,uid=ownUid();
+ if(busy||!roomConnected||!session?.finished||!roundFinished(raceSnapshot)||roomData?.hostUid!==uid)return;
+ setBusy(true);$('fbMpRematch').disabled=true;
+ try{
+  // Server rules independently verify all terminal states and preserve every ban.
+  const result=await runTransaction(ref(db,roomPath(code)+'/meta'),meta=>nextRoundMeta(meta,session.meta.version),{applyLocally:false});
+  if(!result.committed)throw Error(T('roomChanged'));
+  // The room listener switches all clients together; never overwrite the old round.
+ }catch(e){if(race===session){$('fbMpRaceFinalSub').textContent=T('error')+': '+(e.code||e.message);}}
+ finally{setBusy(false);if(race===session)updateRematchButton();}
+}
+function updateSpectator(direction=0){
+ const r=race,bar=$('fbMpSpectator');
+ if(!r||r.me.alive||r.finished){bar.hidden=true;return;}
+ r.spectatorUid=spectatorTarget(raceSnapshot?.players,ownUid(),r.spectatorUid,direction);
+ bar.hidden=false;
+ $('fbMpSpectatorLabel').textContent=r.spectatorUid?T('spectating')+' · '+(r.cards.get(r.spectatorUid)?.nick||'BIRD'):T('waitingResults');
+ const count=Object.entries(raceSnapshot?.players||{}).filter(([uid,p])=>uid!==ownUid()&&p.status==='ALIVE').length;
+ for(const id of ['fbMpSpectatorPrev','fbMpSpectatorNext'])$(id).disabled=count<2;
+ $('fbMpSpectatorPrev').textContent='◀ '+T('previous');$('fbMpSpectatorNext').textContent=T('next')+' ▶';
+}
+function raceResults(){
+ if(!race)return;
+ const r=race,list=$('fbMpRaceResults');
  const players=rankRacePlayers(Object.entries(raceSnapshot?.players||{}).map(([uid,p])=>({uid,...p})));
- list.replaceChildren();for(const p of players){const v=Number(p.elapsedMs)||0,rank=p.rank;const item=el('div',null,'mpRaceResult');const card=r.cards.get(p.uid)||{};item.append(el('span',(rank===1&&p.status!=='DNF'?'🏆 ':'#'+rank+' ')+(card.nick||'BIRD '+p.uid.slice(0,5))),el('span',raceStatusText(p.status)),el('strong',formatTime(v)));if(rank===1&&p.status!=='DNF')item.classList.add('mpRaceTop');list.append(item)}recordLocalMultiplayerStats(players);$('fbMpRaceFinal').hidden=false;$('fbMpRaceFinalTitle').textContent=RT('finished');$('fbMpRaceFinalSub').textContent=RT('roundInfo');$('fbMpRaceExitFinal').textContent=RT('exit');}
-function raceUpdateFromServer(snap){raceSnapshot=snap;if(!race)return;rememberGhostSamples(snap);const me=raceMe();if(me&&me.status!=='ALIVE'&&race.me.alive){race.me.alive=false;race.me.status=me.status;racesStopOwnLoop()}
+ const groups=new Map();for(const p of players)groups.set(p.rank,(groups.get(p.rank)||0)+1);
+ list.replaceChildren();
+ for(const p of players){
+  const card=r.cards.get(p.uid)||{},item=el('div',null,'mpRaceResult'),identity=el('div',null,'mpResultIdentity'),info=el('div',null,'mpResultName');
+  const tied=groups.get(p.rank)>1;
+  info.append(el('strong',(card.nick||'BIRD '+p.uid.slice(0,5))+(p.uid===ownUid()?' ★':'')),el('small',raceStatusText(p.status)+(tied?' · '+RT('tie'):'')));
+  identity.append(pic(card),info);
+  item.append(el('span','#'+p.rank,'mpResultRank'),identity,el('strong',formatTime(p.elapsedMs),'mpResultTime'));
+  item.classList.toggle('mpRaceTop',p.rank===1&&p.status!=='DNF');item.classList.toggle('mpResultMe',p.uid===ownUid());list.append(item);
+ }
+ const me=players.find(p=>p.uid===ownUid());
+ $('fbMpPersonalResult').textContent=me?T('personalResult')+' · '+T('place')+' #'+me.rank+' · '+formatTime(me.elapsedMs)+(groups.get(me.rank)>1?' · '+RT('tie'):''):'';
+ $('fbMpResultsTimeLabel').textContent=T('survival');
+ recordLocalMultiplayerStats(players);$('fbMpRaceFinal').hidden=false;$('fbMpSpectator').hidden=true;
+ $('fbMpRaceFinalTitle').textContent=RT('finished');$('fbMpRaceFinalSub').textContent=T('roundInfo');$('fbMpRaceExitFinal').textContent=T('leave');updateRematchButton();
+}
+function raceUpdateFromServer(snap){raceSnapshot=snap;if(!race)return;rememberGhostSamples(snap);const me=raceMe();if(me&&me.status!=='ALIVE'&&race.me.alive){race.me.alive=false;race.me.status=me.status;race.me.tick=me.tick;race.me.elapsedMs=me.elapsedMs;racesStopOwnLoop()}
  const entries=Object.entries(snap.players||{});if(entries.length!==Object.keys(race.meta.roster||{}).length)return;const living=entries.filter(([,p])=>aliveRace(p));
  if(serverClock()>=race.meta.startAt&&living.length<=1&&!race.finished){
    if(living.length===1&&living[0][0]===ownUid()&&race.me.alive)void raceFinish('SURVIVED');
-   else if(living.length===0)raceShowEnd();
+   else if(roundFinished(snap))raceShowEnd();
  }
  raceScoreboard();
- if(living.length===0&&!race.finished)raceShowEnd();
+ if(roundFinished(snap)&&!race.finished)raceShowEnd();
+ updateSpectator();
 }
 function racesStopOwnLoop(){if(race)race.flapQueued=false}
 function raceShowEnd(){if(!race||race.finished)return;race.finished=true;raceResults()}
@@ -477,7 +592,7 @@ function waitRaceWrite(promise,ms=RACE_EXIT_GRACE_MS){
 }
 function raceFinish(status){
  if(!race||!race.me.alive)return race?.finalWritePromise||Promise.resolve(false);
- const r=race;r.me.alive=false;r.me.status=status;r.me.elapsedMs=Math.round(Math.max(0,r.simTick*RACE_STEP));
+ const r=race;r.me.alive=false;r.me.status=status;updateSpectator();r.me.elapsedMs=Math.round(Math.max(0,r.simTick*RACE_STEP));
  if(status==='SURVIVED')raceSetStatus(RT('winner'));
  if(status==='DNF')raceSetStatus(RT('onlineError'),true);
  r.finalWritePromise=(async()=>{
@@ -519,7 +634,7 @@ async function racePublish(final=false,r=race){
  const send=async()=>{
   const started=performance.now();
   try{
-   await update(ref(db,raceRoot(code)+'/players/'+uid),data);
+   await update(ref(db,r.path+'/players/'+uid),data);
    noteWriteAck(r.net,performance.now()-started,true,performance.now());
   }catch(e){
    noteWriteAck(r.net,performance.now()-started,false,performance.now());throw e;
@@ -546,14 +661,14 @@ function raceFrame(){
   }
  }
  if(now-r.lastScoreboardAt>750){
-  raceScoreboard();r.lastScoreboardAt=now;updateNetworkBadge();
+  raceScoreboard();updateSpectator();r.lastScoreboardAt=now;updateNetworkBadge();
   if(now>=r.meta.startAt+5000){
    for(const [uid,p] of Object.entries(raceSnapshot?.players||{})){
     if(uid!==ownUid()&&p.status==='ALIVE'&&Number.isFinite(p.lastSeen)&&now-p.lastSeen>7500){
      const seen=r.staleFlags||(r.staleFlags=new Set());
      if(!seen.has(uid)){
       seen.add(uid);
-      void set(ref(db,raceRoot(r.code)+'/players/'+uid+'/status'),'DNF').catch(()=>seen.delete(uid));
+      void set(ref(db,r.path+'/players/'+uid+'/status'),'DNF').catch(()=>seen.delete(uid));
      }
     }
    }
@@ -575,7 +690,7 @@ async function raceExit(){const r=race;if(r?.me.alive)void raceFinish('DNF');
  if((document.fullscreenElement||document.webkitFullscreenElement)===raceUI){try{await (document.exitFullscreen||document.webkitExitFullscreen).call(document)}catch{}}
  try{screen.orientation?.unlock?.()}catch{}
  raceCleanup();modal.hidden=true;await leaveRoom({silent:true});}
-function raceCleanup(){raceCosmeticsUnsub?.();raceCosmeticsUnsub=null;networkBadge.textContent='';window.flyingBirdMpRaceActive=false;raceFeedToken++;racePendingStart=null;raceFeedLoading=false;for(const off of raceFeedSubs)off();raceFeedSubs=[];raceConnectionUnsub?.();raceConnectionUnsub=null;cancelAnimationFrame(raceRaf);raceRaf=0;race=null;raceSnapshot=null;raceOnDisconnect=null;raceCanvas.width=320;raceCanvas.height=480;raceUI.hidden=true;}
+function raceCleanup(){raceCosmeticsUnsub?.();raceCosmeticsUnsub=null;networkBadge.textContent='';window.flyingBirdMpRaceActive=false;raceFeedToken++;racePendingStart=null;raceFeedLoading=false;for(const off of raceFeedSubs)off();raceFeedSubs=[];raceConnectionUnsub?.();raceConnectionUnsub=null;cancelAnimationFrame(raceRaf);raceRaf=0;race=null;raceSnapshot=null;raceOnDisconnect=null;raceCanvas.width=320;raceCanvas.height=480;raceUI.hidden=true;$('fbMpSpectator').hidden=true;}
 async function beginRace(payload,code){
  if(!payload||race||raceStarting||!payload.roster?.[ownUid()]||!payload.meta||roomCode!==code)return;
  raceStarting=true;
@@ -583,52 +698,57 @@ async function beginRace(payload,code){
  // Do not reject a participant after rotating a phone; the room chooses course layout.
  const local={y:w.ground*.42,vy:0,tick:0,score:0,elapsedMs:0,alive:true,status:'ALIVE'};
  try{
-  race={code,meta,world:w,course:[],ghostTracks:new Map(),cards:new Map(),me:local,simTick:0,flapQueued:false,finished:false,startFlash:22,lastScoreboardAt:0,net:newNetworkStats(),publishBusy:false,publishChain:Promise.resolve(),lastPublishAt:0,finalWritePromise:null,finalConfirmed:false,disconnectGuard:null,guardReady:false,
+  race={code,path:raceRoot(code,meta.version),meta,world:w,course:[],ghostTracks:new Map(),cards:new Map(),me:local,simTick:0,flapQueued:false,finished:false,startFlash:22,lastScoreboardAt:0,net:newNetworkStats(),publishBusy:false,publishChain:Promise.resolve(),lastPublishAt:0,finalWritePromise:null,finalConfirmed:false,disconnectGuard:null,guardReady:false,
    myCosmetics:equippedRaceCosmetics(),cosmetics:Object.create(null)};
+  const session=race;
   race.cosmetics[ownUid()]=race.myCosmetics;
   raceSnapshot=payload;
   raceUI.hidden=false;modal.hidden=true;window.flyingBirdMpRaceActive=true;
   $('fbMpRaceFinal').hidden=true;$('fbMpRaceTitle').textContent=RT('title');$('fbMpRaceSub').textContent=RT('instructions');$('fbMpRaceExit').textContent=RT('exit');
   raceSetStatus(RT('loading'));raceFit();
-  for(const uid of Object.keys(payload.roster)){void getCard(uid).then(card=>{if(race?.code===code)race.cards.set(uid,card)}).catch(()=>{})}
+  for(const uid of Object.keys(payload.roster)){void getCard(uid).then(card=>{if(race===session)race.cards.set(uid,card)}).catch(()=>{})}
   rememberGhostSamples(payload);
   // Initial paint and loop MUST NOT wait for Firebase round trips; this used to
   // leave guest clients frozen in the lobby if onDisconnect/clock were slow.
   raceRaf=requestAnimationFrame(raceFrame);raceUpdateFromServer(payload);updateNetworkBadge();
   watchRaceCosmetics(code,race);
   void readRaceServerOffset().catch(err=>{
-   if(race?.code===code)raceSetStatus('CLOCK_SYNC · '+err.message,true);
+   if(race===session)raceSetStatus('CLOCK_SYNC · '+err.message,true);
   }); // clock pre-warmed from lobby; do not block race UI
-  const statusRef=ref(db,raceRoot(code)+'/players/'+ownUid()+'/status');
+  const statusRef=ref(db,session.path+'/players/'+ownUid()+'/status');
   raceOnDisconnect=onDisconnect(statusRef);
   const raceGuardOwner=race;
   raceGuardOwner.disconnectGuard=raceOnDisconnect;
+  void (async()=>{
   try{
-   await raceOnDisconnect.set('DNF');raceGuardOwner.guardReady=true;
-   if(raceGuardOwner.finalConfirmed)await raceOnDisconnect.cancel();
-  }catch(e){raceSetStatus('DISCONNECT_GUARD: '+(e?.code||e?.message),true)}
-  if(!race||race.code!==code)return;
+   await raceGuardOwner.disconnectGuard.set('DNF');raceGuardOwner.guardReady=true;
+   if(raceGuardOwner.finalConfirmed)await raceGuardOwner.disconnectGuard.cancel();
+  }catch(e){if(race!==session)return;raceSetStatus('DISCONNECT_GUARD: '+(e?.code||e?.message),true)}
+  if(race!==session)return;
   let sawConnection=false;
   raceConnectionUnsub=onValue(ref(db,'.info/connected'),snap=>{
-   if(race)race.net.connected=snap.val()===true;
+   if(race!==session)return;
+   race.net.connected=snap.val()===true;
    if(snap.val()===true){sawConnection=true;updateNetworkBadge();return}
    updateNetworkBadge();
    if(sawConnection&&race?.me.alive&&raceClockReady&&serverClock()>=race.meta.startAt){void raceFinish('DNF');raceSetStatus(RT('onlineError'),true)}
   });
   if(!$('fbMpRaceStatus').classList.contains('error'))raceSetStatus('');
+  })().catch(e=>{if(race===session)raceSetStatus(e.message,true)});
  }catch(e){
   console.error('[Flying Bird MP] Begin race failed:',e);
   if(race){raceSetStatus('JOIN_MATCH: '+(e?.code||e?.message||String(e)),true);if(race.me.alive)void raceFinish('DNF')}
   else{modal.hidden=false;say('JOIN_MATCH · '+(e?.code||e?.message||String(e)),true)}
  }finally{raceStarting=false}
 }
-function watchRace(code){
+function watchRace(code,version){
+ const path=raceRoot(code,version);
  unMatch?.();unMatch=null;
  for(const off of raceFeedSubs)off();raceFeedSubs=[];
  const token=++raceFeedToken;
  // Unlike meta -> get(root), one live subscription receives the entire small
  // initial match in one step. It is immediately unsubscribed after bootstrap.
- unMatch=onValue(ref(db,raceRoot(code)),snap=>{
+ unMatch=onValue(ref(db,path),snap=>{
   if(token!==raceFeedToken||roomCode!==code||!snap.exists()||raceFeedLoading||race)return;
   const payload=snap.val();
   if(!payload?.meta||!payload?.roster?.[ownUid()]||!payload?.players)return;
@@ -637,7 +757,7 @@ function watchRace(code){
   raceSnapshot=payload;
   matchLaunchPending=true;
   for(const uid of Object.keys(payload.roster)){
-   const off=onValue(ref(db,raceRoot(code)+'/players/'+uid),ps=>{
+   const off=onValue(ref(db,path+'/players/'+uid),ps=>{
     if(token!==raceFeedToken||roomCode!==code||!ps.exists())return;
     if(!raceSnapshot||raceSnapshot.meta?.startAt!==payload.meta.startAt)return;
     const incoming=ps.val();
@@ -660,10 +780,10 @@ function watchRace(code){
 }
 
 async function startSurvivalMatch(){
- if(!db||!roomData||!roomCode||busy||matchLaunchPending)return;
+ if(!db||!roomConnected||!roomData||!roomCode||busy||matchLaunchPending)return;
  const code=roomCode;
  if(roomData.hostUid!==ownUid()){say(T('onlyHost'),true);return}
- setBusy(true);let stage='READ_ROOM';
+ setBusy(true);$('fbMpStartInfo').textContent=T('preparing');let stage='READ_ROOM';
  try{
   const snapshot=await get(ref(db,roomPath(code)));
   if(roomCode!==code)throw Error('Room changed during preparation.');
@@ -686,12 +806,12 @@ async function startSurvivalMatch(){
   const players=readiness.participants;
   // Start the full countdown only after all readiness rechecks finished.
   const now=Date.now()+offset;
-  const roster={},live={},world=raceWorld(current.meta.layout);
-  for(const [,p] of players){roster[p.uid]=true;live[p.uid]={status:'ALIVE',tick:0,y:Math.round(world.ground*.42),vy:0,score:0,elapsedMs:0,lastSeen:rtStamp()}}
+  const roster={},live={},seats={},world=raceWorld(current.meta.layout);
+  for(const [seat,p] of players){seats[seat]=p.uid;roster[p.uid]=true;live[p.uid]={status:'ALIVE',tick:0,y:Math.round(world.ground*.42),vy:0,score:0,elapsedMs:0,lastSeen:rtStamp()}}
   const seed=new Uint32Array(1);crypto.getRandomValues(seed);
   const meta={hostUid:ownUid(),seed:seed[0]%2147483647,startAt:now+10500,createdAt:rtStamp(),map:current.meta.map,diff:current.meta.diff,layout:current.meta.layout,version:current.meta.version};
   stage='WRITE_MATCH';
-  await set(ref(db,raceRoot(code)),{meta,roster,players:live});
+  await set(ref(db,raceRoot(code,meta.version)),{meta,roster,seats,players:live});
   matchLaunchPending=true;say('');renderLobby();
  }catch(e){
   console.error('[Flying Bird MP] Start failed',{stage,code,error:e});
@@ -701,7 +821,7 @@ async function startSurvivalMatch(){
 
 let raceResizeScheduled=false;function queueRaceFit(){if(raceResizeScheduled)return;raceResizeScheduled=true;requestAnimationFrame(()=>{raceResizeScheduled=false;raceFit()})}window.addEventListener('resize',queueRaceFit);window.addEventListener('orientationchange',queueRaceFit);window.visualViewport?.addEventListener('resize',queueRaceFit);
 raceCanvas.addEventListener('pointerdown',e=>{if(!e.isPrimary||(e.pointerType==='mouse'&&e.button!==0))return;e.preventDefault();raceFlap()});
-window.addEventListener('keydown',e=>{if(race&&!raceUI.hidden){if(['Space','ArrowUp','KeyW','Enter','Escape'].includes(e.code)){e.preventDefault();e.stopImmediatePropagation()}if(['Space','ArrowUp','KeyW','Enter'].includes(e.code))raceFlap();else if(e.code==='Escape')raceExitPrompt()}},true);
+window.addEventListener('keydown',e=>{if(race&&!raceUI.hidden){if(e.target.closest?.('button,input,select,textarea'))return;if(['Space','ArrowUp','KeyW','Enter','Escape'].includes(e.code)){e.preventDefault();e.stopImmediatePropagation()}if(['Space','ArrowUp','KeyW','Enter'].includes(e.code))raceFlap();else if(e.code==='Escape')raceExitPrompt()}},true);
 async function raceToggleFullscreen(){
  try{
   if(document.fullscreenElement || document.webkitFullscreenElement){
@@ -721,12 +841,15 @@ $('fbMpRaceFullscreen').onclick=()=>void raceToggleFullscreen();
 const raceUpdateFsLabel=()=>{$('fbMpRaceFullscreen').textContent=(document.fullscreenElement||document.webkitFullscreenElement)?'⤢ EXIT FULLSCREEN':'⛶ FULLSCREEN';requestAnimationFrame(raceFit)};
 document.addEventListener('fullscreenchange',raceUpdateFsLabel);
 document.addEventListener('webkitfullscreenchange',raceUpdateFsLabel);
+$('fbMpRematch').onclick=()=>void rematch();
+$('fbMpSpectatorPrev').onclick=()=>updateSpectator(-1);
+$('fbMpSpectatorNext').onclick=()=>updateSpectator(1);
 $('fbMpRaceExit').onclick=raceExitPrompt;$('fbMpRaceExitFinal').onclick=()=>void raceExit();
 document.addEventListener('visibilitychange',()=>{if(race?.me.alive&&document.hidden&&serverClock()>=race.meta.startAt)void raceFinish('DNF')});
 window.addEventListener('pagehide',()=>{if(race?.me.alive){/* Registered server onDisconnect sets DNF even if JS is stopped. */}});
 
 function open(){renderLabels();if(!ownUid()){document.getElementById('accountBtn')?.click();say(T('noAuth'),true);return}document.getElementById('authPanel').hidden=true;modal.hidden=false;if(!roomCode)show('Home');watchInvites();if(!setDb())say(T('needUrl'),true);else say('');const url=new URL(location.href);const requested=url.searchParams.get('fbRoom');if(requested&&!roomCode){$('fbMpCode').value=requested;say(T('pendingLink'))}}
-function close(){modal.hidden=true;unInvites?.();unInvites=null;stopInviteRoomChecks()}
+function close(){pendingFriendInvite=null;modal.hidden=true;unInvites?.();unInvites=null;stopInviteRoomChecks()}
 window.flyingBirdOpenMultiplayer=open;
 // The account module already invokes flyingBirdBeforeSignOut before signing out.
 // Chain instead of replacing the Friends Presence cleanup.
@@ -739,7 +862,7 @@ modal.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'){e.
 document.addEventListener('keydown',e=>{if(!modal.hidden){e.stopImmediatePropagation();if(e.key==='Escape'){e.preventDefault();close()}}},true);
 $('fbMpGoCreate').onclick=()=>{if(!ownUid()){say(T('noAuth'),true);return}show('Create');$('fbMpLayout').value=currentLayout();say('')};
 $('fbMpGoJoin').onclick=()=>{$('fbMpCode').focus()};
-$('fbMpCreateBack').onclick=()=>show('Home');
+$('fbMpCreateBack').onclick=()=>{pendingFriendInvite=null;show('Home')};
 $('fbMpCreateRoom').onclick=()=>void createRoom();
 $('fbMpJoin').onclick=()=>void joinRoom($('fbMpCode').value);
 $('fbMpCode').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();void joinRoom(e.target.value)}});
@@ -750,8 +873,7 @@ $('fbMpApplyConfig').onclick=()=>void saveConfig();
 $('fbMpLeave').onclick=()=>void leaveRoom();
 $('fbMpCopy').onclick=async()=>{await copy(roomCode);say(T('codeCopied'))};
 $('fbMpCopyLink').onclick=async()=>{await copy(localCodeLink());say(T('roomLink'))};
-$('fbMpShare').onclick=()=>void share();
-$('fbMpLoadFriends').onclick=()=>void loadFriends();
+
 window.addEventListener('flyingbird:progress-changed',()=>{if(!modal.hidden)renderLabels()});
 window.addEventListener('flyingbird:screen-change',()=>{});
 let prevUid=null;

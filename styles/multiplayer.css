@@ -170,3 +170,29 @@ html,body{overscroll-behavior:none}
 @media(max-height:580px) and (orientation:landscape){
   #fbMpRaceNetwork{padding:2px 4px;font-size:8px;max-width:42vw}
 }
+
+/* v2.8: readiness, spectators and per-round results. */
+.mpLobbyStatus{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:12px 0;font-size:11px}
+#fbMpConnection{color:#995b18}#fbMpConnection[data-state="online"]{color:#16734b}
+#fbMpReady[aria-pressed="true"]{background:#b8efce;border-color:#16734b}
+#fbMpSpectator[hidden]{display:none!important}
+#fbMpSpectator{position:absolute;z-index:6;bottom:calc(env(safe-area-inset-bottom,0px) + 34px);left:50%;transform:translateX(-50%);width:min(370px,calc(100% - 24px));box-sizing:border-box;text-align:center;border:1px solid #a6c6e6;border-radius:12px;background:rgba(12,20,43,.94);padding:9px;color:#e9f5ff;pointer-events:auto}
+#fbMpSpectatorLabel{display:block;overflow-wrap:anywhere;margin-bottom:7px;font-size:12px}
+#fbMpSpectator>div{display:flex;gap:8px}
+#fbMpSpectator button{flex:1;min-height:38px;border:1px solid #6585ad;border-radius:7px;background:#22375b;color:#fff;font:700 11px 'Courier New',monospace;touch-action:manipulation;cursor:pointer}
+#fbMpSpectator button:disabled{opacity:.4;cursor:default}
+#fbMpRaceFinalInner{width:min(640px,100%)}
+#fbMpPersonalResult{padding:12px!important;background:#182a47;color:#ffe6a1!important;border-radius:8px;font-weight:bold;overflow-wrap:anywhere}
+#fbMpResultsTimeLabel{text-align:right;color:#7b614a;font-size:10px;margin:12px 0 6px}
+.mpRaceResult{grid-template-columns:38px minmax(0,1fr) auto;gap:8px;padding:10px;border:1px solid #e7d9bf}
+.mpRaceResult.mpResultMe{border:2px solid #775ba2}
+.mpResultRank{font-size:18px;font-weight:bold}
+.mpResultIdentity{display:flex;align-items:center;gap:9px;min-width:0}
+.mpResultIdentity .mpAvatar{width:32px;height:32px;flex:none;border-radius:6px;image-rendering:pixelated;box-shadow:none;outline:none}
+.mpResultName{min-width:0;display:grid;gap:4px}.mpResultName strong{overflow-wrap:anywhere;text-align:left}.mpResultName small{font-size:9px;color:#6b5a51;overflow-wrap:anywhere}
+.mpResultTime{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px}
+#fbMpRematch{width:100%;min-height:44px;margin-top:12px;border:2px solid #2b1b00;border-radius:8px;background:#ffd23f;color:#2b1b00;font:bold 13px 'Courier New',monospace;cursor:pointer;touch-action:manipulation}
+#fbMpRematch:disabled{background:#e3dccf;color:#756d61;cursor:default}
+#fbMpRaceExitFinal{background:#fff}
+@media(max-width:380px){.mpRaceResult{grid-template-columns:30px minmax(0,1fr) auto;gap:5px;padding:8px 5px}.mpResultIdentity .mpAvatar{display:none}.mpResultTime{font-size:10px}}
+@media(max-height:450px){#fbMpSpectator{bottom:26px;width:min(360px,55vw);padding:5px}#fbMpSpectatorLabel{font-size:10px;margin-bottom:4px}#fbMpSpectator button{min-height:30px}#fbMpRaceFinalInner{padding:12px}}
