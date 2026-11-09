@@ -1,12 +1,13 @@
 {
   "name": "flying-bird",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "private": true,
   "description": "Flying Bird static web game",
   "scripts": {
     "dev": "node tools/serve.mjs",
     "check": "node tools/check.mjs",
-    "test:network": "node tools/test-network.mjs"
+    "test:network": "node tools/test-network.mjs",
+    "test:regression": "node tools/test-regression.mjs"
   },
   "type": "module"
 }

@@ -122,3 +122,23 @@ export function networkQuality(stats, now) {
   if(stats.ackMs>155 || stats.jitterMs>65)return 'fair';
   return 'good';
 }
+
+/** Official ranking: shared place ONLY at identical 60 Hz simulation ticks.
+ * SURVIVED is the last living bird (even if a death occurred at that same tick),
+ * disconnected participants are ranked after players who actually finished.
+ * Returns new objects; source Firebase data is not mutated.
+ */
+export function rankRacePlayers(players){
+ const rows=players.map(p=>({...p}));
+ const isDnf=p=>p.status==='DNF';
+ const isSurvivor=p=>p.status==='SURVIVED';
+ const at=p=>Number.isFinite(p.tick)?Math.max(0,Math.floor(p.tick)):Math.max(0,Math.round((Number(p.elapsedMs)||0)/MP_TICK_MS));
+ rows.sort((a,b)=>Number(isDnf(a))-Number(isDnf(b))||Number(isSurvivor(b))-Number(isSurvivor(a))||at(b)-at(a)||String(a.uid).localeCompare(String(b.uid)));
+ let last=null,rank=0;
+ for(let i=0;i<rows.length;i++){
+  const p=rows[i],group=String(isDnf(p))+'|'+String(isSurvivor(p))+'|'+at(p);
+  if(group!==last)rank=i+1;
+  p.rank=rank;last=group;
+ }
+ return rows;
+}

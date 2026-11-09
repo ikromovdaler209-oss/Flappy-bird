@@ -4,7 +4,7 @@ import {getApps,getApp,initializeApp} from 'https://www.gstatic.com/firebasejs/1
 import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
 import {getFirestore,collection,doc,query,where,limit,getDocsFromServer,getDocFromServer} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 import {getDatabase,ref,get,onValue,set,update,remove,runTransaction,onDisconnect,serverTimestamp as rtStamp} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js';
-import {assessReadyRoom,isFreshPlayerState,newGhostTrack,acceptGhostPacket,ghostPosition,newNetworkStats,noteWriteAck,publishInterval,networkQuality} from './netcode.js';
+import {assessReadyRoom,isFreshPlayerState,newGhostTrack,acceptGhostPacket,ghostPosition,newNetworkStats,noteWriteAck,publishInterval,networkQuality,rankRacePlayers} from './netcode.js';
 const FB_CONFIG={apiKey:'AIzaSyBXhPjfPGPjD6SX6ISyd9UIGcwIGDir2IE',authDomain:'flying-bird-d6832.firebaseapp.com',projectId:'flying-bird-d6832',storageBucket:'flying-bird-d6832.firebasestorage.app',messagingSenderId:'824302202629',appId:'1:824302202629:web:885e30d34fb1ddaa56516c'};
 const app=getApps().length?getApp():initializeApp(FB_CONFIG),auth=getAuth(app),fsdb=getFirestore(app);
 const $=id=>document.getElementById(id), modal=$('fbMpPanel'), alpha='23456789ABCDEFGHJKMNPQRSTUVWXYZ';
@@ -67,7 +67,7 @@ function renderLobby(){if(!roomData||!roomCode)return;const host=roomData.hostUi
  if(host&&p.uid!==ownUid()&&!raceSnapshot){const b=el('button',T('kick'),'danger');b.type='button';b.onclick=()=>void kick(p.uid);entry.append(b)}list.append(entry)}
 }
 function clearListeners(){matchLaunchPending=false;roomToken++;unRoom?.();unKicked?.();unMatch?.();unMatch=null;unRoom=null;unKicked=null;roomCode=null;roomData=null;mySeat=null;raceCleanup();knownNames.clear()}
-async function leaveRoom({silent=false,kicked=false,closeRoom=true}={}){if(race?.me.alive)await raceFinish('DNF');try{await raceOnDisconnect?.cancel()}catch{}const code=roomCode,seat=mySeat,data=roomData;clearListeners();show('Home');if(!code||!db)return;const r=ref(db,roomPath(code));try{
+async function leaveRoom({silent=false,kicked=false,closeRoom=true}={}){const activeRace=race;if(activeRace?.me.alive)void raceFinish('DNF');if(activeRace?.finalWritePromise)await waitRaceWrite(activeRace.finalWritePromise);const code=roomCode,seat=mySeat,data=roomData;clearListeners();show('Home');if(!code||!db)return;const r=ref(db,roomPath(code));try{
  if(!kicked&&seat!==null){const host=data?.hostUid===ownUid(),seats=Object.entries(data?.slots||{}).filter(([,x])=>x?.uid&&x.uid!==ownUid()).sort((a,b)=>Number(a[0])-Number(b[0]));
  if(host&&seats.length){try{await set(ref(db,roomPath(code)+'/hostUid'),seats[0][1].uid)}catch(e){if(!silent)say(T('error')+': '+e.message,true);return}}
  const me=ref(db,roomPath(code)+'/slots/'+seat);try{await remove(me)}catch{}
@@ -273,10 +273,13 @@ function raceWorld(layout){return layout==='LANDSCAPE'?{layout,w:640,h:360,groun
 function serverClock(){return Date.now()+raceServerOffset}
 function hash01(seed,index){let n=(seed ^ Math.imul(index+1,0x9e3779b1))>>>0;n=Math.imul(n^(n>>>16),0x7feb352d);n=Math.imul(n^(n>>>15),0x846ca68b);return ((n^(n>>>16))>>>0)/4294967296}
 function courseSpeed(diff){return ({EASY:2.55,NORMAL:2.85,HARD:3.12,EXTREME:3.35})[diff]||2.85}
-function distanceAt(t,base){const stage=Math.floor(t/RACE_PHASE),part=t-stage*RACE_PHASE;return base*(RACE_PHASE*(stage+.036*stage*(stage-1)/2)+part*(1+Math.min(stage,16)*.036))}
+function distanceAt(t,base){const stage=Math.floor(t/RACE_PHASE),part=t-stage*RACE_PHASE,accelerating=Math.min(stage,16);
+ const cumulative=stage+.036*(accelerating*(accelerating-1)/2+(stage-accelerating)*16);
+ return base*(RACE_PHASE*cumulative+part*(1+accelerating*.036))}
 function pipeSpec(index,session){const cached=session.course[index];if(cached)return cached;
  const {world,meta}=session,baseGap=({EASY:156,NORMAL:146,HARD:136,EXTREME:130})[meta.diff]||146;
- let c=world.ground*.45;for(let i=session.course.length;i<=index;i++){
+ let c=session.course.length?session.course[session.course.length-1].center:world.ground*.45;
+ for(let i=session.course.length;i<=index;i++){
    const baseSpeed=courseSpeed(meta.diff),distance=i*world.spacing;
    // Approximate the difficulty stage when this obstacle reaches the playfield.
    let left=0,right=180000;for(let b=0;b<18;b++){const mid=(left+right)/2;if(distanceAt(mid,baseSpeed)<distance)left=mid;else right=mid}
@@ -441,7 +444,7 @@ function recordLocalMultiplayerStats(players){
  if(!race||!ownUid())return;const key='flyingBirdMpStatsV1:'+ownUid();let data={matches:0,wins:0,bestMs:0,played:[]};
  try{data={...data,...JSON.parse(localStorage.getItem(key)||'{}')}}catch{}
  if(!Array.isArray(data.played))data.played=[];
- const me=players.find(p=>p.uid===ownUid()),isWinner=!!me&&me.status!=='DNF'&&players[0]?.status!=='DNF'&&Math.abs((me.elapsedMs||0)-(players[0]?.elapsedMs||0))<=RACE_STEP+.01;
+ const me=players.find(p=>p.uid===ownUid()),isWinner=!!me&&me.rank===1&&me.status!=='DNF';
  if(me&&!data.played.includes(race.code)){
    data.matches=Math.max(0,Number(data.matches)||0)+1;data.wins=Math.max(0,Number(data.wins)||0)+(isWinner?1:0);
    data.bestMs=Math.max(Number(data.bestMs)||0,Number(me.elapsedMs)||0);data.played.push(race.code);data.played=data.played.slice(-60);
@@ -449,7 +452,9 @@ function recordLocalMultiplayerStats(players){
  }
  $('fbMpRaceMyStats').textContent=lang()==='RU'?'МП СТАТИСТИКА (ЛОКАЛЬНО): МАТЧЕЙ '+data.matches+' · ПОБЕД '+data.wins+' · РЕКОРД '+formatTime(data.bestMs):'MP STATS (LOCAL): MATCHES '+data.matches+' · WINS '+data.wins+' · BEST '+formatTime(data.bestMs);
 }
-function raceResults(){if(!race)return;const r=race;const list=$('fbMpRaceResults'),players=Object.entries(raceSnapshot?.players||{}).map(([uid,p])=>({uid,...p})).sort((a,b)=>(a.status==='DNF')-(b.status==='DNF')||(b.elapsedMs||0)-(a.elapsedMs||0)||a.uid.localeCompare(b.uid));list.replaceChildren();let last=null,rank=0;for(let i=0;i<players.length;i++){const p=players[i],v=Number(p.elapsedMs)||0;if(last===null||Math.abs(v-last)>RACE_STEP+.01||(p.status==='DNF')!==((players[i-1]||{}).status==='DNF'))rank=i+1;last=v;const item=el('div',null,'mpRaceResult');const card=r.cards.get(p.uid)||{};item.append(el('span',(rank===1?'🏆 ':'#'+rank+' ')+(card.nick||'BIRD '+p.uid.slice(0,5))),el('span',raceStatusText(p.status)),el('strong',formatTime(v)));if(rank===1&&p.status!=='DNF')item.classList.add('mpRaceTop');list.append(item)}recordLocalMultiplayerStats(players);$('fbMpRaceFinal').hidden=false;$('fbMpRaceFinalTitle').textContent=RT('finished');$('fbMpRaceFinalSub').textContent=RT('roundInfo');$('fbMpRaceExitFinal').textContent=RT('exit');}
+function raceResults(){if(!race)return;const r=race;const list=$('fbMpRaceResults');
+ const players=rankRacePlayers(Object.entries(raceSnapshot?.players||{}).map(([uid,p])=>({uid,...p})));
+ list.replaceChildren();for(const p of players){const v=Number(p.elapsedMs)||0,rank=p.rank;const item=el('div',null,'mpRaceResult');const card=r.cards.get(p.uid)||{};item.append(el('span',(rank===1&&p.status!=='DNF'?'🏆 ':'#'+rank+' ')+(card.nick||'BIRD '+p.uid.slice(0,5))),el('span',raceStatusText(p.status)),el('strong',formatTime(v)));if(rank===1&&p.status!=='DNF')item.classList.add('mpRaceTop');list.append(item)}recordLocalMultiplayerStats(players);$('fbMpRaceFinal').hidden=false;$('fbMpRaceFinalTitle').textContent=RT('finished');$('fbMpRaceFinalSub').textContent=RT('roundInfo');$('fbMpRaceExitFinal').textContent=RT('exit');}
 function raceUpdateFromServer(snap){raceSnapshot=snap;if(!race)return;rememberGhostSamples(snap);const me=raceMe();if(me&&me.status!=='ALIVE'&&race.me.alive){race.me.alive=false;race.me.status=me.status;racesStopOwnLoop()}
  const entries=Object.entries(snap.players||{});if(entries.length!==Object.keys(race.meta.roster||{}).length)return;const living=entries.filter(([,p])=>aliveRace(p));
  if(serverClock()>=race.meta.startAt&&living.length<=1&&!race.finished){
@@ -461,8 +466,40 @@ function raceUpdateFromServer(snap){raceSnapshot=snap;if(!race)return;rememberGh
 }
 function racesStopOwnLoop(){if(race)race.flapQueued=false}
 function raceShowEnd(){if(!race||race.finished)return;race.finished=true;raceResults()}
-async function raceFinish(status){if(!race||!race.me.alive)return;const r=race;r.me.alive=false;r.me.status=status;r.me.elapsedMs=Math.round(Math.max(0,r.simTick*RACE_STEP));await racePublish(true).catch(e=>raceSetStatus(e?.message||String(e),true));try{await raceOnDisconnect?.cancel()}catch{}
- if(status==='SURVIVED')raceSetStatus(RT('winner'));if(status==='DNF')raceSetStatus(RT('onlineError'),true)}
+// Never cancel the disconnect guard before Firebase confirms a terminal state.
+// A stuck ALIVE acknowledgment must not trap the interface in the match screen.
+const RACE_EXIT_GRACE_MS=1500;
+function waitRaceWrite(promise,ms=RACE_EXIT_GRACE_MS){
+ return new Promise(resolve=>{
+  const timeout=setTimeout(()=>resolve(false),ms);
+  Promise.resolve(promise).then(value=>{clearTimeout(timeout);resolve(value)},()=>{clearTimeout(timeout);resolve(false)});
+ });
+}
+function raceFinish(status){
+ if(!race||!race.me.alive)return race?.finalWritePromise||Promise.resolve(false);
+ const r=race;r.me.alive=false;r.me.status=status;r.me.elapsedMs=Math.round(Math.max(0,r.simTick*RACE_STEP));
+ if(status==='SURVIVED')raceSetStatus(RT('winner'));
+ if(status==='DNF')raceSetStatus(RT('onlineError'),true);
+ r.finalWritePromise=(async()=>{
+  for(let attempt=0;attempt<3;attempt++){
+   try{
+    await racePublish(true,r);
+    r.finalConfirmed=true;
+    // Guard could have been registered after the first terminal write.
+    if(r.disconnectGuard&&r.guardReady){try{await r.disconnectGuard.cancel()}catch(e){console.warn('[Flying Bird MP] onDisconnect cancel:',e)}}
+    return true;
+   }catch(e){
+    console.warn('[Flying Bird MP] Terminal update attempt '+(attempt+1),e);
+    if(race===r)raceSetStatus('FINAL_WRITE · '+(e?.code||e?.message||String(e)),true);
+    if(attempt<2)await new Promise(resolve=>setTimeout(resolve,350*(attempt+1)));
+   }
+  }
+  // Keep onDisconnect armed. The server-side stale-peer fallback is still needed
+  // if a terminal write cannot be acknowledged or the account goes offline.
+  return false;
+ })();
+ return r.finalWritePromise;
+}
 function raceFlap(){if(!race||race.finished||!race.me.alive||serverClock()<race.meta.startAt)return;race.flapQueued=true}
 function raceStep(tick){if(!race||!race.me.alive)return;const r=race,m=r.me,w=r.world;m.tick=tick;
  if(r.flapQueued){m.vy=RACE_FLAP;r.flapQueued=false}m.vy=Math.min(m.vy+RACE_GRAVITY,7.5);m.y+=m.vy;if(m.y<0){m.y=0;m.vy=0}
@@ -471,8 +508,8 @@ function raceStep(tick){if(!race||!race.me.alive)return;const r=race,m=r.me,w=r.
  m.score=0;const base=courseSpeed(r.meta.diff),travel=distanceAt(tick,base);m.score=Math.max(0,Math.floor((travel-(w.spawnX-w.bx+RACE_PIPE_WIDTH))/w.spacing)+1);
  m.elapsedMs=Math.round(tick*RACE_STEP);m.tick=tick;
 }
-async function racePublish(final=false){
- const r=race;if(!r||!db)return;
+async function racePublish(final=false,r=race){
+ if(!r||!db)return;
  if(r.publishBusy&&!final)return;
  r.publishBusy=true;
  const state=r.me,uid=ownUid(),code=r.code;
@@ -525,7 +562,10 @@ function raceFrame(){
  raceDraw();
 }
 function raceExitPrompt(){if(!race)return;if(!race.finished&&!confirm(RT('exitConfirm')))return;void raceExit()}
-async function raceExit(){if(race?.me.alive)await raceFinish('DNF');try{await raceOnDisconnect?.cancel()}catch{}if(document.fullscreenElement===raceUI){try{await document.exitFullscreen()}catch{}}raceCleanup();modal.hidden=true;await leaveRoom({silent:true});}
+async function raceExit(){const r=race;if(r?.me.alive)void raceFinish('DNF');
+ if(r?.finalWritePromise)await waitRaceWrite(r.finalWritePromise);
+ if(document.fullscreenElement===raceUI){try{await document.exitFullscreen()}catch{}}
+ raceCleanup();modal.hidden=true;await leaveRoom({silent:true});}
 function raceCleanup(){raceCosmeticsUnsub?.();raceCosmeticsUnsub=null;networkBadge.textContent='';window.flyingBirdMpRaceActive=false;raceFeedToken++;racePendingStart=null;raceFeedLoading=false;for(const off of raceFeedSubs)off();raceFeedSubs=[];raceConnectionUnsub?.();raceConnectionUnsub=null;cancelAnimationFrame(raceRaf);raceRaf=0;race=null;raceSnapshot=null;raceOnDisconnect=null;raceCanvas.width=320;raceCanvas.height=480;raceUI.hidden=true;}
 async function beginRace(payload,code){
  if(!payload||race||raceStarting||!payload.roster?.[ownUid()]||!payload.meta||roomCode!==code)return;
@@ -534,7 +574,7 @@ async function beginRace(payload,code){
  // Do not reject a participant after rotating a phone; the room chooses course layout.
  const local={y:w.ground*.42,vy:0,tick:0,score:0,elapsedMs:0,alive:true,status:'ALIVE'};
  try{
-  race={code,meta,world:w,course:[],ghostTracks:new Map(),cards:new Map(),me:local,simTick:0,flapQueued:false,finished:false,startFlash:22,lastScoreboardAt:0,net:newNetworkStats(),publishBusy:false,publishChain:Promise.resolve(),lastPublishAt:0,
+  race={code,meta,world:w,course:[],ghostTracks:new Map(),cards:new Map(),me:local,simTick:0,flapQueued:false,finished:false,startFlash:22,lastScoreboardAt:0,net:newNetworkStats(),publishBusy:false,publishChain:Promise.resolve(),lastPublishAt:0,finalWritePromise:null,finalConfirmed:false,disconnectGuard:null,guardReady:false,
    myCosmetics:equippedRaceCosmetics(),cosmetics:Object.create(null)};
   race.cosmetics[ownUid()]=race.myCosmetics;
   raceSnapshot=payload;
@@ -552,7 +592,12 @@ async function beginRace(payload,code){
   }); // clock pre-warmed from lobby; do not block race UI
   const statusRef=ref(db,raceRoot(code)+'/players/'+ownUid()+'/status');
   raceOnDisconnect=onDisconnect(statusRef);
-  try{await raceOnDisconnect.set('DNF')}catch(e){raceSetStatus('DISCONNECT_GUARD: '+(e?.code||e?.message),true)}
+  const raceGuardOwner=race;
+  raceGuardOwner.disconnectGuard=raceOnDisconnect;
+  try{
+   await raceOnDisconnect.set('DNF');raceGuardOwner.guardReady=true;
+   if(raceGuardOwner.finalConfirmed)await raceOnDisconnect.cancel();
+  }catch(e){raceSetStatus('DISCONNECT_GUARD: '+(e?.code||e?.message),true)}
   if(!race||race.code!==code)return;
   let sawConnection=false;
   raceConnectionUnsub=onValue(ref(db,'.info/connected'),snap=>{
