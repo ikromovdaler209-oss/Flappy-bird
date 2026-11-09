@@ -152,3 +152,21 @@ html,body{overscroll-behavior:none}
   #fbMpRaceScoreboard{width:clamp(126px,38vw,200px);max-width:44vw;top:calc(env(safe-area-inset-top,0px) + 45px);max-height:32dvh}
   #fbMpRaceTop strong{font-size:11px}#fbMpRaceTop small{display:none!important}
 }
+
+/* v2.6 multiplayer diagnostics. These numbers describe the Firebase link,
+   not ping to a peer; the HUD must never intercept touch controls. */
+#fbMpRaceNetwork{
+  display:inline-block;align-self:flex-start;max-width:min(60vw,270px);
+  padding:3px 6px;border:1px solid rgba(222,240,255,.32);border-radius:5px;
+  color:#d2fbe6;background:rgba(5,16,35,.64);
+  font:700 clamp(8px,.8vw,10px)/1.2 'Courier New',monospace;
+  letter-spacing:.1px;white-space:nowrap;text-shadow:0 1px 3px #02051c;
+  pointer-events:none;
+}
+#fbMpRaceNetwork[data-quality="fair"]{color:#ffe59e;border-color:rgba(255,197,104,.45)}
+#fbMpRaceNetwork[data-quality="slow"],#fbMpRaceNetwork[data-quality="stale"],#fbMpRaceNetwork[data-quality="offline"]{
+  color:#ffbcbf;border-color:rgba(255,130,145,.54)
+}
+@media(max-height:580px) and (orientation:landscape){
+  #fbMpRaceNetwork{padding:2px 4px;font-size:8px;max-width:42vw}
+}
