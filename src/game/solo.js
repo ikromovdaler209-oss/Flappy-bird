@@ -1935,7 +1935,10 @@ function toggleFS() {
     }
     drawAvatar(8, 8, 22, profile.av);
     txtFit(profile.nick, 36, 19, 11, 140, '#fff', 'left');
-    const bw = 200, bx = Math.round(W / 2 - bw / 2), y0 = L ? 82 : 179, st = L ? 29 : 28, menuBh = L ? 29 : 26;
+    // Keep the title and the menu in separate vertical bands on both layouts.
+    // The former BEST line is intentionally removed from the main menu; records
+    // remain available on the difficulty and profile screens.
+    const bw = 200, bx = Math.round(W / 2 - bw / 2), y0 = L ? 104 : 190, st = L ? 29 : 28, menuBh = L ? 29 : 26;
     const got = ACH.filter(a => save.ach[a.id]).length;
     btn(bx, y0, bw, menuBh, tr('PLAY'), () => { screen = 'MAPS'; mapPage = Math.floor(Math.max(0,MAP_KEYS.indexOf(cfg.map))/(L?4:3)); focus = 0; });
     btn(bx, y0 + st, bw, menuBh, tr('PROFILE'), () => { screen = 'PROFILE'; focus = 0; });
@@ -1945,7 +1948,6 @@ function toggleFS() {
     btn(bx, y0 + st * 5, bw, menuBh, tr('SHOP'), () => { screen = 'SHOP'; focus = 0; });
     btn(bx, y0 + st * 6, bw, menuBh, tr('INVENTORY'), () => { screen = 'INVENTORY'; focus = 0; });
     btn(bx, y0 + st * 7, bw, menuBh, tr('SETTINGS'), () => { settingsFrom = 'MENU'; screen = 'SETTINGS'; focus = 0; });
-    txt(tr('BEST') + ' ' + bestNow() + '  (' + displayValue(cfg.diff) + ')', W / 2, y0 + st * 8 + 12, 10);
   }
 
   // Unified cosmetics catalogue. The legacy numeric skin indices are preserved for cloud-save compatibility.
