@@ -57,8 +57,9 @@ const el=(tag,text,cls)=>{const x=document.createElement(tag);if(text!=null)x.te
 function memberSeats(){return Object.entries(roomData?.slots||{}).filter(([,v])=>v?.uid).sort((a,b)=>Number(a[0])-Number(b[0]))}
 function seatFor(uid){return memberSeats().find(([,p])=>p.uid===uid)?.[0]??null}
 function activeReady(p){return p.ready===true&&p.rev===roomData?.meta?.version}
-function readyForMatch(){const v=memberSeats();return v.length>=2&&v.every(([,x])=>activeReady(x))}
+function readyForMatch(){const v=memberSeats();return uniqueRoomSkins(roomData)&&v.length>=2&&v.every(([,x])=>activeReady(x))}
 function readinessExplanation(){
+ if(!uniqueRoomSkins(roomData))return skinText(2);
  const seats=memberSeats();
  if(seats.length<2)return lang()==='RU'?'Нужно хотя бы два участника.':'At least two players required.';
  const waiting=seats.filter(([,p])=>!activeReady(p)).map(([,p])=>knownNames.get(p.uid)?.nick||('PLAYER '+p.uid.slice(0,5)));
@@ -84,7 +85,41 @@ function renderLobby(){if(!roomData||!roomCode)return;const host=roomData.hostUi
  updateInviteButtons();
  if(pendingFriendInvite&&roomConnected&&!busy&&!raceSnapshot){const friend=pendingFriendInvite;pendingFriendInvite=null;void invite(friend);}
 }
-function clearListeners(){matchLaunchPending=false;pendingInvites.clear();watchedVersion=null;friendLoadToken++;roomConnectionUnsub?.();roomConnectionUnsub=null;roomConnected=false;roomToken++;unRoom?.();unKicked?.();unMatch?.();unMatch=null;unRoom=null;unKicked=null;roomCode=null;roomData=null;mySeat=null;raceCleanup();knownNames.clear()}
+// Lobby equipment is reserved by the server, independently of profile avatars.
+const skinWords={EN:['Change your skin','TAKEN','Players must choose different skins.'],RU:['Смени скин','ЗАНЯТ','Игроки должны выбрать разные скины.'],ZH:['请更换外观','已占用','玩家必须选择不同外观。'],ES:['Cambia tu aspecto','OCUPADO','Los jugadores deben elegir aspectos distintos.'],PT:['Troque sua aparência','OCUPADO','Os jogadores devem escolher aparências diferentes.']};
+const skinText=i=>(skinWords[lang()]||skinWords.EN)[i];
+let skinChoosing=false,skinClaimBusy=false;
+function takenSkins(data=roomData){return Object.values(data?.slots||{}).filter(p=>p?.uid!==ownUid()&&Number.isInteger(p?.skin)).map(p=>p.skin)}
+function uniqueRoomSkins(data){const seats=Object.values(data?.slots||{}).filter(p=>p?.uid);const ids=seats.map(p=>p.skin);return seats.length>0&&ids.every(n=>Number.isInteger(n)&&n>=0&&n<=31)&&new Set(ids).size===ids.length}
+async function claimLobbySkin(skin){
+ const code=roomCode,seat=mySeat,uid=ownUid();
+ if(!code||seat===null||!roomConnected||raceSnapshot||takenSkins().includes(skin))return false;
+ try{
+  await update(ref(db,roomPath(code)+'/slots/'+seat),{skin,ready:false});
+  return code===roomCode&&uid===ownUid()&&seat===mySeat;
+ }catch(e){if(code===roomCode)say(skinText(0)+' · '+(e.code||e.message),true);return false}
+}
+function chooseLobbySkin(){
+ if(skinChoosing||!roomCode||raceSnapshot)return;
+ skinChoosing=true;modal.hidden=true;
+ window.flyingBirdOpenSkinInventory?.({
+  message:skinText(0),taken:skinText(1),blocked:()=>takenSkins(),
+  choose:skin=>claimLobbySkin(skin),
+  done:()=>{skinChoosing=false;modal.hidden=false;show('Lobby');say('');renderLobby();},
+  cancel:()=>{skinChoosing=false;modal.hidden=false;void leaveRoom();}
+ });
+}
+async function ensureLobbySkin(){
+ if(skinClaimBusy||skinChoosing||!roomConnected||raceSnapshot||!roomCode||mySeat===null)return;
+ const mine=roomData?.slots?.[mySeat];if(!mine||mine.uid!==ownUid())return;
+ const wanted=equippedRaceCosmetics().skin;
+ if(mine.skin===wanted&&!takenSkins().includes(wanted))return;
+ if(takenSkins().includes(wanted)){chooseLobbySkin();return}
+ skinClaimBusy=true;const code=roomCode;
+ try{if(!await claimLobbySkin(wanted)&&roomCode===code)chooseLobbySkin();}finally{skinClaimBusy=false;}
+}
+
+function clearListeners(){skinChoosing=false;window.flyingBirdCloseSkinInventory?.();matchLaunchPending=false;pendingInvites.clear();watchedVersion=null;friendLoadToken++;roomConnectionUnsub?.();roomConnectionUnsub=null;roomConnected=false;roomToken++;unRoom?.();unKicked?.();unMatch?.();unMatch=null;unRoom=null;unKicked=null;roomCode=null;roomData=null;mySeat=null;raceCleanup();knownNames.clear()}
 async function leaveRoom({silent=false,kicked=false,closeRoom=true}={}){const activeRace=race;if(activeRace?.me.alive)void raceFinish('DNF');if(activeRace?.finalWritePromise)await waitRaceWrite(activeRace.finalWritePromise);const code=roomCode,seat=mySeat,data=roomData;clearListeners();show('Home');if(!code||!db)return;const r=ref(db,roomPath(code));try{
  if(!kicked&&seat!==null){const host=data?.hostUid===ownUid(),seats=Object.entries(data?.slots||{}).filter(([,x])=>x?.uid&&x.uid!==ownUid()).sort((a,b)=>Number(a[0])-Number(b[0]));
  if(host&&seats.length){try{await set(ref(db,roomPath(code)+'/hostUid'),seats[0][1].uid)}catch(e){if(!silent)say(T('error')+': '+e.message,true);return}}
@@ -96,7 +131,7 @@ async function leaveRoom({silent=false,kicked=false,closeRoom=true}={}){const ac
  if(!silent)say(kicked?T('kicked'):T('left'));
 }catch(e){if(!silent)say(T('error')+': '+e.message,true)}}
 function attach(code,slot){clearListeners();roomCode=code;mySeat=slot;const token=roomToken,r=ref(db,roomPath(code));show('Lobby');
- roomConnectionUnsub=onValue(ref(db,'.info/connected'),snap=>{if(token!==roomToken)return;roomConnected=snap.val()===true;renderLobby();if(race?.finished)updateRematchButton();});unRoom=onValue(r,s=>{if(token!==roomToken)return;if(!s.exists()){if(race&&!race.finished)return;void leaveRoom({silent:true,kicked:true});say(T('roomClosed'),true);return}roomData=s.val();if(roomData.bans?.[ownUid()]===true){void leaveRoom({silent:true,kicked:true});say(T('kicked'),true);return}const seatNow=seatFor(ownUid());if(seatNow===null){if(race||raceStarting)return;void leaveRoom({silent:true,kicked:true});say(T('kicked'),true);return}mySeat=seatNow;
+ roomConnectionUnsub=onValue(ref(db,'.info/connected'),snap=>{if(token!==roomToken)return;roomConnected=snap.val()===true;renderLobby();if(race?.finished)updateRematchButton();void ensureLobbySkin();});unRoom=onValue(r,s=>{if(token!==roomToken)return;if(!s.exists()){if(race&&!race.finished)return;void leaveRoom({silent:true,kicked:true});say(T('roomClosed'),true);return}roomData=s.val();if(roomData.bans?.[ownUid()]===true){void leaveRoom({silent:true,kicked:true});say(T('kicked'),true);return}const seatNow=seatFor(ownUid());if(seatNow===null){if(race||raceStarting)return;void leaveRoom({silent:true,kicked:true});say(T('kicked'),true);return}mySeat=seatNow;
  // The old host might have disconnected without transferring privileges; elect one remaining member.
  if(!memberSeats().some(([,p])=>p.uid===roomData.hostUid)&&seatNow===memberSeats()[0]?.[0])void set(ref(db,roomPath(code)+'/hostUid'),ownUid()).catch(()=>{});
  if(watchedVersion!==roomData.meta.version){
@@ -106,7 +141,7 @@ function attach(code,slot){clearListeners();roomCode=code;mySeat=slot;const toke
   modal.hidden=false;show('Lobby');watchRace(code,watchedVersion);void loadFriends();
   if(wasRound)say(T('roundChanged'));
  }
- renderLobby();void refreshPlayers();
+ renderLobby();void refreshPlayers();void ensureLobbySkin();
  if(race?.finished)updateRematchButton();
  },err=>{if(token!==roomToken)return;void leaveRoom({silent:true,kicked:true});say(T('kicked')+' ('+err.code+')',true)});
  unKicked=onValue(ref(db,roomPath(code)+'/bans/'+ownUid()),snap=>{if(token!==roomToken)return;if(snap.val()===true){try{const x=new Set(lastCodes());x.add(code);localStorage.setItem('flyingBirdMpKickedV1',JSON.stringify([...x].slice(-50)))}catch{}void leaveRoom({silent:true,kicked:true});say(T('kicked'),true)}});
@@ -127,7 +162,7 @@ async function createRoom(){
   }
   if(!code)throw Error('Cannot allocate room code');
   stage='WRITE_ROOM';
-  const uid=ownUid(),data={hostUid:uid,meta:{capacity:Number($('fbMpCapacity').value),layout:$('fbMpLayout').value,map:$('fbMpMap').value,diff:$('fbMpDifficulty').value,version:0,createdAt:rtStamp()},seatOf:{[uid]:'0'},slots:{'0':{uid,ready:false,rev:0,joinedAt:rtStamp()}}};
+  const uid=ownUid(),data={hostUid:uid,meta:{capacity:Number($('fbMpCapacity').value),layout:$('fbMpLayout').value,map:$('fbMpMap').value,diff:$('fbMpDifficulty').value,version:0,createdAt:rtStamp()},seatOf:{[uid]:'0'},slots:{'0':{uid,skin:equippedRaceCosmetics().skin,ready:false,rev:0,joinedAt:rtStamp()}}};
   await set(ref(db,roomPath(code)),data);
   roomSaved=true;
   stage='REGISTER_ONDISCONNECT';
@@ -178,6 +213,7 @@ async function changeReady(){
   if(!data||data.slots?.[seat]?.uid!==uid)throw Error('Seat has changed. Rejoin the lobby.');
   const version=Number(data.meta?.version);
   if(!Number.isInteger(version))throw Error('Room version is missing.');
+  if(!uniqueRoomSkins(data)||data.slots[seat].skin!==equippedRaceCosmetics().skin){roomData=data;void ensureLobbySkin();throw Error(skinText(2));}
   const active=data.slots[seat].ready===true&&data.slots[seat].rev===version;
   await update(ref(db,roomPath(code)+'/slots/'+seat),{ready:!active,rev:version});
  }catch(e){say(T('error')+': READY · '+(e?.code||e?.message||String(e)),true)}
@@ -373,7 +409,19 @@ function raceWorld(layout){return layout==='LANDSCAPE'?{layout,w:640,h:360,groun
 function serverClock(){return Date.now()+raceServerOffset}
 function hash01(seed,index){let n=(seed ^ Math.imul(index+1,0x9e3779b1))>>>0;n=Math.imul(n^(n>>>16),0x7feb352d);n=Math.imul(n^(n>>>15),0x846ca68b);return ((n^(n>>>16))>>>0)/4294967296}
 function courseSpeed(diff){return ({EASY:2.55,NORMAL:2.85,HARD:3.12,EXTREME:3.35})[diff]||2.85}
-function distanceAt(t,base){const stage=Math.floor(t/RACE_PHASE),part=t-stage*RACE_PHASE,accelerating=Math.min(stage,16);
+function distanceAt(t,base,world=null,diff=null){
+ if(diff==='HARD'&&world){
+  // Integrate piecewise-constant speed by shared passed-pipe distance, not client FPS.
+  let remaining=Math.max(0,t),travel=0;
+  for(let tier=0;tier<10;tier++){
+   const end=world.spawnX-world.bx+52+(16*(tier+1)-1)*world.spacing;
+   const speed=base*(1+tier*.052),duration=(end-travel)/speed;
+   if(remaining<=duration)return travel+remaining*speed;
+   remaining-=duration;travel=end;
+  }
+  return travel+remaining*base*1.52;
+ }
+ const stage=Math.floor(t/RACE_PHASE),part=t-stage*RACE_PHASE,accelerating=Math.min(stage,16);
  const cumulative=stage+.036*(accelerating*(accelerating-1)/2+(stage-accelerating)*16);
  return base*(RACE_PHASE*cumulative+part*(1+accelerating*.036))}
 function pipeSpec(index,session){const cached=session.course[index];if(cached)return cached;
@@ -382,8 +430,8 @@ function pipeSpec(index,session){const cached=session.course[index];if(cached)re
  for(let i=session.course.length;i<=index;i++){
    const baseSpeed=courseSpeed(meta.diff),distance=i*world.spacing;
    // Approximate the difficulty stage when this obstacle reaches the playfield.
-   let left=0,right=180000;for(let b=0;b<18;b++){const mid=(left+right)/2;if(distanceAt(mid,baseSpeed)<distance)left=mid;else right=mid}
-   const stage=Math.min(16,Math.floor(right/RACE_PHASE));
+   let left=0,right=180000;for(let b=0;b<18;b++){const mid=(left+right)/2;if(distanceAt(mid,baseSpeed,world,meta.diff)<distance)left=mid;else right=mid}
+   const stage=meta.diff==='HARD'?Math.min(10,Math.floor(i/16)):Math.min(16,Math.floor(right/RACE_PHASE));
    const gap=Math.max(meta.diff==='EASY'?118:105,baseGap-Math.min(26,stage*2));
    const mobile=meta.layout==='PORTRAIT';
    const amp=hash01(meta.seed,i+800)> (meta.diff==='EASY'?.86:meta.diff==='NORMAL'?.70:.58)? (meta.diff==='EXTREME'?17:13):0;
@@ -394,7 +442,7 @@ function pipeSpec(index,session){const cached=session.course[index];if(cached)re
  }
  return session.course[index];
 }
-function pipesNear(tick,session){const {world}=session,speed=courseSpeed(session.meta.diff),travel=distanceAt(tick,speed);
+function pipesNear(tick,session){const {world}=session,speed=courseSpeed(session.meta.diff),travel=distanceAt(tick,speed,world,session.meta.diff);
  // spawnX is the SAME for every device in the same room. A wider screen changes
  // what is visible, never when a pipe reaches the bird or the collision tick.
  const first=Math.max(0,Math.floor((travel-world.spawnX-110)/world.spacing)-1);
@@ -507,7 +555,7 @@ function raceDraw(){
   birds.push({x:r.world.bx,y:Math.min(r.world.ground-18,Math.max(0,y)),skin:equipped?.skin??(Number(card?.avatar?.skin)||0),alpha:uid===r.spectatorUid?1:p.status==='ALIVE'?.48:.16,rotation:(Number(p.vy)||0)*.09,trail:equipped?.trail||'NONE',id:uid,active:p.status==='ALIVE'});
  }
  if(r.me.alive)birds.push({x:r.world.bx,y:r.me.y,skin:r.myCosmetics.skin,alpha:r.me.alive?1:.55,rotation:r.me.vy*.09,trail:r.myCosmetics.trail,id:ownUid(),active:r.me.alive});
- const scene={map:r.meta.map,matchId:r.path,world:r.world,tick,distance:distanceAt(tick,courseSpeed(r.meta.diff)),pipes:pipesNear(tick,r).map(p=>({x:p.x,top:p.top,gap:p.gap,amp:p.amp})),birds};
+ const scene={map:r.meta.map,matchId:r.path,world:r.world,tick,distance:distanceAt(tick,courseSpeed(r.meta.diff),r.world,r.meta.diff),pipes:pipesNear(tick,r).map(p=>({x:p.x,top:p.top,gap:p.gap,amp:p.amp})),birds};
  const myself=r.me;
  const art=window.flyingBirdMultiplayerArt?.(scene,g);
  if(!art){
@@ -517,7 +565,7 @@ function raceDraw(){
   for(const b of birds)raceBird(b.x,b.y,b.skin,b.alpha,tick%10<4,b.rotation);
  }
  g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';g.strokeStyle='#19102e';g.lineWidth=4;g.font='bold '+(r.meta.layout==='PORTRAIT'?18:23)+'px Courier New';g.fillStyle='#fffbe8';const msg=!raceClockReady?RT('loading'):remaining>0?(remaining>3.3?RT('countdown'):String(Math.max(1,Math.ceil(remaining)))):r.finished?'':(!myself.alive?'':'');if(msg){g.strokeText(msg,w*(r.meta.layout==='PORTRAIT'?.36:.5),h*.26);g.fillText(msg,w*(r.meta.layout==='PORTRAIT'?.36:.5),h*.26)}
- const currentStage=Math.min(16,Math.floor(tick/RACE_PHASE));g.font='bold 12px Courier New';g.textAlign='left';g.fillText(RT('time')+' '+formatTime(elapsed),10,r.meta.layout==='LANDSCAPE'?74:80);g.textAlign='right';g.fillText('⚡ ×'+(1+currentStage*.036).toFixed(2),w-(r.meta.layout==='LANDSCAPE'?62:10),22);
+ const traveled=distanceAt(tick,courseSpeed(r.meta.diff),r.world,r.meta.diff);const passed=Math.max(0,Math.floor((traveled-(r.world.spawnX-r.world.bx+52))/r.world.spacing)+1);const currentStage=r.meta.diff==='HARD'?Math.min(10,Math.floor(passed/16)):Math.min(16,Math.floor(tick/RACE_PHASE));g.font='bold 12px Courier New';g.textAlign='left';g.fillText(RT('time')+' '+formatTime(elapsed),10,r.meta.layout==='LANDSCAPE'?74:80);g.textAlign='right';g.fillText('⚡ ×'+(1+currentStage*(r.meta.diff==='HARD'?.052:.036)).toFixed(2),w-(r.meta.layout==='LANDSCAPE'?62:10),22);
  if(!r.finished&&remaining<=0&&r.startFlash>0){g.font='bold 35px Courier New';g.textAlign='center';g.strokeText(RT('go'),w/2,h*.31);g.fillText(RT('go'),w/2,h*.31);r.startFlash--}
 
 }
@@ -650,7 +698,7 @@ function raceStep(tick){if(!race||!race.me.alive)return;const r=race,m=r.me,w=r.
  if(r.flapQueued){m.vy=RACE_FLAP;r.flapQueued=false}m.vy=Math.min(m.vy+RACE_GRAVITY,7.5);m.y+=m.vy;if(m.y<0){m.y=0;m.vy=0}
  for(const p of pipesNear(tick,r)){const x=p.x;if(x+RACE_PIPE_WIDTH+4<w.bx||x-4>w.bx+24)continue;if(m.y+2<p.top||m.y+16>p.top+p.gap){void raceFinish('DEAD');return}}
  if(m.y+18>=w.ground){m.y=w.ground-18;void raceFinish('DEAD');return}
- m.score=0;const base=courseSpeed(r.meta.diff),travel=distanceAt(tick,base);m.score=Math.max(0,Math.floor((travel-(w.spawnX-w.bx+RACE_PIPE_WIDTH))/w.spacing)+1);
+ m.score=0;const base=courseSpeed(r.meta.diff),travel=distanceAt(tick,base,w,r.meta.diff);m.score=Math.max(0,Math.floor((travel-(w.spawnX-w.bx+RACE_PIPE_WIDTH))/w.spacing)+1);
  m.elapsedMs=Math.round(tick*RACE_STEP);m.tick=tick;
 }
 async function racePublish(final=false,r=race){
@@ -729,7 +777,7 @@ async function beginRace(payload,code){
  const local={y:w.ground*.42,vy:0,tick:0,score:0,elapsedMs:0,alive:true,status:'ALIVE'};
  try{
   race={code,path:raceRoot(code,meta.version),meta,world:w,course:[],ghostTracks:new Map(),cards:new Map(),me:local,simTick:0,flapQueued:false,finished:false,startFlash:22,lastScoreboardAt:0,net:newNetworkStats(),publishBusy:false,publishChain:Promise.resolve(),lastPublishAt:0,finalWritePromise:null,finalConfirmed:false,disconnectGuard:null,guardReady:false,
-   myCosmetics:equippedRaceCosmetics(),cosmetics:Object.create(null)};
+   myCosmetics:{...equippedRaceCosmetics(),skin:roomData?.slots?.[mySeat]?.skin??equippedRaceCosmetics().skin},cosmetics:Object.create(null)};
   const session=race;
   race.cosmetics[ownUid()]=race.myCosmetics;
   raceSnapshot=payload;
@@ -820,6 +868,7 @@ async function startSurvivalMatch(){
   if(!snapshot.exists())throw Error(T('roomClosed'));
   let current=snapshot.val();roomData=current;renderLobby();
   let readiness=assessReadyRoom(current,ownUid());
+  if(!uniqueRoomSkins(current))throw Error(skinText(2));
   if(!readiness.host)throw Error(T('onlyHost'));
   if(!readiness.valid){await refreshPlayers();throw Error(readinessExplanation())}
   stage='CLOCK_OFFSET';
@@ -831,6 +880,7 @@ async function startSurvivalMatch(){
   if(!latest.exists()||roomCode!==code)throw Error(T('roomClosed'));
   current=latest.val();roomData=current;
   readiness=assessReadyRoom(current,ownUid());
+  if(!uniqueRoomSkins(current))throw Error(skinText(2));
   if(!readiness.host)throw Error(T('onlyHost'));
   if(!readiness.valid){renderLobby();await refreshPlayers();throw Error(readinessExplanation())}
   const players=readiness.participants;
@@ -910,3 +960,5 @@ let prevUid=null;
 onAuthStateChanged(auth,user=>{const uid=user&&!user.isAnonymous?user.uid:null;const changed=prevUid!==uid;prevUid=uid;if(changed&&roomCode)void leaveRoom({silent:true});if(changed){unInvites?.();unInvites=null;stopInviteRoomChecks();invites={};renderInvites();}if(uid&&!unInvites)watchInvites();else if(!uid)close();if(uid&&new URL(location.href).searchParams.has('fbRoom')&&!window.__fbMpLinkSeen){window.__fbMpLinkSeen=true;open()}});
 // Leave the room on account sign-out, independent of the presence-module sign-out hook.
 window.addEventListener('pagehide',()=>{if(roomCode&&db&&mySeat!==null){/* onDisconnect handles abrupt closing */}});
+
+window.addEventListener('flyingbird:progress-changed',()=>{if(roomCode&&!raceSnapshot)void ensureLobbySkin();});

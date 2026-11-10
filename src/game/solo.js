@@ -37,6 +37,8 @@
   // One EXTREME level every eight scored pipes. A cap keeps it progressively
   // challenging without producing mathematically unplayable gaps or speeds.
   const extremeTier = () => cfg.diff === 'EXTREME' ? Math.min(10, Math.floor(score / 8)) : 0;
+  const hardTier = () => cfg.diff === 'HARD' ? Math.min(10, Math.floor(score / 16)) : 0;
+  const hardGap = () => Math.max(GMIN - 12, GMAX - 10 - score * 1.2 - hardTier() * 1.7);
   const extremeLevel = () => extremeTier() + 1;
   const extremeGap = () => Math.max(GMIN - 12, GMAX - 5 - score * 1.05 - extremeTier() * 1.7);
   const extremeSpeedMultiplier = () => 1 + extremeTier() * 0.052;
@@ -477,7 +479,7 @@
   if (!mapOK(cfg.map)) cfg.map = 'CITY';
 
   const bird = { x: 70, y: 200, w: 20, h: 16, vy: 0, rot: 0 };
-  const speed = () => (2 + Math.min(score * 0.04, 1.4)) * DIFF[cfg.diff].spd * (cfg.diff === 'EXTREME' ? extremeSpeedMultiplier() : 1);
+  const speed = () => (2 + Math.min(score * 0.04, 1.4)) * DIFF[cfg.diff].spd * (cfg.diff === 'EXTREME' ? extremeSpeedMultiplier() : 1 + hardTier() * 0.052);
 
   function layout(
   land,
@@ -622,10 +624,10 @@ if (!initialized) {
   // minimum safe gap and moving-pipe amplitudes to bound each height change.
   function spawnPipe() {
     const D = DIFF[cfg.diff];
-    const gap = cfg.diff === 'EXTREME' ? extremeGap() : Math.max(GMIN + D.gap, GMAX + D.gap - score * 1.2);
-    const movingChance = cfg.diff === 'EXTREME' ? Math.min(0.72, 0.40 + extremeTier() * 0.032) : 0.45;
+    const gap = cfg.diff === 'EXTREME' ? extremeGap() : cfg.diff === 'HARD' ? hardGap() : Math.max(GMIN + D.gap, GMAX + D.gap - score * 1.2);
+    const movingChance = cfg.diff === 'EXTREME' ? Math.min(0.72, 0.40 + extremeTier() * 0.032) : Math.min(.72,.45+hardTier()*.032);
     const moving = score >= D.mv && Math.random() < movingChance;
-    const m = moving ? (cfg.diff === 'EXTREME' ? Math.min(28, 18 + extremeTier()) : 22) : 0;
+    const m = moving ? (cfg.diff === 'EXTREME' ? Math.min(28, 18 + extremeTier()) : Math.min(28,22+hardTier())) : 0;
     const lo = 40 + m, hi = Math.max(lo, GROUND - gap - 40 - m);
     const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
     const minCenter = lo + gap / 2, maxCenter = hi + gap / 2;
@@ -731,7 +733,7 @@ if (!initialized) {
       const hx = bird.x + 2, hy = bird.y + 2, hw = bird.w - 4, hh = bird.h - 4;
       for (const p of pipes) {
         p.x -= spd;
-        p.phase += 0.04 + (cfg.diff === 'EXTREME' ? extremeTier() * 0.0015 : 0);
+        p.phase += 0.04 + (cfg.diff === 'EXTREME' ? extremeTier() * 0.0015 : hardTier() * .0015);
         p.top = p.base + Math.sin(p.phase) * p.amp;
         if (hx + hw > p.x - 4 && hx < p.x + PW + 4) {
           if (hy < p.top || hy + hh > p.top + p.gap) die(false);
@@ -1981,6 +1983,7 @@ if (!initialized) {
   function startGame() { screen = null; reset(); focus = 0; }
   function toMenu() { reset(); screen = 'MENU'; focus = 0; }
   function back() {
+    if(lobbySkinPicker && screen!=='PREVIEW'){const picker=lobbySkinPicker;window.flyingBirdCloseSkinInventory();picker.cancel();return;}
     if (screen === 'SETTINGS') { screen = settingsFrom; resetArmed = false; focus = 0; }
     else if (screen === 'ACH') { screen = 'MENU'; focus = 0; }
     else if (screen === 'MAPS') { screen = 'MENU'; focus = 0; }
@@ -2081,8 +2084,22 @@ function toggleFS() {
   }
   function itemOwned(item){return item.kind==='BIRDS'?skinOK(item.id):item.kind==='MAPS'?mapOK(item.id):trailOK(item.id);}
   function itemEquipped(item){return item.kind==='BIRDS'?cfg.skin===item.id:item.kind==='MAPS'?cfg.map===item.id:cfg.trail===item.id;}
-  function equipItem(item){
-    if(!itemOwned(item))return;
+  let lobbySkinPicker=null,lobbySkinPending=false;
+  const lobbySkinBlocked = item => !!(lobbySkinPicker && item.kind==='BIRDS' && lobbySkinPicker.blocked().includes(item.id));
+  window.flyingBirdOpenSkinInventory = options => {
+    lobbySkinPicker=options;lobbySkinPending=false;inventoryTab='BIRDS';inventoryPage=0;
+    screen='INVENTORY';focus=0;toasts.push({text:options.message,plain:true,t:180});
+  };
+  window.flyingBirdCloseSkinInventory = () => {lobbySkinPicker=null;lobbySkinPending=false;if(screen==='INVENTORY'||screen==='PREVIEW')screen='MENU';};
+  async function equipItem(item){
+    if(!itemOwned(item)||lobbySkinBlocked(item)||lobbySkinPending)return;
+    if(lobbySkinPicker){
+      if(item.kind!=='BIRDS')return;
+      const picker=lobbySkinPicker;lobbySkinPending=true;
+      let accepted=false;try{accepted=await picker.choose(item.id);}finally{lobbySkinPending=false;}
+      if(!accepted||picker!==lobbySkinPicker)return;
+      lobbySkinPicker=null;screen='MENU';picker.done();
+    }
     if(item.kind==='BIRDS'){cfg.skin=item.id;const bundle=SKINS[item.id]?.bundleTrail;if(bundle&&wallet.trails.includes(bundle))cfg.trail=bundle;}
     else if(item.kind==='MAPS'){cfg.map=item.id;initWeather();}
     else cfg.trail=item.id;
@@ -2238,7 +2255,7 @@ function toggleFS() {
     ctx.fillStyle='rgba(11,17,39,.97)';ctx.fillRect(0,0,W,H);
     title(tr(inventory?'INVENTORY':'SHOP'),W/2,23,L?23:22,'#ffd23f','center');
     cosmeticLabel(tr(inventory?'INVENTORY_HINT':'SHOP_HINT'),W/2,44,10,W-82,'#b5c5df');
-    const tabs=['BIRDS','MAPS','TRAILS'], tabX=12,tabY=59,tabGap=6, tw=(W-24-tabGap*2)/3;
+    const tabs=lobbySkinPicker?['BIRDS']:['BIRDS','MAPS','TRAILS'], tabX=12,tabY=59,tabGap=6, tw=(W-24-tabGap*2)/3;
     tabs.forEach((t,i)=>{
       const x=tabX+i*(tw+tabGap), chosen=t===tab;
       btns.push({x,y:tabY,w:tw,h:27,fn:()=>{
@@ -2266,7 +2283,7 @@ function toggleFS() {
       const x=cardX+(n%cols)*(cw+gap),y=cardTop+Math.floor(n/cols)*(ch+gap);
       const owned=itemOwned(item),equipped=itemEquipped(item),name=itemName(item);
       tile(x,y,cw,ch,equipped);
-      const status=equipped?tr('ACTIVE'):owned?tr('OWNED'):tr('COST')+' '+item.price;
+      const status=lobbySkinBlocked(item)?lobbySkinPicker.taken:equipped?tr('ACTIVE'):owned?tr('OWNED'):tr('COST')+' '+item.price;
       // State and price already appear in the caption below; putting a second
       // badge in the narrow landscape text column obscured long item names.
       if (L && per === 6) {
@@ -2309,6 +2326,7 @@ function toggleFS() {
         }});
         tag(equipped?'✓':owned?tr('EQUIP'):tr('BUY'),x+10+bW,bY,bW,actionH,true,9);
       }
+      if(lobbySkinBlocked(item)){ctx.fillStyle='rgba(12,15,30,.45)';ctx.fillRect(x,y,cw,ch);tag(lobbySkinPicker.taken,x+5,y+5,cw-10,18,false,9);}
       if(equipped)stripe(x+1,y+1,cw-2,'#ffd23f');
     });
     if(!items.length){
