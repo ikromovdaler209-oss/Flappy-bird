@@ -1183,7 +1183,7 @@ if (!initialized) {
       oval(29,-.3,.8,1,'#fff8f5');oval(30.1,1.2,.35,.5,'#fff8f5');
       loreanFrames.set(frame,tile);
     }
-    ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(loreanFrames.get(frame),-30,-25,64,48);ctx.restore();
+    ctx.save();ctx.imageSmoothingEnabled=true;ctx.scale(.82,.82);ctx.drawImage(loreanFrames.get(frame),-30,-25,64,48);ctx.restore();
   }
 
   function birdShapes(sk, wy) {
@@ -1560,7 +1560,9 @@ if (!initialized) {
     if (item.kind === 'MAPS') return mapLabel(item.id);
     if (item.kind === 'TRAILS') return item.id === 'NONE' ? tr('NONE_TRAIL') : tr('TRAIL_'+item.id);
     if (['CLASSIC','RED','BLUE','GHOST'].includes(item.name)) return displayValue(item.name);
-    return tr('SKIN_'+item.name.replace(/\s+/g,'_'));
+    const key = 'SKIN_'+item.name.replace(/\s+/g,'_');
+    const label = tr(key);
+    return label === key ? item.name : label;
   }
   function drawMapBg() {
     const mx = W - (L ? 110 : 70), my = L ? 65 : 85;
@@ -1779,6 +1781,7 @@ if (!initialized) {
     birdIcon(SKINS[skinOK(av.skin) ? av.skin : 0], x + s / 2, y + s / 2, s / 44);
   }
 
+  let profileStatsPage = 0;
   function drawProfile() {
     ctx.fillStyle = 'rgba(15,12,41,0.88)'; ctx.fillRect(0, 0, W, H);
     title(tr('PROFILE'), W / 2, 32, L ? 28 : 24, '#ffd23f', 'center');
@@ -1787,13 +1790,29 @@ if (!initialized) {
     txt(tr('PLAYER_ID'), 122, 102, 10, '#f3e3c7', 'left', false);
     txt(profile.id, 122, 120, 13, '#ffd23f', 'left');
     const got = ACH.filter(a => save.ach[a.id]).length;
-    const stats = [[tr('GAMES'), save.games], [tr('FLAPS'), save.flaps], [tr('BEST'), maxBest()], [tr('ACHIEVEMENTS'), got + '/' + ACH.length]];
-    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(20, 150, 280, 84);
-    stats.forEach((r, i) => {
-      txt(r[0], 30, 164 + i * 19, 11, '#f3e3c7', 'left', false);
-      txt(String(r[1]), 290, 164 + i * 19, 11, '#fff', 'right', false);
+    const at = key => window.flyingBirdAuthText?.(key) || key;
+    const mp = window.flyingBirdMpStats;
+    const pages = [
+      [[at('ST_EASY'),save.best?.EASY||0],[at('ST_NORMAL'),save.best?.NORMAL||0],
+       [at('ST_HARD'),save.best?.HARD||0],[at('ST_EXTREME'),save.best?.EXTREME||0]],
+      [[at('ST_GAMES'),save.games||0],[at('ST_PIPES'),save.pipes||0],
+       [at('ST_FLAPS'),save.flaps||0],[at('ST_EARNED'),save.earnedCoins??'—'],
+       [at('ST_BALANCE'),wallet.coins||0],[at('ST_ACH'),got+'/'+ACH.length]],
+      mp?.ownFields?.() || []
+    ];
+    const stats = pages[profileStatsPage];
+    const sx=20, sw=L?280:W-40;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(sx,150,sw,110);
+    btn(sx+3,153,28,22,'‹',()=>{profileStatsPage=(profileStatsPage+2)%3;},{size:14});
+    btn(sx+sw-31,153,28,22,'›',()=>{profileStatsPage=(profileStatsPage+1)%3;},{size:14});
+    const heading=profileStatsPage===2?(mp?.title?.()||tr('MULTIPLAYER')):at('STATS_TITLE');
+    txtFit(heading+' '+(profileStatsPage+1)+'/3',sx+sw/2,165,9,sw-72,'#ffd23f','center');
+    stats.forEach(([label,value],i)=>{
+      txtFit(label,sx+9,184+i*13,9,sw-88,'#f3e3c7','left');
+      txtFit(String(value),sx+sw-9,184+i*13,10,76,'#fff','right');
     });
-    const bw = L ? Math.min(290,(W-350)) : Math.min(280,W-40), bx = L ? W-bw-20 : (W-bw)/2, by = L ? 62 : 246, st = L ? 44 : 36, h = L ? 34 : 30;
+    if (!stats.length) txtFit(mp?.selfNote?.()||at('SIGNIN_PROMPT'),sx+sw/2,205,10,sw-16,'#f3e3c7','center');
+    const bw = L ? Math.min(290,(W-350)) : Math.min(280,W-40), bx = L ? W-bw-20 : (W-bw)/2, by = L ? 62 : 272, st = L ? 44 : 32, h = L ? 34 : 28;
     btn(bx, by, bw, h, tr('EDIT_NICK'), editNick, { size: 13 });
     btn(bx, by + st, bw, h, tr('AVATAR'), d => {
       let i = profile.av.skin;
@@ -2039,7 +2058,7 @@ function toggleFS() {
     const menuY = i => L ? 114 + Math.floor(i / 2) * 48 : 190 + i * 32;
     const got = ACH.filter(a => save.ach[a.id]).length;
     btn(menuX(0), menuY(0), bw, menuBh, tr('PLAY'), () => { screen = 'MAPS'; mapPage = Math.floor(Math.max(0,MAP_KEYS.indexOf(cfg.map))/(L?4:3)); focus = 0; });
-    btn(menuX(1), menuY(1), bw, menuBh, tr('PROFILE'), () => { screen = 'PROFILE'; focus = 0; });
+    btn(menuX(1), menuY(1), bw, menuBh, tr('PROFILE'), () => { screen = 'PROFILE'; profileStatsPage = 0; window.flyingBirdMpStats?.refreshSelf?.(); focus = 0; });
     btn(menuX(2), menuY(2), bw, menuBh, ({EN:'FRIENDS',RU:'ДРУЗЬЯ',ZH:'好友',ES:'AMIGOS',PT:'AMIGOS'})[cfg.lang]||'FRIENDS', () => window.flyingBirdOpenFriends?.());
     btn(menuX(3), menuY(3), bw, menuBh, ({EN:'MULTIPLAYER',RU:'МУЛЬТИПЛЕЕР',ZH:'多人游戏',ES:'MULTIJUGADOR',PT:'MULTIJOGADOR'})[cfg.lang]||'MULTIPLAYER', () => window.flyingBirdOpenMultiplayer?.(), {size: 12});
     btn(menuX(4), menuY(4), bw, menuBh, tr('ACHIEVEMENTS') + ' ' + got + '/' + ACH.length, () => { screen = 'ACH'; focus = 0; }, { size: 12 });

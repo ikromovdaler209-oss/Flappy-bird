@@ -159,7 +159,13 @@ export function statFields(data){
   const d=derive(data);
   return [[T('matches'),d.matches],[T('wins'),d.wins],[T('winRate'),d.winRate+'%'],[T('avg'),d.matches?formatDuration(d.avgMs):'—'],[T('best'),d.matches?formatDuration(d.bestMs):'—']];
 }
-window.flyingBirdMpStats={statFields,title:()=>T('title'),none:()=>T('none')};
+window.flyingBirdMpStats={
+  statFields,title:()=>T('title'),none:()=>T('none'),
+  // Always resolve the active identity; never expose the previous account's cache.
+  ownFields:()=>myUid()?statFields(cachedUid===myUid()?cached:emptyStats()):[],
+  selfNote:()=>T(myUid()?'none':'signin'),
+  refreshSelf:()=>{const uid=myUid();if(uid)void loadCloud(uid).catch(()=>{});}
+};
 
 // ---- account "player stats" panel section ----
 function renderAccountSection(){
