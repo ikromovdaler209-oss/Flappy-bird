@@ -68,7 +68,7 @@
     { name: 'ARCTIC OWL', theme:'ICE', price:275, rarity:'EPIC', body:'#f2f8ff',hi:'#ffffff',wing:'#8fc3f0',wingD:'#4f7fb8',belly:'#dcecff' },
     { name: 'ROYAL RAVEN', theme:'ROYAL', price:325, rarity:'LEGENDARY', body:'#1c1530',hi:'#4a3a7a',wing:'#6a3fb0',wingD:'#2a1a4e',belly:'#3a2c5c' },
     { name: 'JADE BIRD', theme:'JADE', price:275, rarity:'EPIC', body:'#2fbf8a',hi:'#9af0cf',wing:'#1b8a62',wingD:'#0f5a40',belly:'#d6ffe9' }
-    ,{name:'STAR CANDY',theme:'SWEETS',price:600,bundleTrail:'STARDUST',body:'#82bd48',hi:'#c7ef86',wing:'#579844',wingD:'#326b42',belly:'#b8db79'}
+    ,{name:'Lorean',art:'lorean',theme:'SWEETS',price:600,bundleTrail:'STARDUST',body:'#82bd48',hi:'#c7ef86',wing:'#579844',wingD:'#326b42',belly:'#b8db79'}
   ];
   const SHOP_MAPS = [
     {id:'SAKURA',name:'SAKURA GARDEN',price:250,rarity:'RARE'},
@@ -1070,31 +1070,9 @@ if (!initialized) {
   }
 
   const rc = (c, x, y, w, h) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); };
-  const NEW_SKIN = new Set(['ARCTIC OWL', 'ROYAL RAVEN', 'JADE BIRD', 'STAR CANDY']);
+  const NEW_SKIN = new Set(['ARCTIC OWL', 'ROYAL RAVEN', 'JADE BIRD', 'Lorean']);
   // Per-skin silhouette layers: pre = behind the body (tail), post = over it (crest, wing, face). Same bounding area for all.
   const SPEC = {
-    'STAR CANDY': {
-      pre(wy) {
-        // Purple tail feathers and the tied ends of the bandana.
-        rc('#2b1735',-24,-2,15,14);rc('#8336a8',-22,-1,12,11);rc('#bc67d0',-21,0,3,10);rc('#a24bc4',-16,2,4,11);
-        rc('#321539',-18,-10,9,7);rc('#a34ac0',-17,-9,7,4);rc('#d382de',-17,-9,5,1);
-      },
-      post(wy) {
-        // Rounded stepped cap, a dark glasses strap, two oversized reflective lenses.
-        rc('#301438',-13,-14,25,8);rc('#301438',-9,-19,17,7);
-        rc('#9740b7',-11,-14,22,6);rc('#a94bc4',-8,-17,15,7);rc('#cb7bdb',-6,-17,11,2);rc('#73318f',-12,-8,22,2);
-        rc('#242337',-12,-6,19,4);rc('#646078',-10,-5,13,1);
-        rc('#242337',0,-12,13,15);rc('#a5a4b6',1,-11,11,13);rc('#afd6e6',3,-9,8,10);
-        rc('#f0f7fa',4,-8,4,8);rc('#556577',8,-6,2,6);rc('#ffffff',8,-8,2,2);
-        rc('#242337',13,-13,8,14);rc('#9e9cac',14,-12,6,12);rc('#9dc9df',15,-10,4,9);rc('#e8f6ff',16,-9,1,7);
-        rc('#242337',12,-6,2,3);
-        // Spotted neck scarf and lollipop, decorative only: original hitbox stays unchanged.
-        rc('#63297d',-1,5,10,4);rc('#a253bd',0,6,8,2);rc('#ffffff',2,6,2,1);rc('#ffffff',6,7,1,1);
-        rc('#63297d',8,8,5,6);rc('#b063cc',9,9,3,4);rc('#fff2ff',10,10,1,1);
-        rc('#342238',17,1,12,3);rc('#f1edf4',18,1,9,1);rc('#48192a',26,-4,7,11);
-        rc('#de3a5b',27,-3,5,9);rc('#f97283',28,-2,3,6);rc('#fff1ef',28,-2,1,7);rc('#ffffff',30,-1,1,2);
-      }
-    },
     'PHOENIX': {
       pre() { const f = (ticks >> 2) & 1;
         rc(BROWN,-23,-1,12,9); rc('#f33526',-22,0,10,7); rc('#ff9a30',-22+f,2,9,3); rc('#ffe58a',-25,3+f,4,3); rc('#ff6633',-20,8,5,5+f); rc('#ffbd35',-17,9,3,4); },
@@ -1134,7 +1112,82 @@ if (!initialized) {
         rc('#ffd05a',-9,wy,2,2); rc('#ffd05a',-5,wy,2,2); rc('#9af0cf',-7,2+wy,2,2); rc('#ffd05a',-3,2+wy,2,2); rc('#ffd05a',-2,7,11,1); }
     }
   };
+  // Three high-resolution Canvas frames, shared by gameplay, ghosts, avatars and shop.
+  // Artwork has a stable key: renaming the visible skin no longer changes its drawing.
+  const loreanFrames = new Map();
+  function drawLorean(wy) {
+    const frame = Math.max(-1, Math.min(1, Math.round(wy / 3)));
+    if (!loreanFrames.has(frame)) {
+      const tile = document.createElement('canvas'); tile.width = 256; tile.height = 192;
+      const g = tile.getContext('2d'); g.scale(4,4); g.translate(30,25);
+      g.lineJoin = 'round'; g.lineCap = 'round';
+      const ink='#302034', purple='#50205f';
+      const path=(d,fill,stroke=ink,width=1.25)=>{const p=new Path2D(d);if(fill){g.fillStyle=fill;g.fill(p);}if(stroke){g.strokeStyle=stroke;g.lineWidth=width;g.stroke(p);}};
+      const oval=(x,y,rx,ry,fill,stroke=null,width=.5)=>{g.beginPath();g.ellipse(x,y,rx,ry,0,0,Math.PI*2);g.fillStyle=fill;g.fill();if(stroke){g.strokeStyle=stroke;g.lineWidth=width;g.stroke();}};
+      const grad=(x,y,x2,y2,stops)=>{const c=g.createLinearGradient(x,y,x2,y2);stops.forEach(([p,col])=>c.addColorStop(p,col));return c;};
+      // Layered violet tail, curved feather shafts and satin highlights.
+      path('M-10 -3 C-18 -3 -27 4 -26 10 Q-25 14 -21 10 Q-23 17 -18 15 Q-14 17 -12 12 L-7 4 Z', '#742b98');
+      path('M-12 -2 Q-23 3 -24 10 Q-21 9 -15 2 M-10 1 Q-20 9 -18 14 Q-15 12 -11 6', '#a74ac7',null);
+      path('M-16 1 Q-22 5 -23 9 M-12 5 Q-16 10 -16 12',null,'#d48aea',.8);
+      // Tied bandana ends behind the head.
+      path('M-12 -11 Q-21 -16 -23 -13 Q-22 -9 -17 -9 Q-22 -5 -20 -2 Q-15 -3 -13 -9 Z','#a142bf',purple);
+      path('M-19 -12 Q-17 -12 -15 -10 M-18 -4 L-15 -8',null,'#db85e7',.8);
+      oval(-14,-10,2.5,2.6,'#b257d0',purple,1);
+      // Green body retains the compact block-like silhouette of the reference.
+      path('M-12 -8 L6 -10 Q11 -9 12 -4 L12 8 Q4 12 -9 10 L-13 5 Z',grad(-10,-8,7,11,[[0,'#c6ef82'],[.45,'#89c552'],[1,'#509743']]),ink,1.8);
+      path('M-8 6 Q2 9 10 5 L10 8 Q1 11 -8 8 Z','#d2f19b',null);
+      path('M-11 -5 L-9 4',null,'#d9f4a2',.7);
+      // Far lens and orange beak are behind the nearer lens.
+      path('M9 -9 Q13 -18 17 -18 Q20 -13 18 -5 Q17 0 13 1 L9 -1 Z','#6e727a',ink,1.5);
+      path('M11 -8 Q14 -14 16 -15 Q18 -10 16 -5 L13 -2 Z',grad(11,-14,18,0,[[0,'#e4f7ff'],[1,'#7ea9bf']]),'#b9c7d0',.7);
+      path('M15 -13 L13 -5',null,'#f7fcff',1);
+      path('M9 -1 L21 -3 L22 8 L10 10 Z','#fa7135',ink,1.6);
+      path('M11 5 L21 3 L21 7 L11 8 Z','#c84729',null);
+      path('M12 0 L20 -1',null,'#ffaf62',.65);
+      // Animated wing with layered green feathers.
+      g.save();g.translate(-5,2);g.rotate(frame*.12);
+      path('M-6 -3 Q-1 -5 4 -2 L5 5 Q0 7 -6 4 Z','#438b4c',ink,1.05);
+      path('M-5 -2 Q0 -3 3 -1 L3 1 L-5 1 Z','#86c858',null);
+      path('M-4 2 L3 2 M-3 4 L2 4',null,'#256d49',.65);g.restore();
+      // Purple scarf drapes diagonally with a knot and two flowing tips.
+      path('M2 0 Q4 6 10 9 L15 10 L14 13 Q5 11 0 4 Z',grad(0,2,14,12,[[0,'#a84dc7'],[1,'#702789']]),purple,1);
+      path('M13 11 Q17 10 18 13 Q18 15 15 15 L13 13 Z','#a44cc0',purple,.9);
+      path('M15 14 Q15 18 12 20 L12 15 Z M17 14 Q20 15 22 18 Q18 19 16 16 Z','#aa51c4',purple,.9);
+      [[3,4,.65],[5,7,.65],[8,9,.65],[11,11,.6],[15.6,12.7,.6],[13,17,.5],[19,16.7,.55]].forEach(p=>oval(...p,p[2],'#fff4fc'));
+      // Satin headscarf: dome, folded brim, fabric creases and seam.
+      path('M-14 -10 Q-13 -20 -5 -22 Q5 -25 12 -16 L14 -12 Q6 -10 -2 -11 Z',grad(-10,-22,2,-9,[[0,'#d884e6'],[.28,'#ad48cf'],[.8,'#8c31b0'],[1,'#6d288b']]),purple,1.5);
+      path('M-11 -16 Q-4 -23 4 -20 Q8 -19 10 -16 Q0 -19 -11 -16 Z','#c969db',null);
+      path('M-13 -11 Q0 -16 12 -14 Q15 -14 14 -12 Q3 -10 -13 -9 Z','#b952ce',purple,.8);
+      path('M-12 -12 Q-8 -16 -5 -16 M-12 -11 Q-6 -13 -2 -13',null,'#74308d',.65);
+      // Glasses strap, large expressive eye and cat-eye metal frame.
+      path('M-13 -8 Q-8 -8 -2 -10 L0 -6 Q-7 -4 -13 -5 Z','#424452',ink,1);
+      path('M-12 -7 Q-6 -7 -2 -8',null,'#92919c',.65);
+      const lens='M-3 -13 Q4 -16 11 -10 Q14 -6 11 0 Q8 5 3 3 Q-2 2 -3 -5 Z';
+      path(lens,grad(-3,-13,11,4,[[0,'#9ba7b8'],[.5,'#d1e3e8'],[1,'#8daeb7']]),ink,1.6);
+      // Eye is clipped inside the lens, never spills over the frame.
+      g.save();g.clip(new Path2D(lens));
+      oval(5,-3,4.6,5.7,'#eff9fa');oval(7,-2.6,1.7,3.8,'#4b626d');oval(7.4,-3,1,3,'#283b4b');
+      oval(7.8,-5,1.1,1.3,'#ffffff');oval(6.6,-.3,.45,.6,'#d7f3ff');
+      path('M0 -8 Q4 -6 8 -8 M1 -8 L0 -10 M3 -7 L2 -10 M5 -7 L5 -10 M7 -8 L8 -10',null,'#506471',.75);
+      path('M-2 -10 L1 -12 L9 2 L6 3 Z','rgba(255,255,255,.3)',null);
+      path('M5 -12 L6 -12 L12 -2 L11 0 Z','rgba(255,255,255,.4)',null);g.restore();
+      path(lens,null,'#525263',.9);
+      path('M-2 -12 Q4 -14 10 -9',null,'#f0e6e7',.7);
+      path('M12 -7 Q13 -9 14 -7',null,'#343243',1.4);
+      oval(-1,-10,.45,.45,'#f9e4cf');oval(11,-7,.4,.4,'#f9e4cf');
+      // Strawberry lollipop: slender stick, rounded candy, swirl and sugar shine.
+      path('M17 5 L27 3',null,ink,1.9);path('M17 4.7 L27 2.7',null,'#fff7e8',.85);
+      oval(28.1,2.1,3.4,4.5,'#dc3156','#571e38',1);
+      oval(28.7,1.6,2.4,3.5,'#f46c83');
+      path('M27 -1 Q30 0 29 3 Q28 5 27 4 Q25 2 27 1 Q29 0 29 2',null,'#ffbdc5',.65);
+      oval(29,-.3,.8,1,'#fff8f5');oval(30.1,1.2,.35,.5,'#fff8f5');
+      loreanFrames.set(frame,tile);
+    }
+    ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(loreanFrames.get(frame),-30,-25,64,48);ctx.restore();
+  }
+
   function birdShapes(sk, wy) {
+    if (sk.art === 'lorean') { drawLorean(wy); return; }
     const S = SPEC[sk.name];
     // tail feathers
     ctx.fillStyle = BROWN; ctx.fillRect(-16, -5, 7, 10);
