@@ -204,3 +204,7 @@ html,body{overscroll-behavior:none}
 .mpInviteToast>strong{display:block;color:#ffe485;font-size:11px;letter-spacing:.3px}.mpInviteToast p{margin:6px 0 9px;font-size:11px}.mpInviteActions{display:flex;gap:8px}
 .mpInviteActions button{flex:1;min-width:0;min-height:36px;border:1px solid #ffd23f;border-radius:6px;padding:7px;background:#ffd23f;color:#221800;font:700 12px 'Courier New',monospace;cursor:pointer}
 .mpInviteActions button+button{background:#28334d;color:#fff9e9;border-color:#8591ac}.mpInviteActions button:disabled{opacity:.5;cursor:default}.mpInviteActions button:focus-visible{outline:3px solid #ff7eb6;outline-offset:2px}.mpInviteToast small{display:block;margin-top:4px;text-align:right}
+
+/* Speed shares the scoreboard's layout, so canvas scaling cannot put it behind names. */
+#fbMpRaceSpeed{flex:0 0 auto;min-width:0;padding:3px 5px 5px;color:#ffe677;
+  font:700 11px/1.25 'Courier New',monospace;text-align:right;white-space:nowrap;}

@@ -2534,13 +2534,15 @@ function toggleFS() {
     }
     const labelWidth = ctx.measureText(balanceText).width;
     const rightEdge = W - 10;
-    const coinCenter = rightEdge - labelWidth - 9 - 14;
-    drawCoin(coinCenter, 18, {static: true});
+    const coinScale = .72, coinRadius = 14 * coinScale;
+    const coinCenter = rightEdge - labelWidth - 4 - coinRadius;
+    ctx.save();ctx.translate(coinCenter,18);ctx.scale(coinScale,coinScale);
+    drawCoin(0, 0, {static: true});ctx.restore();
     txt(balanceText, rightEdge, 18, coinFont, '#fff2a6', 'right');
     if (cfg.showFps) {
       // Second number = the longest gap between two drawn frames in the last ~second.
       const ratio = fpsExpect > 0 ? worstShown / fpsExpect : 0;
-      txt('FPS ' + fpsShown + ' | ' + (worstShown ? Math.round(worstShown) : '-') + 'ms', W - 8, 34, 10,
+      txt('FPS ' + fpsShown + ' | ' + (worstShown ? Math.round(worstShown) : '-') + 'ms', W - 8, 39, 10,
         ratio > 2.2 ? '#ff6b6b' : ratio > 1.5 ? '#ffd23f' : '#9fe870', 'right');
     }
     if (focus >= btns.length) focus = 0;

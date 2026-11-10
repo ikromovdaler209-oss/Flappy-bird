@@ -565,7 +565,7 @@ function raceDraw(){
   for(const b of birds)raceBird(b.x,b.y,b.skin,b.alpha,tick%10<4,b.rotation);
  }
  g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';g.strokeStyle='#19102e';g.lineWidth=4;g.font='bold '+(r.meta.layout==='PORTRAIT'?18:23)+'px Courier New';g.fillStyle='#fffbe8';const msg=!raceClockReady?RT('loading'):remaining>0?(remaining>3.3?RT('countdown'):String(Math.max(1,Math.ceil(remaining)))):r.finished?'':(!myself.alive?'':'');if(msg){g.strokeText(msg,w*(r.meta.layout==='PORTRAIT'?.36:.5),h*.26);g.fillText(msg,w*(r.meta.layout==='PORTRAIT'?.36:.5),h*.26)}
- const traveled=distanceAt(tick,courseSpeed(r.meta.diff),r.world,r.meta.diff);const passed=Math.max(0,Math.floor((traveled-(r.world.spawnX-r.world.bx+52))/r.world.spacing)+1);const currentStage=r.meta.diff==='HARD'?Math.min(10,Math.floor(passed/16)):Math.min(16,Math.floor(tick/RACE_PHASE));g.font='bold 12px Courier New';g.textAlign='left';g.fillText(RT('time')+' '+formatTime(elapsed),10,r.meta.layout==='LANDSCAPE'?74:80);g.textAlign='right';g.fillText('⚡ ×'+(1+currentStage*(r.meta.diff==='HARD'?.052:.036)).toFixed(2),w-(r.meta.layout==='LANDSCAPE'?62:10),22);
+ const traveled=distanceAt(tick,courseSpeed(r.meta.diff),r.world,r.meta.diff);const passed=Math.max(0,Math.floor((traveled-(r.world.spawnX-r.world.bx+52))/r.world.spacing)+1);const currentStage=r.meta.diff==='HARD'?Math.min(10,Math.floor(passed/16)):Math.min(16,Math.floor(tick/RACE_PHASE));g.font='bold 12px Courier New';g.textAlign='left';g.fillText(RT('time')+' '+formatTime(elapsed),10,r.meta.layout==='LANDSCAPE'?74:80);const speedText=RT('stage')+' ×'+(1+currentStage*(r.meta.diff==='HARD'?.052:.036)).toFixed(2);if(raceSpeedBadge.textContent!==speedText)raceSpeedBadge.textContent=speedText;
  if(!r.finished&&remaining<=0&&r.startFlash>0){g.font='bold 35px Courier New';g.textAlign='center';g.strokeText(RT('go'),w/2,h*.31);g.fillText(RT('go'),w/2,h*.31);r.startFlash--}
 
 }
@@ -587,7 +587,8 @@ function updateNetworkBadge(){
    'ACK '+ack+' · '+(lang()==='RU'?'ПАКЕТ ':'SNAP ')+gap;
 }
 
-function raceScoreboard(){if(!race||!raceSnapshot)return;const box=$('fbMpRaceScoreboard');box.replaceChildren();box.classList.toggle('mpRaceDense',Object.keys(raceSnapshot.players||{}).length>5);const sorted=Object.entries(raceSnapshot.players||{}).sort(([a,x],[b,y])=>Number(y.elapsedMs||0)-Number(x.elapsedMs||0));for(const [uid,p] of sorted){const entry=el('div',null,'mpRacePlayer'),name=el('span',(race.cards.get(uid)?.nick||'BIRD '+uid.slice(0,4))+(uid===ownUid()?' ★':'')),st=el('span',raceStatusText(p.status)),clock=el('strong',formatTime(p.elapsedMs));entry.classList.toggle('mpRaceOut',p.status!=='ALIVE');entry.append(name,st,clock);box.append(entry)}}
+const raceSpeedBadge=el('div','','mpRaceSpeed');raceSpeedBadge.id='fbMpRaceSpeed';
+function raceScoreboard(){if(!race||!raceSnapshot)return;const box=$('fbMpRaceScoreboard');box.replaceChildren(raceSpeedBadge);box.classList.toggle('mpRaceDense',Object.keys(raceSnapshot.players||{}).length>5);const sorted=Object.entries(raceSnapshot.players||{}).sort(([a,x],[b,y])=>Number(y.elapsedMs||0)-Number(x.elapsedMs||0));for(const [uid,p] of sorted){const entry=el('div',null,'mpRacePlayer'),name=el('span',(race.cards.get(uid)?.nick||'BIRD '+uid.slice(0,4))+(uid===ownUid()?' ★':'')),st=el('span',raceStatusText(p.status)),clock=el('strong',formatTime(p.elapsedMs));entry.classList.toggle('mpRaceOut',p.status!=='ALIVE');entry.append(name,st,clock);box.append(entry)}}
 // v2.9: the finished round is verified (all players terminal, ticks match times) and queued for
 // Firestore. Totals live in the account; this line only displays them. Solo data is never touched.
 function showMpStats(){
