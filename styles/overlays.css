@@ -1,4 +1,4 @@
-/* Flying Bird Friends — additive responsive overlay, independent of the Canvas. */
+/* High Fly Friends — additive responsive overlay, independent of the Canvas. */
 #fbfPanel[hidden]{display:none!important}
 #fbfPanel{position:fixed;inset:0;z-index:90;background:rgba(7,11,31,.91);display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;font:13px/1.48 'Courier New',monospace;color:#2b1b00}
 #fbfBox{position:relative;width:min(670px,100%);max-height:min(94dvh,900px);overflow:auto;overscroll-behavior:contain;background:#fff8e6;border:3px solid #2b1b00;border-radius:14px;box-shadow:7px 8px 0 #f7aa55;padding:18px;box-sizing:border-box}

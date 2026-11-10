@@ -1,4 +1,4 @@
-/** Flying Bird multiplayer networking helpers.
+/** High Fly multiplayer networking helpers.
  * All calculations are deterministic, free of Firebase/DOM dependencies and
  * reusable by the standalone multi-client network simulation.
  */

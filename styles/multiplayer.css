@@ -66,7 +66,7 @@
 }
 
 
-/* Flying Bird Multiplayer v2.2 — full-bleed gameplay, readable transparent HUD.
+/* High Fly Multiplayer v2.2 — full-bleed gameplay, readable transparent HUD.
    In iOS Safari fixed positioning fills the web viewport; Fullscreen API works where offered. */
 html,body{overscroll-behavior:none}
 #c{touch-action:none;-webkit-user-select:none;user-select:none}

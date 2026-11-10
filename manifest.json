@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Flying Bird",
-  "short_name": "Flying Bird",
-  "description": "Flying Bird — arcade survival, cosmetics and multiplayer rooms.",
+  "name": "High Fly",
+  "short_name": "High Fly",
+  "description": "High Fly — arcade survival, cosmetics and multiplayer rooms.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

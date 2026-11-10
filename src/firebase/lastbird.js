@@ -1,4 +1,4 @@
-// Flying Bird v2.9 — "Last Bird Standing" ranking panel (friends + opt-in global).
+// High Fly v2.9 — "Last Bird Standing" ranking panel (friends + opt-in global).
 // Reads multiplayerStats (privacy enforced by rules) and lastBirdEntries (public opt-in).
 import {collection,doc,query,where,limit,orderBy,getDocsFromServer,getDocFromServer,setDoc,deleteDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 import {onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';

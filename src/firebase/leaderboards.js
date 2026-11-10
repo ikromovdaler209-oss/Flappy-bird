@@ -1,4 +1,4 @@
-// Flying Bird Leaderboards: uses existing Auth, public profiles, public stats, friendships.
+// High Fly Leaderboards: uses existing Auth, public profiles, public stats, friendships.
 // Global entries are optional and contain only explicitly leaderboard-shared data.
 import {getApps,getApp,initializeApp} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
 import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';

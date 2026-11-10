@@ -2959,7 +2959,7 @@ fit();
           } finally {g.restore();}
       destination.imageSmoothingEnabled=false;
       return true;
-    } catch(e){console.warn('[Flying Bird] Multiplayer art:',e);return false;}
+    } catch(e){console.warn('[High Fly] Multiplayer art:',e);return false;}
     finally {ctx=keep.ctx;W=keep.W;H=keep.H;GROUND=keep.GROUND;L=keep.L;ticks=keep.ticks;bgX=keep.bgX;groundX=keep.groundX;cfg.map=keep.map;}
   };
 

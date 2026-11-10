@@ -1,4 +1,4 @@
-// Flying Bird Multiplayer Update 1: room creation, seats, ready states, host handoff, bans and invitations.
+// High Fly Multiplayer Update 1: room creation, seats, ready states, host handoff, bans and invitations.
 // v2.6: adaptive snapshots, bounded interpolation, server clock warm-up and network diagnostics.
 import {getApps,getApp,initializeApp} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
 import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
@@ -173,7 +173,7 @@ async function createRoom(){
  }catch(e){
   const codeText=(typeof e?.code==='string'?e.code:'')||'';
   const detail=stage+' · '+(codeText||e?.message||String(e));
-  console.error('[Flying Bird Multiplayer] Create room failed:',{stage,roomSaved,roomCode:code,error:e});
+  console.error('[High Fly Multiplayer] Create room failed:',{stage,roomSaved,roomCode:code,error:e});
   say(T('error')+': '+detail+(roomSaved?' · Room was written but disconnect cleanup failed. Check multiplayerRooms in RTDB.':'') ,true);
  }finally{setBusy(false)}
 }
@@ -280,7 +280,7 @@ async function dismissInvite(code){
   // A deletion of a non-existent invitation is rejected by our strict RTDB rules.
   const snap=await get(inviteRef);
   if(snap.exists())await remove(inviteRef);
- }catch(e){console.warn('[Flying Bird] Invitation cleanup:',code,e?.code||e?.message||e)}
+ }catch(e){console.warn('[High Fly] Invitation cleanup:',code,e?.code||e?.message||e)}
  finally{inviteCleanupPending.delete(key)}
 }
 function syncInviteRoomChecks(){
@@ -318,7 +318,7 @@ function watchInvites(){
  unInvites=onValue(ref(db,'multiplayerInvites/'+uid),snap=>{
   if(uid!==ownUid())return;
   invites=snap.val()||{};syncInviteRoomChecks();
- },e=>{invites={};stopInviteRoomChecks();renderInvites();console.warn('[Flying Bird] Invitations:',e?.code||e.message)});
+ },e=>{invites={};stopInviteRoomChecks();renderInvites();console.warn('[High Fly] Invitations:',e?.code||e.message)});
 }
 const toastWords={
  EN:{title:'ROOM INVITATION',accept:'Accept',decline:'Decline',busy:'Leave your current room to accept.',failed:'Could not complete the action. Try again.'},
@@ -375,7 +375,7 @@ function warmRaceClock(){
   if(typeof offset==='number'&&Number.isFinite(offset)){
    raceServerOffset=offset;raceClockReady=true;
   }
- },err=>console.warn('[Flying Bird MP] Clock offset:',err));
+ },err=>console.warn('[High Fly MP] Clock offset:',err));
 }
 function readRaceServerOffset(){
  warmRaceClock();
@@ -530,12 +530,12 @@ function watchRaceCosmetics(code,session){
   // Own appearance is fixed locally at the moment the match is joined, while
   // Firebase is still delivering the snapshot. The accepted server copy wins.
   session.cosmetics={...appearances,[uid]:appearances[uid]||session.myCosmetics};
- },err=>{if(race===session)console.warn('[Flying Bird MP] Cosmetics read:',err)});
+ },err=>{if(race===session)console.warn('[High Fly MP] Cosmetics read:',err)});
  // This happens during the 10.5-second pre-start countdown; the RTDB rule
  // accepts exactly one immutable record from each roster member until start.
  void set(ref(db,session.path+'/cosmetics/'+uid),session.myCosmetics).catch(err=>{
   if(race===session){
-   console.warn('[Flying Bird MP] Cosmetics publish (install v2.5 RTDB rules):',err);
+   console.warn('[High Fly MP] Cosmetics publish (install v2.5 RTDB rules):',err);
    raceSetStatus('COSMETICS_SYNC · '+(err?.code||err?.message||String(err)),true);
   }
  });
@@ -680,10 +680,10 @@ function raceFinish(status){
     await racePublish(true,r);
     r.finalConfirmed=true;
     // Guard could have been registered after the first terminal write.
-    if(r.disconnectGuard&&r.guardReady){try{await r.disconnectGuard.cancel()}catch(e){console.warn('[Flying Bird MP] onDisconnect cancel:',e)}}
+    if(r.disconnectGuard&&r.guardReady){try{await r.disconnectGuard.cancel()}catch(e){console.warn('[High Fly MP] onDisconnect cancel:',e)}}
     return true;
    }catch(e){
-    console.warn('[Flying Bird MP] Terminal update attempt '+(attempt+1),e);
+    console.warn('[High Fly MP] Terminal update attempt '+(attempt+1),e);
     if(race===r)raceSetStatus('FINAL_WRITE · '+(e?.code||e?.message||String(e)),true);
     if(attempt<2)await new Promise(resolve=>setTimeout(resolve,350*(attempt+1)));
    }
@@ -815,7 +815,7 @@ async function beginRace(payload,code){
   if(!$('fbMpRaceStatus').classList.contains('error'))raceSetStatus('');
   })().catch(e=>{if(race===session)raceSetStatus(e.message,true)});
  }catch(e){
-  console.error('[Flying Bird MP] Begin race failed:',e);
+  console.error('[High Fly MP] Begin race failed:',e);
   if(race){raceSetStatus('JOIN_MATCH: '+(e?.code||e?.message||String(e)),true);if(race.me.alive)void raceFinish('DNF')}
   else{modal.hidden=false;say('JOIN_MATCH · '+(e?.code||e?.message||String(e)),true)}
  }finally{raceStarting=false}
@@ -849,7 +849,7 @@ function watchRace(code,version){
   try{
    // Critical: begin the countdown synchronously, not after another network read.
    void beginRace(payload,code).catch(e=>{
-    console.error('[Flying Bird MP] race bootstrap',e);
+    console.error('[High Fly MP] race bootstrap',e);
     say('JOIN_MATCH · '+(e?.code||e?.message||String(e)),true);
    });
   }finally{raceFeedLoading=false}
@@ -895,7 +895,7 @@ async function startSurvivalMatch(){
   await set(ref(db,raceRoot(code,meta.version)),{meta,roster,seats,players:live});
   matchLaunchPending=true;say('');renderLobby();
  }catch(e){
-  console.error('[Flying Bird MP] Start failed',{stage,code,error:e});
+  console.error('[High Fly MP] Start failed',{stage,code,error:e});
   say(RT('startError')+': '+stage+' · '+(e?.code||e?.message||String(e)),true);
  }finally{setBusy(false)}
 }

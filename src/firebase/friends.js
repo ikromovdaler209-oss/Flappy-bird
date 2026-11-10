@@ -1,4 +1,4 @@
-// Flying Bird Friends: separate additive module. Uses the SAME Firebase Auth instance as the game.
+// High Fly Friends: separate additive module. Uses the SAME Firebase Auth instance as the game.
 import {getApps,getApp,initializeApp} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
 import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
 import {getFirestore,doc,collection,query,where,limit,getDocFromServer,getDocsFromServer,setDoc,updateDoc,deleteDoc,serverTimestamp,writeBatch} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
@@ -63,7 +63,7 @@ async function preparePrivacy(uid){
       if(ownUid()!==uid)return;
       if(snap.exists())currentPrivacy=validPrivacy(snap.data().visibility);
     }
-  }catch(e){console.warn('[Flying Bird] privacy preference read delayed',e)}
+  }catch(e){console.warn('[High Fly] privacy preference read delayed',e)}
   finally{
     if(privacyLoadingUid===uid)privacyLoadingUid=null;
     if(ownUid()===uid){privacyReadyUid=uid;readyUid=uid;privacyStatus=cached?.pending?privacyText('pending'):'';renderPrivacy();schedulePublicUpdate(250)}
@@ -136,7 +136,7 @@ async function fetchPublic(uid){
     cardProblems.set(uid,{kind:'missing'});
   }catch(e){
     cardProblems.set(uid,{kind:'error',code:err(e)});
-    console.warn('[Flying Bird] publicProfiles read failed for friend',e);
+    console.warn('[High Fly] publicProfiles read failed for friend',e);
   }
   return null;
 }
@@ -186,7 +186,7 @@ async function openPlayerProfile(uid,fallbackId){
         box.append(el('div',mp.title(),'fbfStatHead'));
         if(mpSnap.exists())for(const [l,v] of mp.statFields(mpSnap.data()))box.append(profileStat(l,v));
         else box.append(el('div',mp.none(),'fbfStatNone'));
-      }catch(e){if(e?.code!=='permission-denied')console.warn('[Flying Bird] online stats unavailable',e?.code||e)}
+      }catch(e){if(e?.code!=='permission-denied')console.warn('[High Fly] online stats unavailable',e?.code||e)}
     }
     $('fbfProfileMessage').textContent='';
   }catch(e){if(seq===profileViewSeq)$('fbfProfileMessage').textContent=T('statsDenied')+' ('+err(e)+')';}
@@ -313,7 +313,7 @@ async function publishOwnData(){
     setPublishState('card','✓ '+(lang==='RU'?'синхронизирована':'synced'));
   }catch(e){
     failed=true;
-    console.warn('[Flying Bird] Automatic public card sync failed',e);
+    console.warn('[High Fly] Automatic public card sync failed',e);
     if(ownUid()===uid){
       privacyStatus=privacyText('pending')+' ('+err(e)+')';renderPrivacy();
       setPublishState('card',(lang==='RU'?'ОШИБКА: ':'ERROR: ')+err(e));
@@ -330,7 +330,7 @@ async function publishOwnData(){
     }else if(ownUid()===uid){setPublishState('stats',lang==='RU'?'ожидание загрузки прогресса':'waiting for progress')}
   }catch(e){
     failed=true;
-    console.warn('[Flying Bird] Automatic public stats sync failed',e);
+    console.warn('[High Fly] Automatic public stats sync failed',e);
     if(ownUid()===uid)setPublishState('stats',(lang==='RU'?'ОШИБКА: ':'ERROR: ')+err(e));
   }finally{
     publicPublishing=false;
