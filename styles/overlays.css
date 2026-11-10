@@ -103,3 +103,49 @@
 #fbLbBox .lbState.error{color:#a52336}#fbLbBox :focus-visible,#fbLbShortcut:focus-visible{outline:3px solid #ff7eb6;outline-offset:2px}
 @media(max-width:380px){#fbLbBox{padding:11px}#fbLbBox .lbModes button{font-size:9px}#fbLbBox .lbEntry{gap:6px}#fbLbBox .lbPoints{font-size:12px}#fbLbBox .lbProfile{font-size:9px;padding:5px}}
 @media(max-height:520px){#fbLbBox{padding:10px}#fbLbList{max-height:34dvh}}
+
+/* v2.9 - Last Bird Standing ranking + multiplayer statistics */
+#fbLbsPanel{position:fixed;inset:0;z-index:110;background:rgba(9,8,28,.93);display:flex;
+  align-items:center;justify-content:center;box-sizing:border-box;padding:12px;
+  font:13px/1.4 'Courier New',monospace;color:#2b1b00}
+#fbLbsBox{position:relative;box-sizing:border-box;width:min(600px,100%);max-height:min(95dvh,900px);
+  overflow-y:auto;overscroll-behavior:contain;border:3px solid #2b1b00;border-radius:15px;
+  box-shadow:7px 8px 0 #f7aa55;background:#fff8e6;padding:17px}
+#fbLbsBox h2{margin:0 37px 7px 0;font-size:22px;letter-spacing:1px}
+#fbLbsBox button{box-sizing:border-box;cursor:pointer;font:700 12px/1.15 'Courier New',monospace;
+  border:2px solid #2b1b00;border-radius:8px;background:#ffd23f;color:#2b1b00;padding:10px 9px;box-shadow:2px 2px 0 #2b1b00}
+#fbLbsBox button:disabled{opacity:.5;cursor:wait}#fbLbsBox #fbLbsClose{position:absolute;top:8px;right:10px;
+  border:none;box-shadow:none;background:transparent;font-size:25px;padding:3px 8px}
+#fbLbsBox .lbHint{color:#765e4b;font-size:11px;margin:5px 0 11px}
+#fbLbsBox .lbRow{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
+#fbLbsBox .lbScopes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+#fbLbsBox .lbModes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin:11px 0}
+#fbLbsBox .lbModes button{font-size:10px;padding:9px 2px;min-width:0}
+#fbLbsBox button[aria-pressed="true"]{background:#ffad66}
+#fbLbsList{min-height:120px;max-height:45dvh;overflow-y:auto;margin:10px 0}
+#fbLbsBox .lbEntry{display:flex;align-items:center;gap:9px;padding:9px 7px;margin:7px 0;background:#fff;
+  border:1px solid #e3c89f;border-radius:9px}
+#fbLbsBox .lbEntry.lbMe{border-color:#f0a34e;background:#fff1c7}
+#fbLbsBox .lbRank{font-size:15px;font-weight:900;min-width:25px;text-align:center}
+#fbLbsBox .lbAvatar{width:39px;height:39px;flex:none;border:2px solid #2b1b00;border-radius:7px;image-rendering:pixelated}
+#fbLbsBox .lbName{min-width:0;flex:1;display:grid;gap:2px;text-align:left}
+#fbLbsBox .lbName strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+#fbLbsBox .lbName small{font-size:9px;color:#785f56}
+#fbLbsBox .lbPoints{font-size:14px;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}
+#fbLbsBox .lbProfile{padding:5px 6px;font-size:10px;box-shadow:none;background:white}
+#fbLbsBox .lbGlobalControls{border:1px solid #d7ba87;border-radius:9px;background:#fff0cf;padding:10px;margin:11px 0}
+#fbLbsBox .lbGlobalControls .lbRow{justify-content:space-between}
+#fbLbsBox .lbState{margin-top:8px;color:#785f56;font-size:11px;white-space:pre-wrap}
+#fbLbsBox .lbState.error{color:#a52336}#fbLbsBox :focus-visible{outline:3px solid #ff7eb6;outline-offset:2px}
+@media(max-width:380px){#fbLbsBox{padding:11px}#fbLbsBox .lbModes button{font-size:9px}#fbLbsBox .lbEntry{gap:6px}#fbLbsBox .lbPoints{font-size:12px}#fbLbsBox .lbProfile{font-size:9px;padding:5px}}
+@media(max-height:520px){#fbLbsBox{padding:10px}#fbLbsList{max-height:34dvh}}
+#fbLbsPanel[hidden]{display:none!important}
+#fbLbsBox #fbLbsOpen,#fbLbBox #fbLbsOpen{width:100%}
+#fbLbsBox .lbEntry .lbProfile{white-space:nowrap}
+.mpStatsTitle{margin:14px 0 6px;font-size:14px;letter-spacing:1px}
+.mpStatsNote{font-size:10px;opacity:.75;margin:6px 0 0}
+.mpStatsNone{grid-column:1/-1;font-size:11px;opacity:.8;margin:2px 0}
+#fbfProfileStats .fbfStatHead{grid-column:1/-1;font-size:12px;font-weight:700;letter-spacing:1px;margin-top:6px;color:#5b4331}
+#fbfProfileStats .fbfStatNone{grid-column:1/-1;font-size:11px;color:#806954}
+#fbMpRaceMyStats{white-space:pre-line}
+#fbMpRaceMyStats.mpStatsBad{color:#ff9aa8}

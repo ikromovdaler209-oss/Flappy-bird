@@ -1,0 +1,215 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "presence": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('presenceAccess').child($uid).child(auth.uid).val() === true)",
+        "connections": {
+          "$connectionId": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.isBoolean() && newData.val() === true"
+          }
+        },
+        "lastOnline": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isNumber()"
+        }
+      }
+    },
+    "presenceAccess": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$friendUid": {
+          ".write": "auth != null && auth.uid === $uid && $friendUid !== $uid",
+          ".validate": "newData.isBoolean() && newData.val() === true"
+        }
+      }
+    },
+    "multiplayerRooms": {
+      "$code": {
+        ".read": "auth != null && auth.provider !== 'anonymous' && $code.matches(/^FBM-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{4}-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{4}$/) && !data.child('bans').child(auth.uid).exists()",
+        ".write": "auth != null && auth.provider !== 'anonymous' && $code.matches(/^FBM-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{4}-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{4}$/) && ((!data.exists() && newData.child('hostUid').val() === auth.uid && newData.child('slots/0/uid').val() === auth.uid && newData.child('seatOf').child(auth.uid).val() === '0' && !newData.child('bans').exists() && !newData.child('slots/1').exists() && !newData.child('slots/2').exists() && !newData.child('slots/3').exists() && !newData.child('slots/4').exists() && !newData.child('slots/5').exists() && !newData.child('slots/6').exists() && !newData.child('slots/7').exists() && !newData.child('slots/8').exists() && !newData.child('slots/9').exists()) || (data.child('hostUid').val() === auth.uid && !data.child('slots').exists() && !newData.exists()))",
+        ".validate": "newData.hasChildren(['hostUid','meta'])",
+        "hostUid": {
+          ".write": "auth != null && auth.provider !== 'anonymous' && newData.isString() && newData.val() !== data.val() && data.parent().child('slots').child(data.parent().child('seatOf').child(newData.val()).val()).child('uid').val() === newData.val() && (data.val() === auth.uid || ((!data.parent().child('seatOf').child(data.val()).exists() || data.parent().child('slots').child(data.parent().child('seatOf').child(data.val()).val()).child('uid').val() !== data.val()) && newData.val() === auth.uid))",
+          ".validate": "newData.isString() && newData.val().length > 10 && newData.val().length < 150"
+        },
+        "meta": {
+          ".write": "auth != null && auth.provider !== 'anonymous' && data.parent().child('hostUid').val() === auth.uid && data.parent().child('slots').child(data.parent().child('seatOf').child(auth.uid).val()).child('uid').val() === auth.uid && newData.exists() && ((newData.child('capacity').val() === 3 && !data.parent().child('slots/3').exists() && !data.parent().child('slots/4').exists() && !data.parent().child('slots/5').exists() && !data.parent().child('slots/6').exists() && !data.parent().child('slots/7').exists() && !data.parent().child('slots/8').exists() && !data.parent().child('slots/9').exists()) || (newData.child('capacity').val() === 5 && !data.parent().child('slots/5').exists() && !data.parent().child('slots/6').exists() && !data.parent().child('slots/7').exists() && !data.parent().child('slots/8').exists() && !data.parent().child('slots/9').exists()) || newData.child('capacity').val() === 10) && !root.child('multiplayerMatches').child($code).exists()",
+          ".validate": "newData.hasChildren(['capacity','layout','map','diff','version','createdAt']) && newData.child('capacity').isNumber() && (newData.child('capacity').val() === 3 || newData.child('capacity').val() === 5 || newData.child('capacity').val() === 10) && newData.child('layout').isString() && (newData.child('layout').val() === 'PORTRAIT' || newData.child('layout').val() === 'LANDSCAPE') && newData.child('map').isString() && newData.child('map').val().matches(/^(CITY|MOUNTAINS|VOLCANO|SAKURA|NEON|OCEAN|VOLCANO_PLUS|COSMIC|FOREST|CRYSTAL|DESERT)$/) && newData.child('diff').isString() && newData.child('diff').val().matches(/^(EASY|NORMAL|HARD|EXTREME)$/) && newData.child('version').isNumber() && newData.child('version').val() >= 0 && newData.child('version').val() <= 1000000 && newData.child('createdAt').isNumber() && ((!data.exists() && newData.child('version').val() === 0 && newData.child('createdAt').val() <= now + 5000 && newData.child('createdAt').val() >= now - 10000) || (data.exists() && newData.child('version').val() === data.child('version').val() + 1 && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('layout').val() === data.child('layout').val()))",
+          "$other": {
+            ".validate": false
+          },
+          "capacity": {
+            ".validate": "true"
+          },
+          "layout": {
+            ".validate": "true"
+          },
+          "map": {
+            ".validate": "true"
+          },
+          "diff": {
+            ".validate": "true"
+          },
+          "version": {
+            ".validate": "true"
+          },
+          "createdAt": {
+            ".validate": "true"
+          }
+        },
+        "seatOf": {
+          "$uid": {
+            ".write": "auth != null && auth.provider !== 'anonymous' && $uid === auth.uid && !root.child('multiplayerRooms').child($code).child('bans').child(auth.uid).exists() && root.child('multiplayerRooms').child($code).child('meta').exists() && ((newData.exists() && (!data.exists() || !root.child('multiplayerRooms').child($code).child('slots').child(data.val()).exists() || root.child('multiplayerRooms').child($code).child('slots').child(data.val()).child('uid').val() !== auth.uid)) || (!newData.exists() && data.exists() && (!root.child('multiplayerRooms').child($code).child('slots').child(data.val()).exists() || root.child('multiplayerRooms').child($code).child('slots').child(data.val()).child('uid').val() !== auth.uid))) && (!root.child('multiplayerMatches').child($code).exists() || !newData.exists())",
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9]$/) && ((newData.parent().parent().child('meta/capacity').val() === 3 && newData.val().matches(/^[0-2]$/)) || (newData.parent().parent().child('meta/capacity').val() === 5 && newData.val().matches(/^[0-4]$/)) || (newData.parent().parent().child('meta/capacity').val() === 10))"
+          }
+        },
+        "slots": {
+          "$seat": {
+            ".write": "auth != null && auth.provider !== 'anonymous' && $seat.matches(/^[0-9]$/) && ((newData.exists() && !root.child('multiplayerRooms').child($code).child('bans').child(auth.uid).exists() && ((root.child('multiplayerRooms').child($code).child('meta/capacity').val() === 3 && $seat.matches(/^[0-2]$/)) || (root.child('multiplayerRooms').child($code).child('meta/capacity').val() === 5 && $seat.matches(/^[0-4]$/)) || (root.child('multiplayerRooms').child($code).child('meta/capacity').val() === 10 && $seat.matches(/^[0-9]$/))) && ((data.exists() && data.child('uid').val() === auth.uid && newData.child('uid').val() === auth.uid) || (!data.exists() && newData.child('uid').val() === auth.uid && root.child('multiplayerRooms').child($code).child('seatOf').child(auth.uid).val() === $seat))) || (!newData.exists() && data.child('uid').val() === auth.uid) || (!newData.exists() && root.child('multiplayerRooms').child($code).child('hostUid').val() === auth.uid && data.child('uid').val() !== auth.uid && root.child('multiplayerRooms').child($code).child('bans').child(data.child('uid').val()).val() === true)) && (!root.child('multiplayerMatches').child($code).exists() || !newData.exists())",
+            ".validate": "newData.hasChildren(['uid','ready','rev','joinedAt']) && newData.parent().parent().child('seatOf').child(newData.child('uid').val()).val() === $seat && ((data.exists() && newData.child('uid').val() === data.child('uid').val()) || (!data.exists() && newData.child('uid').val() === auth.uid && newData.child('ready').val() === false && newData.child('rev').val() === newData.parent().parent().child('meta/version').val()))",
+            "uid": {
+              ".validate": "newData.isString() && newData.val().length > 10 && newData.val().length < 150"
+            },
+            "ready": {
+              ".validate": "newData.isBoolean() && (newData.val() === false || newData.parent().child('rev').val() === newData.parent().parent().parent().child('meta/version').val())"
+            },
+            "rev": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= newData.parent().parent().parent().child('meta/version').val()"
+            },
+            "joinedAt": {
+              ".validate": "newData.isNumber() && ((data.exists() && newData.val() === data.val()) || (!data.exists() && newData.val() >= now - 10000 && newData.val() <= now + 5000))"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "bans": {
+          "$uid": {
+            ".read": "auth != null && auth.provider !== 'anonymous' && (auth.uid === $uid || root.child('multiplayerRooms').child($code).child('hostUid').val() === auth.uid)",
+            ".write": "auth != null && auth.provider !== 'anonymous' && root.child('multiplayerRooms').child($code).child('hostUid').val() === auth.uid && $uid !== auth.uid && !data.exists() && newData.val() === true && root.child('multiplayerRooms').child($code).child('seatOf').child($uid).exists() && root.child('multiplayerRooms').child($code).child('slots').child(root.child('multiplayerRooms').child($code).child('seatOf').child($uid).val()).child('uid').val() === $uid && !root.child('multiplayerMatches').child($code).exists()",
+            ".validate": "newData.isBoolean() && newData.val() === true"
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "multiplayerInvites": {
+      "$recipient": {
+        ".read": "auth != null && auth.provider !== 'anonymous' && auth.uid === $recipient",
+        "$code": {
+          ".write": "auth != null && auth.provider !== 'anonymous' && ((auth.uid === $recipient && !newData.exists() && data.exists()) || (!data.exists() && newData.exists() && newData.child('fromUid').val() === auth.uid && $recipient !== auth.uid && $code.matches(/^FBM-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{4}-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{4}$/) && root.child('presenceAccess').child($recipient).child(auth.uid).val() === true && !root.child('multiplayerRooms').child($code).child('bans').child($recipient).exists() && root.child('multiplayerRooms').child($code).child('slots').child(root.child('multiplayerRooms').child($code).child('seatOf').child(auth.uid).val()).child('uid').val() === auth.uid)) && (!newData.exists() || !root.child('multiplayerMatches').child($code).exists())",
+          ".validate": "newData.hasChildren(['fromUid','createdAt','expiresAt']) && newData.child('fromUid').isString() && newData.child('createdAt').isNumber() && newData.child('createdAt').val() <= now + 5000 && newData.child('createdAt').val() >= now - 10000 && newData.child('expiresAt').isNumber() && newData.child('expiresAt').val() > now && newData.child('expiresAt').val() < now + 3600000",
+          "$other": {
+            ".validate": false
+          },
+          "fromUid": {
+            ".validate": "true"
+          },
+          "createdAt": {
+            ".validate": "true"
+          },
+          "expiresAt": {
+            ".validate": "true"
+          }
+        }
+      }
+    },
+    "multiplayerMatches": {
+      "$code": {
+        ".read": "auth != null && auth.provider !== 'anonymous' && !root.child('multiplayerRooms').child($code).child('bans').child(auth.uid).exists() && ((!data.exists() && root.child('multiplayerRooms').child($code).child('seatOf').child(auth.uid).exists() && root.child('multiplayerRooms').child($code).child('slots').child(root.child('multiplayerRooms').child($code).child('seatOf').child(auth.uid).val()).child('uid').val() === auth.uid) || (data.exists() && data.child('roster').child(auth.uid).val() === true))",
+        ".write": "auth != null && auth.provider !== 'anonymous' && !data.exists() && newData.exists() && root.child('multiplayerRooms').child($code).child('hostUid').val() === auth.uid && root.child('multiplayerRooms').child($code).child('slots').child(root.child('multiplayerRooms').child($code).child('seatOf').child(auth.uid).val()).child('uid').val() === auth.uid && !root.child('multiplayerRooms').child($code).child('bans').child(auth.uid).exists() && newData.child('meta/hostUid').val() === auth.uid",
+        ".validate": "(!data.exists() && !newData.child('cosmetics').exists() && (newData.hasChildren(['meta','roster','players']) && newData.child('roster').hasChildren() && newData.child('roster').child(auth.uid).val() === true && ((root.child('multiplayerRooms').child($code).child('slots').child('0').exists() && root.child('multiplayerRooms').child($code).child('slots').child('0').child('uid').val() !== auth.uid) || (root.child('multiplayerRooms').child($code).child('slots').child('1').exists() && root.child('multiplayerRooms').child($code).child('slots').child('1').child('uid').val() !== auth.uid) || (root.child('multiplayerRooms').child($code).child('slots').child('2').exists() && root.child('multiplayerRooms').child($code).child('slots').child('2').child('uid').val() !== auth.uid) || (root.child('multiplayerRooms').child($code).child('slots').child('3').exists() && root.child('multiplayerRooms').child($code).child('slots').child('3').child('uid').val() !== auth.uid) || (root.child('multiplayerRooms').child($code).child('slots').child('4').exists() && root.child('multiplayerRooms').child($code).child('slots').child('4').child('uid').val() !== auth.uid) || (root.child('multiplayerRooms').child($code).child('slots').child('5').exists() && root.child('multiplayerRooms').child($code).child('slots').child('5').child('uid').val() !== auth.uid) || (root.child('multiplayerRooms').child($code).child('slots').child('6').exists() && root.child('multiplayerRooms').child($code).child('slots').child('6').child('uid').val() !== auth.uid) || (root.child('multiplayerRooms').child($code).child('slots').child('7').exists() && root.child('multiplayerRooms').child($code).child('slots').child('7').child('uid').val() !== auth.uid) || (root.child('multiplayerRooms').child($code).child('slots').child('8').exists() && root.child('multiplayerRooms').child($code).child('slots').child('8').child('uid').val() !== auth.uid) || (root.child('multiplayerRooms').child($code).child('slots').child('9').exists() && root.child('multiplayerRooms').child($code).child('slots').child('9').child('uid').val() !== auth.uid)) && (!root.child('multiplayerRooms').child($code).child('slots').child('0').exists() || (root.child('multiplayerRooms').child($code).child('slots').child('0').child('ready').val() === true && root.child('multiplayerRooms').child($code).child('slots').child('0').child('rev').val() === root.child('multiplayerRooms').child($code).child('meta').child('version').val() && newData.child('roster').child(root.child('multiplayerRooms').child($code).child('slots').child('0').child('uid').val()).val() === true && newData.child('players').child(root.child('multiplayerRooms').child($code).child('slots').child('0').child('uid').val()).child('status').val() === 'ALIVE')) && (!root.child('multiplayerRooms').child($code).child('slots').child('1').exists() || (root.child('multiplayerRooms').child($code).child('slots').child('1').child('ready').val() === true && root.child('multiplayerRooms').child($code).child('slots').child('1').child('rev').val() === root.child('multiplayerRooms').child($code).child('meta').child('version').val() && newData.child('roster').child(root.child('multiplayerRooms').child($code).child('slots').child('1').child('uid').val()).val() === true && newData.child('players').child(root.child('multiplayerRooms').child($code).child('slots').child('1').child('uid').val()).child('status').val() === 'ALIVE')) && (!root.child('multiplayerRooms').child($code).child('slots').child('2').exists() || (root.child('multiplayerRooms').child($code).child('slots').child('2').child('ready').val() === true && root.child('multiplayerRooms').child($code).child('slots').child('2').child('rev').val() === root.child('multiplayerRooms').child($code).child('meta').child('version').val() && newData.child('roster').child(root.child('multiplayerRooms').child($code).child('slots').child('2').child('uid').val()).val() === true && newData.child('players').child(root.child('multiplayerRooms').child($code).child('slots').child('2').child('uid').val()).child('status').val() === 'ALIVE')) && (!root.child('multiplayerRooms').child($code).child('slots').child('3').exists() || (root.child('multiplayerRooms').child($code).child('slots').child('3').child('ready').val() === true && root.child('multiplayerRooms').child($code).child('slots').child('3').child('rev').val() === root.child('multiplayerRooms').child($code).child('meta').child('version').val() && newData.child('roster').child(root.child('multiplayerRooms').child($code).child('slots').child('3').child('uid').val()).val() === true && newData.child('players').child(root.child('multiplayerRooms').child($code).child('slots').child('3').child('uid').val()).child('status').val() === 'ALIVE')) && (!root.child('multiplayerRooms').child($code).child('slots').child('4').exists() || (root.child('multiplayerRooms').child($code).child('slots').child('4').child('ready').val() === true && root.child('multiplayerRooms').child($code).child('slots').child('4').child('rev').val() === root.child('multiplayerRooms').child($code).child('meta').child('version').val() && newData.child('roster').child(root.child('multiplayerRooms').child($code).child('slots').child('4').child('uid').val()).val() === true && newData.child('players').child(root.child('multiplayerRooms').child($code).child('slots').child('4').child('uid').val()).child('status').val() === 'ALIVE')) && (!root.child('multiplayerRooms').child($code).child('slots').child('5').exists() || (root.child('multiplayerRooms').child($code).child('slots').child('5').child('ready').val() === true && root.child('multiplayerRooms').child($code).child('slots').child('5').child('rev').val() === root.child('multiplayerRooms').child($code).child('meta').child('version').val() && newData.child('roster').child(root.child('multiplayerRooms').child($code).child('slots').child('5').child('uid').val()).val() === true && newData.child('players').child(root.child('multiplayerRooms').child($code).child('slots').child('5').child('uid').val()).child('status').val() === 'ALIVE')) && (!root.child('multiplayerRooms').child($code).child('slots').child('6').exists() || (root.child('multiplayerRooms').child($code).child('slots').child('6').child('ready').val() === true && root.child('multiplayerRooms').child($code).child('slots').child('6').child('rev').val() === root.child('multiplayerRooms').child($code).child('meta').child('version').val() && newData.child('roster').child(root.child('multiplayerRooms').child($code).child('slots').child('6').child('uid').val()).val() === true && newData.child('players').child(root.child('multiplayerRooms').child($code).child('slots').child('6').child('uid').val()).child('status').val() === 'ALIVE')) && (!root.child('multiplayerRooms').child($code).child('slots').child('7').exists() || (root.child('multiplayerRooms').child($code).child('slots').child('7').child('ready').val() === true && root.child('multiplayerRooms').child($code).child('slots').child('7').child('rev').val() === root.child('multiplayerRooms').child($code).child('meta').child('version').val() && newData.child('roster').child(root.child('multiplayerRooms').child($code).child('slots').child('7').child('uid').val()).val() === true && newData.child('players').child(root.child('multiplayerRooms').child($code).child('slots').child('7').child('uid').val()).child('status').val() === 'ALIVE')) && (!root.child('multiplayerRooms').child($code).child('slots').child('8').exists() || (root.child('multiplayerRooms').child($code).child('slots').child('8').child('ready').val() === true && root.child('multiplayerRooms').child($code).child('slots').child('8').child('rev').val() === root.child('multiplayerRooms').child($code).child('meta').child('version').val() && newData.child('roster').child(root.child('multiplayerRooms').child($code).child('slots').child('8').child('uid').val()).val() === true && newData.child('players').child(root.child('multiplayerRooms').child($code).child('slots').child('8').child('uid').val()).child('status').val() === 'ALIVE')) && (!root.child('multiplayerRooms').child($code).child('slots').child('9').exists() || (root.child('multiplayerRooms').child($code).child('slots').child('9').child('ready').val() === true && root.child('multiplayerRooms').child($code).child('slots').child('9').child('rev').val() === root.child('multiplayerRooms').child($code).child('meta').child('version').val() && newData.child('roster').child(root.child('multiplayerRooms').child($code).child('slots').child('9').child('uid').val()).val() === true && newData.child('players').child(root.child('multiplayerRooms').child($code).child('slots').child('9').child('uid').val()).child('status').val() === 'ALIVE')))) || data.exists()",
+        "meta": {
+          ".validate": "newData.hasChildren(['hostUid','seed','startAt','createdAt','map','diff','layout','version']) && newData.child('hostUid').val() === root.child('multiplayerRooms').child($code).child('hostUid').val() && newData.child('seed').isNumber() && newData.child('seed').val() >= 0 && newData.child('seed').val() < 2147483648 && newData.child('startAt').isNumber() && newData.child('startAt').val() >= now + 2500 && newData.child('startAt').val() <= now + 12000 && newData.child('createdAt').isNumber() && newData.child('createdAt').val() >= now - 5000 && newData.child('createdAt').val() <= now + 3000 && newData.child('map').val() === root.child('multiplayerRooms').child($code).child('meta').child('map').val() && newData.child('diff').val() === root.child('multiplayerRooms').child($code).child('meta').child('diff').val() && newData.child('layout').val() === root.child('multiplayerRooms').child($code).child('meta').child('layout').val() && newData.child('version').val() === root.child('multiplayerRooms').child($code).child('meta').child('version').val()",
+          "hostUid": {
+            ".validate": "newData.isString()"
+          },
+          "seed": {
+            ".validate": "newData.isNumber()"
+          },
+          "startAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "map": {
+            ".validate": "newData.isString()"
+          },
+          "diff": {
+            ".validate": "newData.isString()"
+          },
+          "layout": {
+            ".validate": "newData.isString()"
+          },
+          "version": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "roster": {
+          "$uid": {
+            ".validate": "newData.val() === true && root.child('multiplayerRooms').child($code).child('seatOf').child($uid).exists() && root.child('multiplayerRooms').child($code).child('slots').child(root.child('multiplayerRooms').child($code).child('seatOf').child($uid).val()).child('uid').val() === $uid && !root.child('multiplayerRooms').child($code).child('bans').child($uid).exists()"
+          }
+        },
+        "players": {
+          "$uid": {
+            ".write": "auth != null && auth.provider !== 'anonymous' && auth.uid === $uid && data.parent().parent().child('roster').child($uid).val() === true && !root.child('multiplayerRooms').child($code).child('bans').child(auth.uid).exists() && data.exists() && newData.exists() && data.child('status').val() === 'ALIVE' && (newData.child('status').val() === 'ALIVE' || newData.child('status').val() === 'DEAD' || newData.child('status').val() === 'DNF' || newData.child('status').val() === 'SURVIVED')",
+            ".validate": "newData.hasChildren(['status','tick','y','vy','score','elapsedMs','lastSeen']) && newData.parent().parent().child('roster').child($uid).val() === true && ((!data.exists() && newData.child('status').val() === 'ALIVE' && newData.child('tick').val() === 0 && newData.child('elapsedMs').val() === 0 && newData.child('score').val() === 0) || (data.exists() && newData.child('tick').val() >= data.child('tick').val() && newData.child('elapsedMs').val() >= data.child('elapsedMs').val() && (data.child('status').val() === 'ALIVE' || newData.child('status').val() === data.child('status').val())))",
+            "status": {
+              ".write": "auth != null && auth.provider !== 'anonymous' && data.val() === 'ALIVE' && newData.val() === 'DNF' && data.parent().parent().parent().child('roster').child(auth.uid).val() === true && !root.child('multiplayerRooms').child($code).child('bans').child(auth.uid).exists() && (auth.uid === $uid || (now > data.parent().parent().parent().child('meta/startAt').val() + 3000 && data.parent().child('lastSeen').val() < now - 7000))",
+              ".validate": "newData.isString() && (newData.val() === 'ALIVE' || newData.val() === 'DEAD' || newData.val() === 'DNF' || newData.val() === 'SURVIVED')"
+            },
+            "tick": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+            },
+            "y": {
+              ".validate": "newData.isNumber() && newData.val() >= -10 && newData.val() <= 2000"
+            },
+            "vy": {
+              ".validate": "newData.isNumber() && newData.val() >= -20 && newData.val() <= 20"
+            },
+            "score": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+            },
+            "elapsedMs": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 60000000 && (newData.parent().parent().parent().child('meta/startAt').val() > now || newData.val() <= now - newData.parent().parent().parent().child('meta/startAt').val() + 3000)"
+            },
+            "lastSeen": {
+              ".validate": "newData.isNumber() && newData.val() >= now - 12000 && newData.val() <= now + 3000"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "$other": {
+          ".validate": false
+        },
+        "cosmetics": {
+          "$uid": {
+            ".write": "auth != null && auth.provider !== 'anonymous' && auth.uid === $uid && !data.exists() && newData.exists() && root.child('multiplayerMatches').child($code).child('roster').child(auth.uid).val() === true && root.child('multiplayerMatches').child($code).child('meta').child('startAt').val() > now && !root.child('multiplayerRooms').child($code).child('bans').child(auth.uid).exists()",
+            ".validate": "newData.hasChildren(['skin','trail'])",
+            "skin": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 31"
+            },
+            "trail": {
+              ".validate": "newData.isString() && newData.val().matches(/^(NONE|FIRE|WATER|LIGHTNING|RAINBOW|NATURE|GOLDEN|FROST|STARDUST|SHADOW|AURORA|HEART)$/)"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      }
+    }
+  }
+}

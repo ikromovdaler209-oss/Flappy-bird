@@ -1,0 +1,423 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isRegistered() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function isBlockedAfter(a, b) {
+      return existsAfter(/databases/$(database)/documents/blocks/$(a)/users/$(b))
+        || existsAfter(/databases/$(database)/documents/blocks/$(b)/users/$(a));
+    }
+
+    function activeRequestAfter(a, b) {
+      return existsAfter(/databases/$(database)/documents/friendRequests/$(a + '_' + b))
+        && getAfter(/databases/$(database)/documents/friendRequests/$(a + '_' + b)).data.status
+          in ['pending', 'accepted'];
+    }
+
+    function hasBlocked(a, b) {
+      return exists(/databases/$(database)/documents/blocks/$(a)/users/$(b))
+        || exists(/databases/$(database)/documents/blocks/$(b)/users/$(a));
+    }
+
+    function acceptedRequest(a, b) {
+      return (exists(/databases/$(database)/documents/friendRequests/$(a + '_' + b))
+        && get(/databases/$(database)/documents/friendRequests/$(a + '_' + b)).data.status == 'accepted')
+        || (exists(/databases/$(database)/documents/friendRequests/$(b + '_' + a))
+        && get(/databases/$(database)/documents/friendRequests/$(b + '_' + a)).data.status == 'accepted');
+    }
+
+    // v2.9: same visibility model as publicStats (hidden / friends / public) for multiplayer stats.
+    function canViewMpStats(userId) {
+      return isRegistered()
+        && (request.auth.uid == userId
+        || (exists(/databases/$(database)/documents/publicProfiles/$(userId))
+          && !hasBlocked(userId, request.auth.uid)
+          && (get(/databases/$(database)/documents/publicProfiles/$(userId)).data.get('visibility', 'friends') == 'public'
+            || (get(/databases/$(database)/documents/publicProfiles/$(userId)).data.get('visibility', 'friends') == 'friends'
+              && acceptedRequest(userId, request.auth.uid)))));
+    }
+
+    match /players/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['id', 'nick', 'avatar', 'createdAt'])
+        && request.resource.data.id is string
+        && request.resource.data.nick is string
+        && request.resource.data.avatar is map
+        && request.resource.data.createdAt is timestamp;
+
+      allow update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nick', 'avatar']);
+
+      allow delete: if false;
+    }
+
+    // Private progress: always owner-only.
+    match /progress/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Player ID: signed-in users may look up a single ID. The owner may
+    // create a MISSING index only when it matches their immutable players.id.
+    // Existing index entries can never be updated or stolen.
+    match /playerIds/{playerId} {
+      allow get: if isRegistered();
+      allow list: if false;
+      allow create: if isRegistered()
+        && playerId.matches('^FB-[A-Z0-9]{4}-[A-Z0-9]{4}$')
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.keys().hasAll(['uid'])
+        && request.resource.data.uid == request.auth.uid
+        && exists(/databases/$(database)/documents/players/$(request.auth.uid))
+        && get(/databases/$(database)/documents/players/$(request.auth.uid)).data.id == playerId;
+      allow update, delete: if false;
+    }
+
+    match /friendRequests/{requestId} {
+      function isParticipant() {
+        return isRegistered()
+          && (resource.data.fromUid == request.auth.uid
+            || resource.data.toUid == request.auth.uid);
+      }
+
+      allow get: if isParticipant();
+      allow list: if isParticipant() && request.query.limit <= 50;
+
+      allow create: if isRegistered()
+        && request.resource.data.keys().hasOnly([
+          'fromUid', 'toUid', 'toPlayerId', 'status', 'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'fromUid', 'toUid', 'toPlayerId', 'status', 'createdAt'
+        ])
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.toUid is string
+        && request.resource.data.toUid != request.auth.uid
+        && request.resource.data.toPlayerId is string
+        && request.resource.data.toPlayerId.matches('^FB-[A-Z0-9]{4}-[A-Z0-9]{4}$')
+        && requestId == request.resource.data.fromUid + '_' + request.resource.data.toUid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && !isBlockedAfter(request.resource.data.fromUid, request.resource.data.toUid)
+        && !exists(/databases/$(database)/documents/friendRequests/$(request.resource.data.toUid + '_' + request.resource.data.fromUid))
+        && exists(/databases/$(database)/documents/players/$(request.resource.data.toUid))
+        && get(/databases/$(database)/documents/playerIds/$(request.resource.data.toPlayerId)).data.uid
+          == request.resource.data.toUid;
+
+      allow update: if isRegistered()
+        && request.auth.uid == resource.data.toUid
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt'])
+        && request.resource.data.status in ['accepted', 'rejected']
+        && (request.resource.data.status == 'rejected'
+          || !isBlockedAfter(resource.data.fromUid, resource.data.toUid))
+        && request.resource.data.respondedAt == request.time;
+
+      allow delete: if isRegistered()
+        && (request.auth.uid == resource.data.fromUid || request.auth.uid == resource.data.toUid)
+        && resource.data.status in ['pending', 'accepted', 'rejected'];
+    }
+
+    // Basic cosmetic cards (nickname, Player ID, avatar) are searchable
+    // regardless of detail-visibility mode. Email and wallets stay private.
+    // Visibility is 'hidden', 'friends', or 'public' and defaults to 'friends'.
+    match /publicProfiles/{userId} {
+      function validPublicCard() {
+        return request.resource.data.keys().hasOnly(['playerId', 'nick', 'avatar', 'visibility'])
+          && request.resource.data.keys().hasAll(['playerId', 'nick', 'avatar', 'visibility'])
+          && request.resource.data.playerId is string
+          && request.resource.data.nick is string
+          && request.resource.data.avatar is map
+          && request.resource.data.visibility in ['hidden', 'friends', 'public']
+          && exists(/databases/$(database)/documents/players/$(userId))
+          && request.resource.data.playerId
+             == get(/databases/$(database)/documents/players/$(userId)).data.id
+          && request.resource.data.nick
+             == get(/databases/$(database)/documents/players/$(userId)).data.nick
+          && request.resource.data.avatar
+             == get(/databases/$(database)/documents/players/$(userId)).data.avatar
+          && exists(/databases/$(database)/documents/playerIds/$(request.resource.data.playerId))
+          && get(/databases/$(database)/documents/playerIds/$(request.resource.data.playerId)).data.uid
+             == userId;
+      }
+
+      allow get: if isRegistered();
+      allow list: if false;
+      allow create: if isRegistered() && request.auth.uid == userId && validPublicCard();
+      // Also migrates older cards that did not contain 'visibility'.
+      allow update: if isRegistered() && request.auth.uid == userId
+        && request.resource.data.playerId == resource.data.playerId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nick', 'avatar', 'visibility'])
+        && validPublicCard();
+      allow delete: if false;
+    }
+
+    match /blocks/{ownerUid}/users/{blockedUid} {
+      function isOwner() {
+        return isRegistered() && request.auth.uid == ownerUid;
+      }
+      allow get: if isOwner();
+      allow list: if isOwner() && request.query.limit <= 100;
+      allow create: if isOwner()
+        && blockedUid != ownerUid
+        && request.resource.data.keys().hasOnly(['createdAt'])
+        && request.resource.data.keys().hasAll(['createdAt'])
+        && request.resource.data.createdAt == request.time
+        && !activeRequestAfter(ownerUid, blockedUid)
+        && !activeRequestAfter(blockedUid, ownerUid);
+      allow delete: if isOwner();
+      allow update: if false;
+    }
+
+    // Stats are not a public directory. Reading a particular player's
+    // stats is enforced by server rules, not UI controls.
+    match /publicStats/{userId} {
+      function validStats() {
+        let data = request.resource.data;
+        let best = data.best;
+        return data.keys().hasOnly([
+          'best', 'games', 'pipes', 'flaps', 'earnedCoins', 'coins', 'achievements', 'updatedAt'
+        ])
+          && data.keys().hasAll([
+            'best', 'games', 'pipes', 'flaps', 'earnedCoins', 'coins', 'achievements', 'updatedAt'
+          ])
+          && best is map
+          && best.keys().hasOnly(['EASY', 'NORMAL', 'HARD', 'EXTREME'])
+          && best.keys().hasAll(['EASY', 'NORMAL', 'HARD', 'EXTREME'])
+          && best.EASY is int && best.EASY >= 0 && best.EASY <= 100000000
+          && best.NORMAL is int && best.NORMAL >= 0 && best.NORMAL <= 100000000
+          && best.HARD is int && best.HARD >= 0 && best.HARD <= 100000000
+          && best.EXTREME is int && best.EXTREME >= 0 && best.EXTREME <= 100000000
+          && data.games is int && data.games >= 0 && data.games <= 100000000
+          && data.pipes is int && data.pipes >= 0 && data.pipes <= 100000000
+          && data.flaps is int && data.flaps >= 0 && data.flaps <= 100000000
+          && data.earnedCoins is int && data.earnedCoins >= 0 && data.earnedCoins <= 100000000
+          && data.coins is int && data.coins >= 0 && data.coins <= 100000000
+          && data.achievements is int && data.achievements >= 0 && data.achievements <= 100
+          && data.updatedAt == request.time;
+      }
+
+      function canViewStats() {
+        return isRegistered()
+          && (request.auth.uid == userId
+          || (exists(/databases/$(database)/documents/publicProfiles/$(userId))
+            && !hasBlocked(userId, request.auth.uid)
+            && (get(/databases/$(database)/documents/publicProfiles/$(userId)).data.get('visibility', 'friends') == 'public'
+              || (get(/databases/$(database)/documents/publicProfiles/$(userId)).data.get('visibility', 'friends') == 'friends'
+                && acceptedRequest(userId, request.auth.uid)))));
+      }
+
+      allow get: if canViewStats();
+      allow list: if false;
+      allow create, update: if isRegistered()
+        && request.auth.uid == userId
+        && validStats();
+      allow delete: if false;
+    }
+
+
+    // Optional global leaderboards. Only a signed-in account owner can
+    // explicitly create their listing; UI requires PUBLIC profile privacy.
+    // Only cosmetic identity + 4 best scores + current coin balance.
+    // IMPORTANT: These client-published scores are NOT cheat-proof.
+    match /leaderboardEntries/{userId} {
+      function validEntry() {
+        let data = request.resource.data;
+        let best = data.best;
+        let cardPath = /databases/$(database)/documents/publicProfiles/$(userId);
+        let statsPath = /databases/$(database)/documents/publicStats/$(userId);
+        return data.keys().hasOnly([
+          'playerId', 'nick', 'avatar', 'best', 'coins', 'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'playerId', 'nick', 'avatar', 'best', 'coins', 'updatedAt'
+        ])
+        && data.playerId is string
+        && data.nick is string
+        && data.avatar is map
+        && best is map
+        && best.keys().hasOnly(['EASY','NORMAL','HARD','EXTREME'])
+        && best.keys().hasAll(['EASY','NORMAL','HARD','EXTREME'])
+        && best.EASY is int && best.EASY >= 0 && best.EASY <= 100000000
+        && best.NORMAL is int && best.NORMAL >= 0 && best.NORMAL <= 100000000
+        && best.HARD is int && best.HARD >= 0 && best.HARD <= 100000000
+        && best.EXTREME is int && best.EXTREME >= 0 && best.EXTREME <= 100000000
+        && data.coins is int && data.coins >= 0 && data.coins <= 100000000
+        && data.updatedAt == request.time
+        && exists(cardPath)
+        && exists(statsPath)
+        && get(cardPath).data.visibility == 'public'
+        && get(cardPath).data.playerId == data.playerId
+        && get(cardPath).data.nick == data.nick
+        && get(cardPath).data.avatar == data.avatar
+        && get(statsPath).data.best == data.best
+        && get(statsPath).data.coins == data.coins;
+      }
+      // Global results are visible only to authenticated players, with
+      // a hard cap on how many records a client can enumerate per query.
+      allow get: if isRegistered();
+      allow list: if isRegistered() && request.query.limit <= 50;
+      allow create, update: if isRegistered()
+        && request.auth.uid == userId && validEntry();
+      allow delete: if isRegistered() && request.auth.uid == userId;
+    }
+
+    // ------------------------------------------------------------------
+    // v2.9 MULTIPLAYER STATISTICS
+    //
+    // multiplayerStats/{uid}               totals (matches, wins, total/best survival time)
+    // multiplayerStats/{uid}/rounds/{id}   one immutable record per finished online round
+    //
+    // A totals write is accepted ONLY together with exactly one NEW round record written in the
+    // same batch/transaction (existsAfter/getAfter), and every delta must equal that record.
+    // The record id is <roomCode>_r<round>, so one round can be counted at most once per player.
+    // Time plausibility: a survival time cannot exceed the time since the round started, rounds
+    // must be reported within 30 days and at least 10 s apart.
+    // Solo records (publicStats / leaderboardEntries) and coins are not touched by these rules.
+    // NOTE: results are client-reported. Rules make forgery bounded and auditable, not impossible.
+    // ------------------------------------------------------------------
+    match /multiplayerStats/{userId} {
+      function roundDoc(id) {
+        return /databases/$(database)/documents/multiplayerStats/$(userId)/rounds/$(id);
+      }
+
+      function validTotals() {
+        let d = request.resource.data;
+        return d.keys().hasOnly([
+          'v', 'matches', 'wins', 'totalMs', 'bestMs', 'lastStartAt', 'lastRound', 'updatedAt'
+        ])
+          && d.keys().hasAll([
+            'v', 'matches', 'wins', 'totalMs', 'bestMs', 'lastStartAt', 'lastRound', 'updatedAt'
+          ])
+          && d.v == 1
+          && d.matches is int && d.matches >= 1 && d.matches <= 100000000
+          && d.wins is int && d.wins >= 0 && d.wins <= d.matches
+          && d.totalMs is int && d.totalMs >= 0 && d.totalMs <= 9000000000000000
+          && d.bestMs is int && d.bestMs >= 0 && d.bestMs <= 3600000 && d.bestMs <= d.totalMs
+          && d.lastStartAt is int && d.lastStartAt > 0
+          && d.lastRound is string
+          && d.lastRound.matches('^FBM-[A-Z2-9]{4}-[A-Z2-9]{4}_r[0-9]{1,7}$')
+          && d.updatedAt == request.time
+          && existsAfter(roundDoc(d.lastRound))
+          && !exists(roundDoc(d.lastRound))
+          && getAfter(roundDoc(d.lastRound)).data.startAt == d.lastStartAt;
+      }
+
+      function firstRoundDelta() {
+        let d = request.resource.data;
+        let r = getAfter(roundDoc(d.lastRound)).data;
+        return d.matches == 1
+          && d.wins == (r.win ? 1 : 0)
+          && d.totalMs == r.elapsedMs
+          && d.bestMs == r.elapsedMs;
+      }
+
+      function nextRoundDelta() {
+        let d = request.resource.data;
+        let o = resource.data;
+        let r = getAfter(roundDoc(d.lastRound)).data;
+        return d.lastRound != o.lastRound
+          && d.matches == o.matches + 1
+          && d.wins == o.wins + (r.win ? 1 : 0)
+          && d.totalMs == o.totalMs + r.elapsedMs
+          && d.bestMs == (r.elapsedMs > o.bestMs ? r.elapsedMs : o.bestMs)
+          && r.startAt >= o.lastStartAt + 10000;
+      }
+
+      allow get: if canViewMpStats(userId);
+      allow list: if false;
+      allow create: if isRegistered() && request.auth.uid == userId
+        && validTotals() && firstRoundDelta();
+      allow update: if isRegistered() && request.auth.uid == userId
+        && validTotals() && nextRoundDelta();
+      allow delete: if false;
+
+      match /rounds/{roundId} {
+        function validRound() {
+          let r = request.resource.data;
+          let nowMs = request.time.toMillis();
+          return r.keys().hasOnly([
+            'code', 'roundKey', 'startAt', 'players', 'status', 'place', 'tie',
+            'elapsedMs', 'score', 'win', 'createdAt'
+          ])
+            && r.keys().hasAll([
+              'code', 'roundKey', 'startAt', 'players', 'status', 'place', 'tie',
+              'elapsedMs', 'score', 'win', 'createdAt'
+            ])
+            && r.code is string && r.code.matches('^FBM-[A-Z2-9]{4}-[A-Z2-9]{4}$')
+            && r.roundKey is string && r.roundKey.matches('^r[0-9]{1,7}$')
+            && roundId == r.code + '_' + r.roundKey
+            && r.startAt is int && r.startAt > 0
+            && r.startAt <= nowMs && nowMs - r.startAt <= 2592000000
+            && r.players is int && r.players >= 2 && r.players <= 10
+            && r.status in ['DEAD', 'DNF', 'SURVIVED']
+            && r.place is int && r.place >= 1 && r.place <= r.players
+            && r.tie is bool
+            && r.elapsedMs is int && r.elapsedMs >= 0 && r.elapsedMs <= 3600000
+            && r.elapsedMs <= nowMs - r.startAt + 5000
+            && r.score is int && r.score >= 0 && r.score <= 1000000
+            && r.win is bool && r.win == (r.status == 'SURVIVED')
+            && (!r.win || r.place == 1)
+            && r.createdAt == request.time
+            && existsAfter(/databases/$(database)/documents/multiplayerStats/$(userId))
+            && getAfter(/databases/$(database)/documents/multiplayerStats/$(userId)).data.lastRound == roundId;
+        }
+
+        allow get: if isRegistered() && request.auth.uid == userId;
+        allow list: if isRegistered() && request.auth.uid == userId && request.query.limit <= 100;
+        allow create: if isRegistered() && request.auth.uid == userId && validRound();
+        allow update, delete: if false;
+      }
+    }
+
+    // Last Bird Standing ranking. Opt-in, PUBLIC profile required, at least 5 verified matches.
+    // The entry must equal the player's own multiplayerStats totals (copied, never free-form).
+    match /lastBirdEntries/{userId} {
+      function validLbsEntry() {
+        let d = request.resource.data;
+        let cardPath = /databases/$(database)/documents/publicProfiles/$(userId);
+        let statsPath = /databases/$(database)/documents/multiplayerStats/$(userId);
+        return d.keys().hasOnly([
+          'playerId', 'nick', 'avatar', 'matches', 'wins', 'totalMs', 'bestMs', 'updatedAt'
+        ])
+          && d.keys().hasAll([
+            'playerId', 'nick', 'avatar', 'matches', 'wins', 'totalMs', 'bestMs', 'updatedAt'
+          ])
+          && d.playerId is string
+          && d.nick is string
+          && d.avatar is map
+          && d.matches is int && d.matches >= 5 && d.matches <= 100000000
+          && d.wins is int && d.wins >= 0 && d.wins <= d.matches
+          && d.totalMs is int && d.totalMs >= 0
+          && d.bestMs is int && d.bestMs >= 0 && d.bestMs <= 3600000
+          && d.updatedAt == request.time
+          && exists(cardPath)
+          && exists(statsPath)
+          && get(cardPath).data.visibility == 'public'
+          && get(cardPath).data.playerId == d.playerId
+          && get(cardPath).data.nick == d.nick
+          && get(cardPath).data.avatar == d.avatar
+          && get(statsPath).data.matches == d.matches
+          && get(statsPath).data.wins == d.wins
+          && get(statsPath).data.totalMs == d.totalMs
+          && get(statsPath).data.bestMs == d.bestMs;
+      }
+      allow get: if isRegistered();
+      allow list: if isRegistered() && request.query.limit <= 50;
+      allow create, update: if isRegistered() && request.auth.uid == userId && validLbsEntry();
+      allow delete: if isRegistered() && request.auth.uid == userId;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

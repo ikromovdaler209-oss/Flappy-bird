@@ -1,0 +1,198 @@
+/* Multiplayer Update 1 — isolated DOM overlay. All RTDB writes are auth gated. */
+#fbMpPanel[hidden],#fbMpNotice[hidden],#fbMpCreate[hidden],#fbMpLobby[hidden],#fbMpHome[hidden],#fbMpInvites[hidden]{display:none!important}
+#fbMpPanel{position:fixed;inset:0;z-index:125;display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;background:rgba(8,10,31,.94);font:13px/1.45 'Courier New',monospace;color:#2b1b00}
+#fbMpBox{width:min(675px,100%);max-height:min(96dvh,920px);box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain;position:relative;background:#fff8e6;border:3px solid #2b1b00;border-radius:15px;box-shadow:7px 8px 0 #f7aa55;padding:19px}
+#fbMpBox *{box-sizing:border-box}#fbMpBox h2{font-size:22px;margin:0 34px 7px 0}#fbMpBox h3{margin:14px 0 8px;font-size:16px}#fbMpBox p{margin:7px 0 11px}
+#fbMpBox button,#fbMpBox select,#fbMpBox input{font:700 12px/1.3 'Courier New',monospace;border:2px solid #2b1b00;border-radius:8px;color:#2b1b00;padding:10px 9px;background:white;min-width:0}
+#fbMpBox button{cursor:pointer;background:#ffd23f;box-shadow:2px 2px 0 #2b1b00}#fbMpBox button.secondary{background:#fff}#fbMpBox button.danger{background:#ffd1c5}
+#fbMpBox button:disabled{opacity:.45;cursor:not-allowed}#fbMpBox input{width:100%}#fbMpBox select{width:100%}
+#fbMpBox #fbMpClose{position:absolute;right:10px;top:7px;border:0;box-shadow:none;background:transparent;font-size:25px;padding:4px 8px}
+#fbMpBox .mpRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#fbMpBox .mpSplit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}#fbMpBox .mpField{display:grid;gap:5px;margin:9px 0}#fbMpBox .mpHint{font-size:11px;color:#765e4b}
+#fbMpBox .mpCard{background:white;border:1.5px solid #e2bd92;border-radius:9px;padding:10px;margin:8px 0}
+#fbMpBox .mpPlayer{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#fbMpBox .mpAvatar{width:39px;height:39px;border:2px solid #34253b;border-radius:7px;image-rendering:pixelated;flex:none}
+#fbMpBox .mpIdentity{flex:1;min-width:92px}#fbMpBox .mpIdentity strong{display:block;overflow-wrap:anywhere}#fbMpBox .mpIdentity small{color:#785f56;font-size:10px}
+#fbMpBox .mpFlag{font:700 10px 'Courier New',monospace;padding:5px 8px;background:#eee;border-radius:20px}#fbMpBox .mpFlag.ready{background:#d6f8df;color:#137244}
+#fbMpBox .mpNotice{padding:10px;margin:10px 0;border:1px solid #ddbd82;background:#fff0ca;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+#fbMpBox .mpNotice.error{background:#ffe3df;color:#8b2222;border-color:#dd9993}
+#fbMpBox .mpCode{font-weight:900;font-size:20px;letter-spacing:1px;overflow-wrap:anywhere}
+#fbMpBox .mpDivider{height:1px;background:#e7ceb0;margin:14px 0}#fbMpBox .mpFull{width:100%}
+#fbMpBox .mpScroll{max-height:24dvh;overflow-y:auto}#fbMpBox [hidden]{display:none!important}
+#fbMpBox :focus-visible{outline:3px solid #ff7eb6;outline-offset:2px}
+@media(max-width:380px){#fbMpPanel{padding:7px}#fbMpBox{padding:12px}#fbMpBox .mpSplit{gap:6px}#fbMpBox button{padding:8px 6px;font-size:11px}#fbMpBox h2{font-size:19px}#fbMpBox .mpCode{font-size:16px}}
+@media(max-height:490px){#fbMpBox{padding:10px;max-height:97dvh}#fbMpBox h2{font-size:17px}#fbMpBox .mpScroll{max-height:35dvh}}
+
+/* Multiplayer Update 2 - private match overlay; solo canvas remains untouched. */
+#fbMpRace[hidden],#fbMpRaceFinal[hidden]{display:none!important}
+#fbMpRace{position:fixed;inset:0;z-index:180;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;box-sizing:border-box;background:#090c25;color:#fff9e9;padding:max(6px,env(safe-area-inset-top,0px)) max(6px,env(safe-area-inset-right,0px)) max(6px,env(safe-area-inset-bottom,0px));font:700 12px/1.3 'Courier New',monospace}
+#fbMpRaceTop{width:min(690px,100%);display:flex;align-items:center;justify-content:space-between;gap:10px}
+#fbMpRaceTop strong{font-size:15px;color:#ffd23f}#fbMpRaceTop small{font-size:10px;color:#c0bdd9}
+#fbMpRaceExit{flex:none;background:#ffd23f;color:#2b1b00;border:2px solid #ffcb69;border-radius:7px;padding:7px 11px;cursor:pointer;font:bold 11px 'Courier New',monospace}
+#fbMpRaceField{width:min(690px,100%);flex:1 1 200px;max-height:min(72dvh,620px);min-height:90px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#fbMpRaceCanvas{display:block;max-width:100%;max-height:100%;image-rendering:pixelated;touch-action:none;background:#0f0c29;border:2px solid #ffd23f;box-shadow:0 4px 19px #000a;box-sizing:content-box}
+#fbMpRaceScoreboard{width:min(690px,100%);display:flex;gap:5px;flex-wrap:wrap;justify-content:center;max-height:16dvh;overflow-y:auto}
+.mpRacePlayer{background:#212c4b;border:1px solid #516186;border-radius:7px;display:flex;align-items:center;gap:5px;padding:5px 7px;font-size:10px}
+.mpRacePlayer strong{color:#ffd23f}.mpRacePlayer.mpRaceOut{opacity:.55}
+#fbMpRaceStatus{font-size:11px;color:#c5e7ff;text-align:center;min-height:15px}#fbMpRaceStatus.error{color:#ffa1aa}
+#fbMpRaceFinal{position:absolute;inset:0;background:rgba(6,9,28,.96);display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box;overflow-y:auto}
+#fbMpRaceFinalInner{background:#fff8e6;color:#2b1b00;border:3px solid #ffd23f;border-radius:13px;width:min(480px,100%);max-height:92dvh;overflow:auto;padding:16px;box-sizing:border-box;box-shadow:4px 5px 0 #120e2f}
+#fbMpRaceFinal h2{font-size:21px;margin:0 0 7px}#fbMpRaceFinal p{font-size:11px;line-height:1.5;color:#6c5b5a;margin:5px 0 12px}
+.mpRaceResult{display:grid;grid-template-columns:minmax(0,1fr) 105px 60px;align-items:center;gap:5px;padding:9px 6px;margin:5px 0;background:#fff;border-radius:7px;font-size:11px}.mpRaceResult.mpRaceTop{background:#fff0b3;border:1px solid #e8bc38}
+.mpRaceResult span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mpRaceResult strong{text-align:right}
+#fbMpRaceExitFinal{border:2px solid #2b1b00;border-radius:8px;background:#ffd23f;color:#2b1b00;padding:11px;width:100%;margin-top:12px;font:bold 12px 'Courier New',monospace;cursor:pointer}
+@media(max-height:520px) and (orientation:portrait){#fbMpRace{gap:2px;padding:3px}#fbMpRaceField{max-height:66dvh}#fbMpRaceTop strong{font-size:12px}#fbMpRaceScoreboard{max-height:12dvh}.mpRacePlayer{padding:3px 5px;font-size:9px}}
+
+/* MP polish: use the entire mobile landscape viewport, respecting notch/safe-area. */
+#fbMpRaceField{min-width:0;min-height:0}
+#fbMpRaceScoreboard .mpRacePlayer{min-width:0}
+@media (orientation:landscape) and (max-height:580px){
+  #fbMpRace{
+    display:grid;align-items:stretch;justify-items:stretch;
+    grid-template-columns:minmax(0,1fr) clamp(116px,23vw,200px);
+    grid-template-rows:auto minmax(0,1fr) auto;
+    grid-template-areas:"field top" "field scores" "field status";
+    gap:5px 8px;
+    padding: max(4px,env(safe-area-inset-top,0px)) max(6px,env(safe-area-inset-right,0px)) max(4px,env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px));
+  }
+  #fbMpRaceTop{grid-area:top;width:100%;display:flex;flex-direction:column;align-items:stretch;gap:3px;text-align:center}
+  #fbMpRaceTop strong{font-size:clamp(10px,1.8vw,14px)}
+  #fbMpRaceTop small{font-size:9px;line-height:1.15}
+  #fbMpRaceExit{font-size:10px;padding:5px 6px}
+  #fbMpRaceField{grid-area:field;width:100%;height:100%;max-height:none;min-height:0;flex:none}
+  #fbMpRaceCanvas{max-width:100%;max-height:100%;border-width:1px}
+  #fbMpRaceScoreboard{grid-area:scores;display:flex;flex-direction:column;flex-wrap:nowrap;justify-content:flex-start;align-items:stretch;width:100%;max-height:none;min-height:0;overflow:auto;gap:3px}
+  #fbMpRaceScoreboard .mpRacePlayer{display:flex;flex-wrap:wrap;justify-content:space-between;font-size:9px;padding:4px 5px}
+  #fbMpRaceStatus{grid-area:status;min-height:13px;font-size:9px;overflow-wrap:anywhere}
+  #fbMpRaceFinal{grid-area:field;z-index:9;position:fixed}
+}
+
+
+/* Flying Bird Multiplayer v2.2 — full-bleed gameplay, readable transparent HUD.
+   In iOS Safari fixed positioning fills the web viewport; Fullscreen API works where offered. */
+html,body{overscroll-behavior:none}
+#c{touch-action:none;-webkit-user-select:none;user-select:none}
+#fbMpRace{
+  position:fixed;inset:0;width:100%;height:100%;height:100dvh;
+  display:block;overflow:hidden;padding:0!important;margin:0;gap:0;
+  background:#0c0d24;isolation:isolate;touch-action:none;
+  -webkit-user-select:none;user-select:none;
+}
+#fbMpRaceField{
+  position:absolute;inset:0;display:block;overflow:hidden;
+  width:100%;height:100%;min-width:0;min-height:0;
+  max-width:none;max-height:none;flex:none;margin:0;padding:0;z-index:0;
+}
+#fbMpRaceCanvas{
+  display:block;width:100%;height:100%;min-width:0;min-height:0;
+  max-width:none;max-height:none;box-sizing:border-box;
+  outline:0!important;border:0!important;box-shadow:none!important;border-radius:0;
+  image-rendering:pixelated;touch-action:none;
+}
+#fbMpRaceTop{
+  position:absolute;z-index:3;left:calc(env(safe-area-inset-left,0px) + 8px);
+  top:calc(env(safe-area-inset-top,0px) + 7px);width:auto;max-width:min(60vw,440px);
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;
+  gap:3px;text-align:left;pointer-events:none;
+  text-shadow:0 2px 3px #050719;
+}
+#fbMpRaceTop strong{font-size:clamp(10px,1.2vw,15px);color:#ffe16b}
+#fbMpRaceTop small{font-size:clamp(8px,0.82vw,11px);color:#f2e9ff}
+#fbMpRaceTop .mpRaceActions{display:flex;gap:5px;flex-wrap:wrap;pointer-events:auto}
+#fbMpRaceTop .mpRaceActions button{
+  color:#ffe9ad;background:rgba(12,17,42,.68);border:1px solid rgba(255,220,126,.76);
+  font:700 10px/1.15 'Courier New',monospace;border-radius:6px;
+  padding:7px 9px;cursor:pointer;min-width:0;box-shadow:0 2px 9px #0005;
+  touch-action:manipulation;
+}
+#fbMpRaceTop .mpRaceActions button:active{background:rgba(255,198,85,.4)}
+#fbMpRaceScoreboard{
+  position:absolute;z-index:2;
+  top:calc(env(safe-area-inset-top,0px) + 48px);
+  right:calc(env(safe-area-inset-right,0px) + 8px);
+  width:clamp(155px,23vw,265px);max-width:48vw;max-height:45dvh;
+  display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+  flex-wrap:nowrap;gap:3px;padding:5px;
+  background:rgba(8,11,29,.36);border:1px solid rgba(224,228,255,.24);
+  border-radius:8px;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+  overflow:hidden;pointer-events:none;
+}
+#fbMpRaceScoreboard .mpRacePlayer{
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;
+  padding:4px 5px;background:rgba(17,28,57,.48);
+  border:1px solid rgba(207,220,255,.22);border-radius:5px;
+  font-size:10px;text-shadow:0 1px 2px #0007;white-space:nowrap;
+}
+#fbMpRaceScoreboard .mpRacePlayer span:first-child{overflow:hidden;text-overflow:ellipsis;min-width:0}
+#fbMpRaceScoreboard .mpRacePlayer span:nth-child(2){color:#cbdcf7;font-size:9px}
+#fbMpRaceScoreboard .mpRacePlayer strong{font-size:10px;color:#ffe677}
+#fbMpRaceScoreboard.mpRaceDense{gap:2px;padding:3px}
+#fbMpRaceScoreboard.mpRaceDense .mpRacePlayer{font-size:9px;padding:2px 3px;gap:4px}
+#fbMpRaceScoreboard.mpRaceDense .mpRacePlayer strong,#fbMpRaceScoreboard.mpRaceDense .mpRacePlayer span:nth-child(2){font-size:8px}
+#fbMpRaceStatus{
+  position:absolute;z-index:3;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);
+  left:calc(env(safe-area-inset-left,0px) + 12px);right:calc(env(safe-area-inset-right,0px) + 12px);
+  width:auto;min-height:0;margin:0;text-align:left;font-size:11px;
+  pointer-events:none;text-shadow:0 2px 3px #08102a;
+}
+#fbMpRaceFinal{position:absolute;inset:0;z-index:10;grid-area:auto;display:flex;pointer-events:auto;padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+#fbMpRaceFinalInner{max-height:min(95%,95dvh)}
+@media(max-height:580px) and (orientation:landscape){
+  #fbMpRace{display:block;gap:0;padding:0!important}
+  #fbMpRaceField{position:absolute;inset:0;width:100%;height:100%;max-height:none}
+  #fbMpRaceTop{position:absolute;top:calc(env(safe-area-inset-top,0px) + 5px);left:calc(env(safe-area-inset-left,0px) + 6px);width:auto;max-width:45vw;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left}
+  #fbMpRaceTop strong{font-size:10px}
+  #fbMpRaceTop small{display:none!important}
+  #fbMpRaceTop .mpRaceActions button{font-size:9px;padding:5px 6px;min-height:27px}
+  #fbMpRaceScoreboard{position:absolute;top:calc(env(safe-area-inset-top,0px) + 38px);right:calc(env(safe-area-inset-right,0px) + 5px);width:clamp(144px,25vw,215px);max-width:35vw;max-height:58dvh;display:flex;flex-direction:column;overflow:hidden}
+  #fbMpRaceScoreboard .mpRacePlayer{font-size:9px;padding:3px;gap:4px}
+  #fbMpRaceScoreboard .mpRacePlayer strong,#fbMpRaceScoreboard .mpRacePlayer span:nth-child(2){font-size:8px}
+  #fbMpRaceStatus{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 5px);left:calc(env(safe-area-inset-left,0px) + 9px);right:auto;font-size:9px}
+  #fbMpRaceFinal{position:absolute;inset:0;z-index:10}
+}
+@media(orientation:portrait){
+  #fbMpRaceScoreboard{width:clamp(126px,38vw,200px);max-width:44vw;top:calc(env(safe-area-inset-top,0px) + 45px);max-height:32dvh}
+  #fbMpRaceTop strong{font-size:11px}#fbMpRaceTop small{display:none!important}
+}
+
+/* v2.6 multiplayer diagnostics. These numbers describe the Firebase link,
+   not ping to a peer; the HUD must never intercept touch controls. */
+#fbMpRaceNetwork{
+  display:inline-block;align-self:flex-start;max-width:min(60vw,270px);
+  padding:3px 6px;border:1px solid rgba(222,240,255,.32);border-radius:5px;
+  color:#d2fbe6;background:rgba(5,16,35,.64);
+  font:700 clamp(8px,.8vw,10px)/1.2 'Courier New',monospace;
+  letter-spacing:.1px;white-space:nowrap;text-shadow:0 1px 3px #02051c;
+  pointer-events:none;
+}
+#fbMpRaceNetwork[data-quality="fair"]{color:#ffe59e;border-color:rgba(255,197,104,.45)}
+#fbMpRaceNetwork[data-quality="slow"],#fbMpRaceNetwork[data-quality="stale"],#fbMpRaceNetwork[data-quality="offline"]{
+  color:#ffbcbf;border-color:rgba(255,130,145,.54)
+}
+@media(max-height:580px) and (orientation:landscape){
+  #fbMpRaceNetwork{padding:2px 4px;font-size:8px;max-width:42vw}
+}
+
+/* v2.8: readiness, spectators and per-round results. */
+.mpLobbyStatus{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:12px 0;font-size:11px}
+#fbMpConnection{color:#995b18}#fbMpConnection[data-state="online"]{color:#16734b}
+#fbMpReady[aria-pressed="true"]{background:#b8efce;border-color:#16734b}
+#fbMpSpectator[hidden]{display:none!important}
+#fbMpSpectator{position:absolute;z-index:6;bottom:calc(env(safe-area-inset-bottom,0px) + 34px);left:50%;transform:translateX(-50%);width:min(370px,calc(100% - 24px));box-sizing:border-box;text-align:center;border:1px solid #a6c6e6;border-radius:12px;background:rgba(12,20,43,.94);padding:9px;color:#e9f5ff;pointer-events:auto}
+#fbMpSpectatorLabel{display:block;overflow-wrap:anywhere;margin-bottom:7px;font-size:12px}
+#fbMpSpectator>div{display:flex;gap:8px}
+#fbMpSpectator button{flex:1;min-height:38px;border:1px solid #6585ad;border-radius:7px;background:#22375b;color:#fff;font:700 11px 'Courier New',monospace;touch-action:manipulation;cursor:pointer}
+#fbMpSpectator button:disabled{opacity:.4;cursor:default}
+#fbMpRaceFinalInner{width:min(640px,100%)}
+#fbMpPersonalResult{padding:12px!important;background:#182a47;color:#ffe6a1!important;border-radius:8px;font-weight:bold;overflow-wrap:anywhere}
+#fbMpResultsTimeLabel{text-align:right;color:#7b614a;font-size:10px;margin:12px 0 6px}
+.mpRaceResult{grid-template-columns:38px minmax(0,1fr) auto;gap:8px;padding:10px;border:1px solid #e7d9bf}
+.mpRaceResult.mpResultMe{border:2px solid #775ba2}
+.mpResultRank{font-size:18px;font-weight:bold}
+.mpResultIdentity{display:flex;align-items:center;gap:9px;min-width:0}
+.mpResultIdentity .mpAvatar{width:32px;height:32px;flex:none;border-radius:6px;image-rendering:pixelated;box-shadow:none;outline:none}
+.mpResultName{min-width:0;display:grid;gap:4px}.mpResultName strong{overflow-wrap:anywhere;text-align:left}.mpResultName small{font-size:9px;color:#6b5a51;overflow-wrap:anywhere}
+.mpResultTime{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px}
+#fbMpRematch{width:100%;min-height:44px;margin-top:12px;border:2px solid #2b1b00;border-radius:8px;background:#ffd23f;color:#2b1b00;font:bold 13px 'Courier New',monospace;cursor:pointer;touch-action:manipulation}
+#fbMpRematch:disabled{background:#e3dccf;color:#756d61;cursor:default}
+#fbMpRaceExitFinal{background:#fff}
+@media(max-width:380px){.mpRaceResult{grid-template-columns:30px minmax(0,1fr) auto;gap:5px;padding:8px 5px}.mpResultIdentity .mpAvatar{display:none}.mpResultTime{font-size:10px}}
+@media(max-height:450px){#fbMpSpectator{bottom:26px;width:min(360px,55vw);padding:5px}#fbMpSpectatorLabel{font-size:10px;margin-bottom:4px}#fbMpSpectator button{min-height:30px}#fbMpRaceFinalInner{padding:12px}}

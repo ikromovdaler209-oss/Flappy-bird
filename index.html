@@ -45,6 +45,7 @@
     <button type="button" data-lb-mode="EXTREME" aria-pressed="false">EXTREME</button>
     <button type="button" data-lb-mode="COINS" aria-pressed="true">COINS</button>
   </div>
+  <div class="lbRow"><button id="fbLbsOpen" type="button">🐦 LAST BIRD RANKING</button></div>
   <div class="lbRow"><button id="fbLbRefresh" type="button">↻ Refresh</button><span id="fbLbCount" class="lbHint"></span></div>
   <div id="fbLbList" aria-live="polite"></div>
   <div id="fbLbGlobalControls" class="lbGlobalControls" hidden>
@@ -53,6 +54,25 @@
   </div>
   <p class="lbHint" id="fbLbFairness"></p>
   <p class="lbState" id="fbLbStatus" role="status" aria-live="polite"></p>
+ </div>
+</div>
+<div id="fbLbsPanel" hidden role="dialog" aria-modal="true" aria-labelledby="fbLbsTitle">
+ <div id="fbLbsBox">
+  <button id="fbLbsClose" type="button" aria-label="Close">×</button>
+  <h2 id="fbLbsTitle">🐦 LAST BIRD STANDING</h2>
+  <p id="fbLbsIntro" class="lbHint"></p>
+  <div class="lbScopes" role="group" aria-label="Ranking group">
+    <button type="button" data-lbs-scope="friends" aria-pressed="true">FRIENDS</button>
+    <button type="button" data-lbs-scope="global" aria-pressed="false">GLOBAL</button>
+  </div>
+  <div class="lbRow"><button id="fbLbsRefresh" type="button">↻ Refresh</button><span id="fbLbsCount" class="lbHint"></span></div>
+  <div id="fbLbsList" aria-live="polite"></div>
+  <div id="fbLbsJoinBox" class="lbGlobalControls" hidden>
+    <div class="lbRow"><strong id="fbLbsJoinLabel">GLOBAL RANKING</strong><button id="fbLbsJoin" type="button">Join</button></div>
+    <div id="fbLbsJoinHint" class="lbHint"></div>
+  </div>
+  <p class="lbHint" id="fbLbsFairness"></p>
+  <p class="lbState" id="fbLbsStatus" role="status" aria-live="polite"></p>
  </div>
 </div>
 <div id="syncIndicator" hidden aria-live="polite">● ЛОКАЛЬНО</div>
@@ -103,6 +123,7 @@
 </div>
 <div id="statsPanel" hidden role="dialog" aria-modal="true" aria-labelledby="statsTitle"><div class="fbDialog">
   <h2 id="statsTitle">PLAYER STATS</h2><div id="statsGrid" class="fbStats"></div>
+  <h3 id="mpStatsTitle" class="mpStatsTitle"></h3><div id="mpStatsGrid" class="fbStats"></div><p id="mpStatsNote" class="mpStatsNote"></p>
   <button id="statsClose" class="secondary" type="button">← НАЗАД</button>
 </div></div>
 <div id="logoutPanel" hidden role="dialog" aria-modal="true" aria-labelledby="logoutTitle"><div class="fbDialog">
@@ -234,6 +255,7 @@
 <script type="module" src="src/firebase/account-cloud.js"></script>
 <script type="module" src="src/firebase/friends.js"></script>
 <script type="module" src="src/firebase/leaderboards.js"></script>
+<script type="module" src="src/firebase/lastbird.js"></script>
 <script type="module" src="src/multiplayer/multiplayer.js"></script>
 
 </body>

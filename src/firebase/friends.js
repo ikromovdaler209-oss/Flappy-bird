@@ -176,6 +176,18 @@ async function openPlayerProfile(uid,fallbackId){
       [T('stAchievements'),st.achievements]
     ];
     $('fbfProfileStats').replaceChildren(...fields.map(([l,v])=>profileStat(l,v)));
+    // v2.9: online match statistics. Visibility is enforced by Firestore rules (same model as solo stats).
+    const mp=window.flyingBirdMpStats;
+    if(mp){
+      try{
+        const mpSnap=await getDocFromServer(doc(db,'multiplayerStats',uid));
+        if(seq!==profileViewSeq||overlay.hidden)return;
+        const box=$('fbfProfileStats');
+        box.append(el('div',mp.title(),'fbfStatHead'));
+        if(mpSnap.exists())for(const [l,v] of mp.statFields(mpSnap.data()))box.append(profileStat(l,v));
+        else box.append(el('div',mp.none(),'fbfStatNone'));
+      }catch(e){if(e?.code!=='permission-denied')console.warn('[Flying Bird] online stats unavailable',e?.code||e)}
+    }
     $('fbfProfileMessage').textContent='';
   }catch(e){if(seq===profileViewSeq)$('fbfProfileMessage').textContent=T('statsDenied')+' ('+err(e)+')';}
 }

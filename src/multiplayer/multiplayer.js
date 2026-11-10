@@ -6,6 +6,7 @@ import {getFirestore,collection,doc,query,where,limit,getDocsFromServer,getDocFr
 import {getDatabase,ref,get,onValue,set,update,remove,runTransaction,onDisconnect,serverTimestamp as rtStamp} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js';
 import {assessReadyRoom,isFreshPlayerState,newGhostTrack,acceptGhostPacket,ghostPosition,newNetworkStats,noteWriteAck,publishInterval,networkQuality,rankRacePlayers} from './netcode.js';
 import {roundPath,roundFinished,spectatorTarget,nextRoundMeta} from './experience.js';
+import {submitRound,resultLine,onChange as onMpStats} from '../firebase/mp-stats.js';
 const FB_CONFIG={apiKey:'AIzaSyBXhPjfPGPjD6SX6ISyd9UIGcwIGDir2IE',authDomain:'flying-bird-d6832.firebaseapp.com',projectId:'flying-bird-d6832',storageBucket:'flying-bird-d6832.firebasestorage.app',messagingSenderId:'824302202629',appId:'1:824302202629:web:885e30d34fb1ddaa56516c'};
 const app=getApps().length?getApp():initializeApp(FB_CONFIG),auth=getAuth(app),fsdb=getFirestore(app);
 const $=id=>document.getElementById(id), modal=$('fbMpPanel'), alpha='23456789ABCDEFGHJKMNPQRSTUVWXYZ';
@@ -510,18 +511,18 @@ function updateNetworkBadge(){
 }
 
 function raceScoreboard(){if(!race||!raceSnapshot)return;const box=$('fbMpRaceScoreboard');box.replaceChildren();box.classList.toggle('mpRaceDense',Object.keys(raceSnapshot.players||{}).length>5);const sorted=Object.entries(raceSnapshot.players||{}).sort(([a,x],[b,y])=>Number(y.elapsedMs||0)-Number(x.elapsedMs||0));for(const [uid,p] of sorted){const entry=el('div',null,'mpRacePlayer'),name=el('span',(race.cards.get(uid)?.nick||'BIRD '+uid.slice(0,4))+(uid===ownUid()?' ★':'')),st=el('span',raceStatusText(p.status)),clock=el('strong',formatTime(p.elapsedMs));entry.classList.toggle('mpRaceOut',p.status!=='ALIVE');entry.append(name,st,clock);box.append(entry)}}
-function recordLocalMultiplayerStats(players){
- if(!race||!ownUid())return;const key='flyingBirdMpStatsV1:'+ownUid();let data={matches:0,wins:0,bestMs:0,played:[]};
- try{data={...data,...JSON.parse(localStorage.getItem(key)||'{}')}}catch{}
- if(!Array.isArray(data.played))data.played=[];
- const me=players.find(p=>p.uid===ownUid()),isWinner=!!me&&me.rank===1&&me.status!=='DNF';
- if(me&&!data.played.includes(race.path)){
-   data.matches=Math.max(0,Number(data.matches)||0)+1;data.wins=Math.max(0,Number(data.wins)||0)+(isWinner?1:0);
-   data.bestMs=Math.max(Number(data.bestMs)||0,Number(me.elapsedMs)||0);data.played.push(race.path);data.played=data.played.slice(-60);
-   try{localStorage.setItem(key,JSON.stringify(data))}catch{}
- }
- $('fbMpRaceMyStats').textContent=lang()==='RU'?'МП СТАТИСТИКА (ЛОКАЛЬНО): МАТЧЕЙ '+data.matches+' · ПОБЕД '+data.wins+' · РЕКОРД '+formatTime(data.bestMs):'MP STATS (LOCAL): MATCHES '+data.matches+' · WINS '+data.wins+' · BEST '+formatTime(data.bestMs);
+// v2.9: the finished round is verified (all players terminal, ticks match times) and queued for
+// Firestore. Totals live in the account; this line only displays them. Solo data is never touched.
+function showMpStats(){
+ const box=$('fbMpRaceMyStats');if(!box)return;
+ const line=resultLine();box.textContent=line.text;box.classList.toggle('mpStatsBad',line.error);
 }
+function recordVerifiedRound(){
+ if(!race||!ownUid())return;
+ submitRound({path:race.path,snapshot:raceSnapshot});
+ showMpStats();
+}
+onMpStats(()=>{if(race?.finished)showMpStats()});
 function updateRematchButton(){
  const host=roomData?.hostUid===ownUid(),button=$('fbMpRematch');
  button.textContent=T(host?'rematch':'waitHost');
@@ -566,7 +567,7 @@ function raceResults(){
  const me=players.find(p=>p.uid===ownUid());
  $('fbMpPersonalResult').textContent=me?T('personalResult')+' · '+T('place')+' #'+me.rank+' · '+formatTime(me.elapsedMs)+(groups.get(me.rank)>1?' · '+RT('tie'):''):'';
  $('fbMpResultsTimeLabel').textContent=T('survival');
- recordLocalMultiplayerStats(players);$('fbMpRaceFinal').hidden=false;$('fbMpSpectator').hidden=true;
+ recordVerifiedRound();$('fbMpRaceFinal').hidden=false;$('fbMpSpectator').hidden=true;
  $('fbMpRaceFinalTitle').textContent=RT('finished');$('fbMpRaceFinalSub').textContent=T('roundInfo');$('fbMpRaceExitFinal').textContent=T('leave');updateRematchButton();
 }
 function raceUpdateFromServer(snap){raceSnapshot=snap;if(!race)return;rememberGhostSamples(snap);const me=raceMe();if(me&&me.status!=='ALIVE'&&race.me.alive){race.me.alive=false;race.me.status=me.status;race.me.tick=me.tick;race.me.elapsedMs=me.elapsedMs;racesStopOwnLoop()}
