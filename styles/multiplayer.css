@@ -196,3 +196,11 @@ html,body{overscroll-behavior:none}
 #fbMpRaceExitFinal{background:#fff}
 @media(max-width:380px){.mpRaceResult{grid-template-columns:30px minmax(0,1fr) auto;gap:5px;padding:8px 5px}.mpResultIdentity .mpAvatar{display:none}.mpResultTime{font-size:10px}}
 @media(max-height:450px){#fbMpSpectator{bottom:26px;width:min(360px,55vw);padding:5px}#fbMpSpectatorLabel{font-size:10px;margin-bottom:4px}#fbMpSpectator button{min-height:30px}#fbMpRaceFinalInner{padding:12px}}
+
+/* Global invitations sit below the canvas menu/pause control; only the card catches taps. */
+#fbMpInviteToasts[hidden]{display:none!important}
+#fbMpInviteToasts{position:fixed;z-index:250;left:12px;top:60px;width:260px;pointer-events:none;font:12px/1.35 'Courier New',monospace;color:#fff9e9}
+.mpInviteToast{pointer-events:auto;background:rgba(18,20,43,.97);border:1.5px solid #ffd23f;border-radius:10px;padding:10px;box-shadow:0 5px 18px #0005;box-sizing:border-box;overflow-wrap:anywhere}
+.mpInviteToast>strong{display:block;color:#ffe485;font-size:11px;letter-spacing:.3px}.mpInviteToast p{margin:6px 0 9px;font-size:11px}.mpInviteActions{display:flex;gap:8px}
+.mpInviteActions button{flex:1;min-width:0;min-height:36px;border:1px solid #ffd23f;border-radius:6px;padding:7px;background:#ffd23f;color:#221800;font:700 12px 'Courier New',monospace;cursor:pointer}
+.mpInviteActions button+button{background:#28334d;color:#fff9e9;border-color:#8591ac}.mpInviteActions button:disabled{opacity:.5;cursor:default}.mpInviteActions button:focus-visible{outline:3px solid #ff7eb6;outline-offset:2px}.mpInviteToast small{display:block;margin-top:4px;text-align:right}

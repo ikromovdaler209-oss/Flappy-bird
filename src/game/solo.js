@@ -2532,6 +2532,7 @@ function toggleFS() {
     if (k === 'Space' || k === 'ArrowUp' || k === 'KeyW' || k === 'Enter') act();
     else if ((k === 'Escape' || k === 'KeyP') && state === 'PLAYING') { screen = 'PAUSE'; focus = 0; }
   });
+  window.flyingBirdPauseForOverlay=()=>{if(state==='PLAYING'&&!screen){screen='PAUSE';focus=0;}};
   window.addEventListener('blur', () => { if (state === 'PLAYING' && !screen) { screen = 'PAUSE'; focus = 0; } });
 
   // ---------- Sizing: picks portrait or 16:9 by window shape ----------

@@ -149,3 +149,13 @@
 #fbfProfileStats .fbfStatNone{grid-column:1/-1;font-size:11px;color:#806954}
 #fbMpRaceMyStats{white-space:pre-line}
 #fbMpRaceMyStats.mpStatsBad{color:#ff9aa8}
+
+/* Compact friend actions; open menu stays within the card's scrollable pane. */
+#fbfBox .fbfItem{position:relative}
+#fbfFriends .fbfIdentity{padding-right:40px}
+#fbfBox .fbfActions{position:absolute;right:8px;top:8px;z-index:2}
+#fbfBox .fbfActionsToggle{font-size:23px;line-height:1;padding:2px 7px;min-width:34px;min-height:34px;background:#fff;box-shadow:none}
+#fbfBox .fbfActionsMenu{position:absolute;right:0;top:38px;width:210px;max-width:calc(100vw - 72px);padding:6px;background:#fff8e6;border:2px solid #2b1b00;border-radius:9px;box-shadow:0 4px 12px #24172e33;display:grid;gap:5px}
+#fbfBox .fbfActionsMenu[hidden]{display:none!important}
+#fbfBox .fbfActionsMenu button{text-align:left;box-shadow:none;min-height:36px;font-size:11px}
+#fbfBox .fbfItem:has(.fbfActionsMenu:not([hidden])){min-height:205px;z-index:3}

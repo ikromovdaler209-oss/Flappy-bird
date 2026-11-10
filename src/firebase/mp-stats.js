@@ -68,9 +68,9 @@ const statsKey=uid=>'flyingBirdMpStatsV2:'+uid,queueKey=uid=>'flyingBirdMpQueueV
 const readJson=(key,fallback)=>{try{const v=JSON.parse(localStorage.getItem(key)||'null');return v??fallback}catch{return fallback}};
 const writeJson=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value))}catch{}};
 const readQueue=uid=>{const q=readJson(queueKey(uid),[]);return Array.isArray(q)?q:[]};
-const writeQueue=(uid,q)=>writeJson(queueKey(uid),q.slice(-40));
-let cached=emptyStats(),cachedUid=null,flushing=false,verdict={state:'idle',reason:''};
-const listeners=new Set();
+const writeQueue=(uid,q)=>writeJson(queueKey(uid),q);
+let cached=emptyStats(),cachedUid=null,verdict={state:'idle',reason:''};
+const listeners=new Set(),flushingUsers=new Set();
 function notify(){for(const fn of listeners){try{fn(summary())}catch(e){console.warn('[MP stats] listener failed',e)}}}
 export function onChange(fn){listeners.add(fn);return()=>listeners.delete(fn)}
 export function summary(){const uid=myUid();return {uid,totals:cached,derived:derive(cached),pending:uid?readQueue(uid).length:0,verdict}}
@@ -111,19 +111,26 @@ async function commit(uid,rec){
 }
 
 async function flush(uid){
-  if(flushing)return;flushing=true;
+  if(flushingUsers.has(uid))return;flushingUsers.add(uid);
   try{
-    let queue=readQueue(uid).sort((a,b)=>a.startAt-b.startAt);
-    while(queue.length&&myUid()===uid){
-      const out=await commit(uid,queue[0]);
-      if(out.kind==='retry'){verdict={state:'pending',reason:''};break}
-      queue=queue.slice(1);writeQueue(uid,queue);
-      if(out.stats&&myUid()===uid)adopt(uid,out.stats);
+    while(myUid()===uid){
+      // Re-read after every await: a second finished round may have been queued meanwhile.
+      const queue=readQueue(uid).sort((a,b)=>a.startAt-b.startAt);
+      if(!queue.length)break;
+      const rec=queue[0],out=await commit(uid,rec);
+      if(out.kind==='retry'||out.kind==='rules'){
+        // Rules may not have been deployed yet. Preserve the record for a later retry.
+        if(myUid()===uid)verdict={state:'pending',reason:out.kind==='rules'?'rules':''};
+        break;
+      }
+      writeQueue(uid,readQueue(uid).filter(x=>x.id!==rec.id));
+      if(myUid()!==uid)break;
+      if(out.stats)adopt(uid,out.stats);
       const counted=out.kind==='ok'||out.kind==='duplicate'||(out.kind==='local'&&out.reason==='duplicate');
-      verdict=counted?{state:'saved',reason:''}:{state:'rejected',reason:out.kind==='rules'?'rules':out.reason};
+      verdict=counted?{state:'saved',reason:''}:{state:'rejected',reason:out.reason};
     }
-    if(!queue.length&&verdict.state==='syncing')verdict={state:'saved',reason:''};
-  }finally{flushing=false;notify()}
+    if(myUid()===uid&&!readQueue(uid).length&&verdict.state==='syncing')verdict={state:'saved',reason:''};
+  }finally{flushingUsers.delete(uid);if(myUid()===uid)notify()}
 }
 
 export async function loadCloud(uid=myUid()){
@@ -165,7 +172,7 @@ function renderAccountSection(){
   if(!s.derived.matches){grid.append(el('p',T('none'),'mpStatsNone'));return}
   for(const [label,value] of statFields(s.totals)){const item=el('div',null,'fbStat');item.append(el('strong',value),el('small',label));grid.append(item)}
 }
-document.getElementById('accountStats')?.addEventListener('click',()=>{renderAccountSection();void loadCloud().then(renderAccountSection)});
+document.getElementById('accountStats')?.addEventListener('click',()=>{renderAccountSection();const uid=myUid();if(uid)void flush(uid).then(()=>loadCloud(uid)).then(renderAccountSection)});
 onChange(()=>{const p=document.getElementById('statsPanel');if(p&&!p.hidden)renderAccountSection()});
 
 onAuthStateChanged(auth,user=>{
@@ -175,3 +182,5 @@ onAuthStateChanged(auth,user=>{
   notify();
 });
 window.addEventListener('online',()=>{const uid=myUid();if(uid)void flush(uid)});
+
+window.addEventListener('visibilitychange',()=>{const uid=myUid();if(!document.hidden&&uid)void flush(uid)});

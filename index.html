@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0f0c29">
   <meta name="application-name" content="Flying Bird">
-  <meta name="flying-bird-build" content="2.8-multiplayer-experience">
+  <meta name="flying-bird-build" content="2.9.1-social-polish">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Flying Bird">
@@ -24,6 +24,7 @@
 </head>
 <body>
 
+<div id="fbMpInviteToasts" hidden aria-live="polite" aria-atomic="false"></div>
 <canvas id="c" tabindex="0" aria-label="Flying Bird"></canvas>
 <input id="nick" maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false">
 <button id="accountBtn" type="button">ACCOUNT / ВХОД</button>
@@ -206,7 +207,7 @@
    <div class="mpField"><label for="fbMpCode">Room code or invitation link</label><input id="fbMpCode" type="text" maxlength="256" spellcheck="false" autocapitalize="off" placeholder="FBM-XXXX-XXXX"></div>
    <button id="fbMpJoin" class="mpFull" type="button">JOIN BY CODE</button>
    <div class="mpDivider"></div>
-   <h3 id="fbMpInvitesTitle">INVITATIONS</h3><div id="fbMpInvites" class="mpScroll"></div>
+   
    <!-- RTDB endpoint is configured by the project owner in src/config/runtime.js. -->
   </div>
   <div id="fbMpCreate" hidden>

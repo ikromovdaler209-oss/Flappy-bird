@@ -115,7 +115,7 @@ function avatar(uid,large=false){
 }
 function pair(d,uid){return d.fromUid===uid?d.toUid:d.toUid===uid?d.fromUid:null}
 function pendingFor(peer){return known.filter(d=>pair(d,ownUid())===peer&&['pending','accepted'].includes(d.status))}
-function cardLines(container,uid,playerId){
+function cardLines(container,uid,playerId,withProfile=true){
   const row=el('div',null,'fbfIdentity');
   const name=el('div',null,'fbfIdentityText');
   name.append(el('strong',cardTitle(uid)),el('small',cards.get(uid)?.playerId||playerId||'—'));
@@ -125,7 +125,7 @@ function cardLines(container,uid,playerId){
     const hint=problem?.kind==='error' ? T('cardErrorHelp')+' ('+problem.code+')' : T('cardMissingHelp');
     container.appendChild(el('div',hint,'fbfMuted'));
   }
-  if(!blocks.has(uid))row.append(action(T('viewProfile'),()=>openPlayerProfile(uid,playerId),'fbfSmall fbfSecondary'));
+  if(withProfile&&!blocks.has(uid))row.append(action(T('viewProfile'),()=>openPlayerProfile(uid,playerId),'fbfSmall fbfSecondary'));
 }
 async function fetchPublic(uid){
   if(cards.has(uid))return cards.get(uid);
@@ -196,16 +196,40 @@ $('fbfProfileClose').addEventListener('click',closePlayerProfile);
 
 function shortDate(v){return typeof v==='number'?new Date(v).toLocaleString(lang==='RU'?'ru-RU':lang==='ZH'?'zh-CN':lang==='ES'?'es-ES':lang==='PT'?'pt-BR':'en-US'):''}
 function getPresenceStatus(uid){const b=modal.querySelector(`[data-fbf-presence="${uid}"]`);if(!b)return;return b}
-function renderPresence(uid,data,unavailable=false){const status=getPresenceStatus(uid);if(!status)return;const cnt=data?.connections?Object.keys(data.connections).length:0;status.className='fbfChip '+(unavailable?'unavailable':cnt?'online':'offline');status.replaceChildren(el('span',null,'fbfDot'));let msg=unavailable?T('unknown'):cnt?T('online'):T('offline');if(!cnt&&!unavailable&&Number.isFinite(data?.lastOnline))msg+=' · '+T('lastSeen')+': '+shortDate(data.lastOnline);status.appendChild(el('span',msg));}
+let presenceConnected=false;
+const inviteInFlight=new Set();
+function friendOnline(uid){const p=friendPresenceCache.get(uid);return presenceConnected&&friends.has(uid)&&!blocks.has(uid)&&!p?.bad&&Object.values(p?.data?.connections||{}).some(v=>v===true)}
+window.flyingBirdFriendOnline=friendOnline;
+function updateFriendInvite(uid){
+ for(const b of modal.querySelectorAll('[data-fbf-invite]'))if(b.dataset.fbfInvite===uid){b.disabled=!friendOnline(uid)||inviteInFlight.has(uid);b.title=friendOnline(uid)?'':T('offline');}
+ window.dispatchEvent(new CustomEvent('flyingbird:friend-presence',{detail:{uid,online:friendOnline(uid)}}));
+}
+let openFriendMenu=null;
+function closeFriendMenu(focus=false){if(!openFriendMenu)return;const {button,menu}=openFriendMenu;menu.hidden=true;button.setAttribute('aria-expanded','false');openFriendMenu=null;if(focus)button.focus()}
+function addFriendMenu(item,uid,playerId){
+ const wrap=el('div',null,'fbfActions'),button=el('button','⋯','fbfActionsToggle'),menu=el('div',null,'fbfActionsMenu');
+ button.type='button';button.setAttribute('aria-label',({EN:'Friend actions',RU:'Действия с другом',ZH:'好友操作',ES:'Acciones de amigo',PT:'Ações do amigo'})[lang]||'Friend actions');button.setAttribute('aria-expanded','false');
+ menu.hidden=true;
+ for(const [label,fn,cls] of [[T('viewProfile'),()=>openPlayerProfile(uid,playerId),'fbfSecondary'],[T('unfriend'),()=>unfriend(uid),'fbfSecondary'],[T('block'),()=>blockUser(uid),'fbfDanger']]){
+  menu.append(action(label,()=>{closeFriendMenu();return fn()},cls));
+ }
+ button.onclick=()=>{const opening=menu.hidden;closeFriendMenu();if(opening){menu.hidden=false;button.setAttribute('aria-expanded','true');openFriendMenu={button,menu};}};
+ wrap.append(button,menu);item.append(wrap);
+}
+document.addEventListener('pointerdown',e=>{if(openFriendMenu&&!e.target.closest?.('.fbfActions'))closeFriendMenu()});
+// Run before the panel's Escape handler so Escape closes only the mini menu first.
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&openFriendMenu){e.preventDefault();e.stopImmediatePropagation();closeFriendMenu(true)}},true);
+function renderPresence(uid,data,unavailable=false){updateFriendInvite(uid);const status=getPresenceStatus(uid);if(!status)return;const cnt=presenceConnected&&data?.connections?Object.values(data.connections).filter(v=>v===true).length:0;status.className='fbfChip '+(unavailable?'unavailable':cnt?'online':'offline');status.replaceChildren(el('span',null,'fbfDot'));let msg=unavailable?T('unknown'):cnt?T('online'):T('offline');if(!cnt&&!unavailable&&Number.isFinite(data?.lastOnline))msg+=' · '+T('lastSeen')+': '+shortDate(data.lastOnline);status.appendChild(el('span',msg));}
 function subscribeFriendPresence(){for(const [id,unsub] of friendUnwatch){if(!friends.has(id)){unsub();friendUnwatch.delete(id);friendPresenceCache.delete(id)}}if(!dbRealtime)return;for(const id of friends.keys()){if(friendUnwatch.has(id))continue;const unsub=onValue(ref(dbRealtime,'presence/'+id),snap=>{friendPresenceCache.set(id,{data:snap.val(),bad:false});renderPresence(id,snap.val())},()=>{friendUnwatch.delete(id);friendPresenceCache.set(id,{data:null,bad:true});renderPresence(id,null,true)});friendUnwatch.set(id,unsub)}}
-function render(){const me=ownUid();const f=$('fbfFriends'),inc=$('fbfIncoming'),out=$('fbfOutgoing'),bl=$('fbfBlocked');for(const box of [f,inc,out,bl])box.replaceChildren();$('fbfCount').textContent=friends.size+' '+T('count');if(!friends.size)empty(f,T('emptyFriends'));for(const [uid,d] of friends){const item=el('div',null,'fbfItem');cardLines(item,uid,d.playerId);const status=el('div',null,'fbfChip unavailable');status.dataset.fbfPresence=uid;status.append(el('span',null,'fbfDot'),el('span',dbRealtime?T('connecting'):T('unknown')));item.appendChild(status);const buttons=el('div',null,'fbfRow');const inviteLabels={EN:'INVITE TO ROOM',RU:'ПРИГЛАСИТЬ В КОМНАТУ',ZH:'邀请加入房间',ES:'INVITAR A LA SALA',PT:'CONVIDAR PARA A SALA'};
+function render(){closeFriendMenu();const me=ownUid();const f=$('fbfFriends'),inc=$('fbfIncoming'),out=$('fbfOutgoing'),bl=$('fbfBlocked');for(const box of [f,inc,out,bl])box.replaceChildren();$('fbfCount').textContent=friends.size+' '+T('count');if(!friends.size)empty(f,T('emptyFriends'));for(const [uid,d] of friends){const item=el('div',null,'fbfItem');cardLines(item,uid,d.playerId,false);addFriendMenu(item,uid,d.playerId);const status=el('div',null,'fbfChip unavailable');status.dataset.fbfPresence=uid;status.append(el('span',null,'fbfDot'),el('span',dbRealtime?T('connecting'):T('unknown')));item.appendChild(status);const buttons=el('div',null,'fbfRow');const inviteLabels={EN:'INVITE TO ROOM',RU:'ПРИГЛАСИТЬ В КОМНАТУ',ZH:'邀请加入房间',ES:'INVITAR A LA SALA',PT:'CONVIDAR PARA A SALA'};
 const inviteButton=action(inviteLabels[lang]||inviteLabels.EN,async()=>{
+ if(!friendOnline(uid))return;
  if(!window.flyingBirdInviteFriend){note(T('error'),true);return;}
- inviteButton.disabled=true;
+ inviteInFlight.add(uid);inviteButton.disabled=true;
  try{const sent=await window.flyingBirdInviteFriend(uid);if(sent===true)note(({EN:'Invitation sent.',RU:'Приглашение отправлено.',ZH:'邀请已发送。',ES:'Invitación enviada.',PT:'Convite enviado.'})[lang]||'Invitation sent.');else if(sent===false)note(({EN:'Open the room and check connection / match status.',RU:'Открой комнату и проверь подключение и статус матча.',ZH:'请检查房间连接和比赛状态。',ES:'Comprueba la conexión y el estado de la sala.',PT:'Confira a conexão e o estado da sala.'})[lang]||'Check room status.',true);}
- finally{inviteButton.disabled=false;}
-},'fbfSmall');buttons.append(inviteButton);
-buttons.append(action(T('unfriend'),()=>unfriend(uid),'fbfSmall fbfSecondary'),action(T('block'),()=>blockUser(uid),'fbfSmall fbfDanger'));item.appendChild(buttons);f.appendChild(item);if(friendPresenceCache.has(uid)){const st=friendPresenceCache.get(uid);renderPresence(uid,st.data,st.bad)}}
+ finally{inviteInFlight.delete(uid);updateFriendInvite(uid);}
+},'fbfSmall');inviteButton.dataset.fbfInvite=uid;inviteButton.disabled=!friendOnline(uid);buttons.append(inviteButton);
+item.appendChild(buttons);f.appendChild(item);if(friendPresenceCache.has(uid)){const st=friendPresenceCache.get(uid);renderPresence(uid,st.data,st.bad)}}
 // Requests lists show actionable invitations only. Accepted friends belong in Friends,
 // not Requests; suppress reciprocal pending requests once a friendship exists.
 const ins=known.filter(d=>d.toUid===me&&d.status==='pending'&&!friends.has(d.fromUid)&&!blocks.has(d.fromUid)),outs=known.filter(d=>d.fromUid===me&&d.status==='pending'&&!friends.has(d.toUid)&&!blocks.has(d.toUid));for(const [box,list,dir] of [[inc,ins,'in'],[out,outs,'out']]){if(!list.length)empty(box,T('emptyRequests'));for(const r of list){const peer=dir==='in'?r.fromUid:r.toUid;const item=el('div',null,'fbfItem');cardLines(item,peer,dir==='out'?r.toPlayerId:null);item.appendChild(el('div',T(r.status)||r.status,'fbfMuted'));const buttons=el('div',null,'fbfRow');if(r.status==='pending'&&dir==='in'){buttons.append(action(T('accept'),()=>respond(r.id,'accepted'),'fbfSmall'),action(T('reject'),()=>respond(r.id,'rejected'),'fbfSmall fbfSecondary'))}else if(r.status==='pending'&&dir==='out'){buttons.append(action(T('cancel'),()=>deleteRequest(r.id),'fbfSmall fbfSecondary'))}else if(r.status==='rejected'){buttons.append(action(T('cancel'),()=>deleteRequest(r.id),'fbfSmall fbfSecondary'))}if(['pending','accepted'].includes(r.status)&&peer!==me&&!blocks.has(peer))buttons.append(action(T('block'),()=>blockUser(peer),'fbfSmall fbfDanger'));item.appendChild(buttons);box.appendChild(item)}}
@@ -342,12 +366,12 @@ function validUrl(str){try{const url=new URL(str);return url.protocol==='https:'
 // A trusted backend must reconcile stale shares for production/revocations.
 async function syncPresenceAccess(me,allowed,partial=false){if(!dbRealtime||ownUid()!==me)return;try{const acl=ref(dbRealtime,'presenceAccess/'+me),s=await getRTDB(acl);if(ownUid()!==me)return;const prev=s.val()||{},delta={};for(const uid of allowed)if(uid!==me&&prev[uid]!==true)delta[uid]=true;if(!partial)for(const uid of Object.keys(prev))if(!allowed.has(uid))delta[uid]=null;if(Object.keys(delta).length)await update(acl,delta)}catch(e){$('fbfPresenceInfo').textContent=T('error')+': '+err(e)}}
 async function revokePresenceAccess(uid){if(dbRealtime&&ownUid())await remove(ref(dbRealtime,'presenceAccess/'+ownUid()+'/'+uid))}
-async function logoutPresence(){presenceVersion++;unwatchConnected?.();unwatchConnected=null;for(const u of friendUnwatch.values())u();friendUnwatch.clear();const c=onlineConn,l=onlineLast;onlineConn=null;onlineLast=null;if(c){try{await remove(c)}catch{}try{await onDisconnect(c).cancel()}catch{}}if(l){try{await set(l,rtdbTimestamp())}catch{}try{await onDisconnect(l).cancel()}catch{}}}
+async function logoutPresence(){presenceConnected=false;for(const uid of friends.keys())updateFriendInvite(uid);presenceVersion++;unwatchConnected?.();unwatchConnected=null;for(const u of friendUnwatch.values())u();friendUnwatch.clear();const c=onlineConn,l=onlineLast;onlineConn=null;onlineLast=null;if(c){try{await remove(c)}catch{}try{await onDisconnect(c).cancel()}catch{}}if(l){try{await set(l,rtdbTimestamp())}catch{}try{await onDisconnect(l).cancel()}catch{}}}
 window.flyingBirdBeforeSignOut=logoutPresence;
-function startPresence(uid){if(!dbRealtime||!uid)return;presenceVersion++;const run=presenceVersion;unwatchConnected?.();unwatchConnected=onValue(ref(dbRealtime,'.info/connected'),snap=>{if(run!==presenceVersion||ownUid()!==uid||!snap.val())return;void (async()=>{const c=push(ref(dbRealtime,'presence/'+uid+'/connections')),l=ref(dbRealtime,'presence/'+uid+'/lastOnline');try{await onDisconnect(c).remove();await onDisconnect(l).set(rtdbTimestamp());if(run!==presenceVersion||ownUid()!==uid){await onDisconnect(c).cancel();return}await set(c,true);onlineConn=c;onlineLast=l;$('fbfPresenceInfo').textContent=T('dbReady')}catch(e){$('fbfPresenceInfo').textContent=T('error')+': '+err(e)}})()},e=>{$('fbfPresenceInfo').textContent=T('error')+': '+err(e)})}
+function startPresence(uid){if(!dbRealtime||!uid)return;presenceVersion++;const run=presenceVersion;unwatchConnected?.();unwatchConnected=onValue(ref(dbRealtime,'.info/connected'),snap=>{if(run!==presenceVersion||ownUid()!==uid)return;presenceConnected=snap.val()===true;for(const id of friends.keys()){const p=friendPresenceCache.get(id);renderPresence(id,p?.data,p?.bad)}if(!presenceConnected)return;void (async()=>{const c=push(ref(dbRealtime,'presence/'+uid+'/connections')),l=ref(dbRealtime,'presence/'+uid+'/lastOnline');try{await onDisconnect(c).remove();await onDisconnect(l).set(rtdbTimestamp());if(run!==presenceVersion||ownUid()!==uid){await onDisconnect(c).cancel();return}await set(c,true);onlineConn=c;onlineLast=l;$('fbfPresenceInfo').textContent=T('dbReady')}catch(e){$('fbfPresenceInfo').textContent=T('error')+': '+err(e)}})()},e=>{$('fbfPresenceInfo').textContent=T('error')+': '+err(e)})}
 function openFriends(){closePlayerProfile();applyLang();if(!registered()){document.getElementById('accountBtn')?.click();return}document.getElementById('authPanel').hidden=true;modal.hidden=false;setActiveTab('friends');publicationHealth();schedulePublicUpdate(600);void refresh()}
-function closeFriends(){closePlayerProfile();modal.hidden=true}
-function setActiveTab(name){closePlayerProfile();activeTab=name;for(const n of ['friends','requests','blocked']){$('fbf'+n[0].toUpperCase()+n.slice(1)+'Pane').hidden=n!==name;modal.querySelector('[data-fbf-tab="'+n+'"]').setAttribute('aria-selected',String(n===name))}}
+function closeFriends(){closeFriendMenu();closePlayerProfile();modal.hidden=true}
+function setActiveTab(name){closeFriendMenu();closePlayerProfile();activeTab=name;for(const n of ['friends','requests','blocked']){$('fbf'+n[0].toUpperCase()+n.slice(1)+'Pane').hidden=n!==name;modal.querySelector('[data-fbf-tab="'+n+'"]').setAttribute('aria-selected',String(n===name))}}
 window.flyingBirdOpenFriends=openFriends;
 window.flyingBirdOpenRankedProfile=(uid)=>{
   if(!registered()||!uid)return;

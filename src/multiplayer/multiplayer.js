@@ -44,13 +44,13 @@ const inviteRoomUnsubs=new Map(),inviteRoomStates=new Map(),inviteCleanupPending
 let inviteExpiryTimer=null;
 const setDb=()=>{const url=dbUrl(window.flyingBirdGetRTDBURL?.()||localStorage.getItem('flyingBirdRTDBUrlV1')||'');if(!url)return false;try{db=db||getDatabase(app,url);warmRaceClock();return true}catch{return false}};
 function say(msg,bad=false){const e=$('fbMpNotice');e.hidden=!msg;e.textContent=msg||'';e.classList.toggle('error',bad)}
-function show(view){for(const v of ['Home','Create','Lobby'])$('fbMp'+v).hidden=v!==view;$('fbMpInvites').hidden=false}
-function setBusy(value){busy=value;for(const id of ['fbMpJoin','fbMpCreateRoom','fbMpReady','fbMpApplyConfig','fbMpLeave','fbMpStart'])$(id).disabled=value;if(!value&&roomData)renderLobby();}
+function show(view){queueMicrotask(renderInvites);for(const v of ['Home','Create','Lobby'])$('fbMp'+v).hidden=v!==view}
+function setBusy(value){busy=value;queueMicrotask(renderInvites);for(const id of ['fbMpJoin','fbMpCreateRoom','fbMpReady','fbMpApplyConfig','fbMpLeave','fbMpStart'])$(id).disabled=value;if(!value&&roomData)renderLobby();}
 function localCodeLink(c=roomCode){const u=new URL(location.href);u.searchParams.set('fbRoom',c);const endpoint=window.flyingBirdGetRTDBURL?.();if(endpoint)u.searchParams.set('fbDb',endpoint);u.hash='';return u.href}
 async function copy(s){try{await navigator.clipboard.writeText(s)}catch{const t=document.createElement('textarea');t.value=s;document.body.append(t);t.select();document.execCommand('copy');t.remove()}}
 function fillMaps(){for(const id of ['fbMpMap','fbMpLobbyMap']){const e=$(id);e.replaceChildren();for(const m of mapIds){const o=document.createElement('option');o.value=m;o.textContent=m.replaceAll('_',' ');e.append(o)}}}
 fillMaps();
-function renderLabels(){for(const [id,key] of Object.entries({fbMpTitle:'title',fbMpSubtitle:'subtitle',fbMpGoCreate:'create',fbMpGoJoin:'join',fbMpJoin:'joinBy',fbMpInvitesTitle:'invites',fbMpPlayersTitle:'players',fbMpReady:'ready',fbMpStart:'start',fbMpApplyConfig:'save',fbMpInviteTitle:'invite',fbMpLeave:'leave',fbMpCopy:'copy',fbMpCopyLink:'copyLink',fbMpCreateRoom:'createAction',fbMpCreateBack:'back'}))$(id).textContent=T(key);if(roomData)renderLobby()}
+function renderLabels(){for(const [id,key] of Object.entries({fbMpTitle:'title',fbMpSubtitle:'subtitle',fbMpGoCreate:'create',fbMpGoJoin:'join',fbMpJoin:'joinBy',fbMpPlayersTitle:'players',fbMpReady:'ready',fbMpStart:'start',fbMpApplyConfig:'save',fbMpInviteTitle:'invite',fbMpLeave:'leave',fbMpCopy:'copy',fbMpCopyLink:'copyLink',fbMpCreateRoom:'createAction',fbMpCreateBack:'back'}))$(id).textContent=T(key);if(roomData)renderLobby()}
 async function getCard(uid){if(knownNames.has(uid))return knownNames.get(uid);let c={nick:'PLAYER '+uid.slice(0,5),playerId:'',avatar:{skin:0,bg:0}};try{const s=await getDocFromServer(doc(fsdb,'publicProfiles',uid));if(s.exists())c={...c,...s.data()}}catch{}knownNames.set(uid,c);return c}
 function pic(c){const cv=document.createElement('canvas');cv.width=cv.height=32;cv.className='mpAvatar';const g=cv.getContext('2d');const bgs=window.flyingBirdFriendAvatarBackgrounds||['#ff6b9d'];const pal=window.flyingBirdFriendSkinPalette||[];const a=c?.avatar||{},p=pal[Math.max(0,Number(a.skin)||0)]||pal[0]||{body:'#ffd23f',hi:'#ffe98a',wing:'#ff9f1c',belly:'#fff4d6'},bg=bgs[Math.abs(Number(a.bg)||0)%bgs.length];g.fillStyle=bg;g.fillRect(0,0,32,32);g.fillStyle='#2b1b00';g.fillRect(6,8,22,18);g.fillStyle=p.body;g.fillRect(7,9,19,16);g.fillRect(10,6,13,4);g.fillStyle=p.hi;g.fillRect(11,7,10,3);g.fillStyle=p.wing;g.fillRect(8,17,9,7);g.fillStyle=p.belly;g.fillRect(15,21,9,4);g.fillStyle='#fff';g.fillRect(19,11,6,6);g.fillStyle='#1a1033';g.fillRect(23,13,3,3);g.fillStyle='#ff9f1c';g.fillRect(26,18,5,3);return cv}
 const el=(tag,text,cls)=>{const x=document.createElement(tag);if(text!=null)x.textContent=text;if(cls)x.className=cls;return x};
@@ -198,7 +198,7 @@ async function loadFriends(){
   target.replaceChildren();if(!cards.length){target.textContent=T('noFriends');return;}
   for(const [id,c] of cards){friendCache.set(id,c);const row=el('div',null,'mpCard mpPlayer'),name=el('div',null,'mpIdentity');name.append(el('strong',c.nick),el('small',c.playerId||''));
    const button=el('button',T('invite'));button.type='button';button.dataset.inviteUid=id;
-   button.onclick=async()=>{button.disabled=true;button.textContent=T('inviteBusy');const sent=await invite(id);if(button.isConnected){button.textContent=T(sent?'inviteSent':'invite');button.disabled=sent;}};
+   button.onclick=async()=>{button.disabled=true;button.textContent=T('inviteBusy');const sent=await invite(id);if(button.isConnected){button.textContent=T(sent?'inviteSent':'invite');updateInviteButtons();}};
    row.append(pic(c),name,button);target.append(row);
   }
   updateInviteButtons();
@@ -207,24 +207,26 @@ async function loadFriends(){
 function updateInviteButtons(){
  for(const button of $('fbMpFriends').querySelectorAll('[data-invite-uid]')){
   const uid=button.dataset.inviteUid,inRoom=seatFor(uid)!==null;
-  button.disabled=inRoom||!!raceSnapshot||!roomConnected||(Date.now()-(pendingInvites.get(roomCode+'/'+uid)||0)<11000);
+  button.disabled=!window.flyingBirdFriendOnline?.(uid)||inRoom||!!raceSnapshot||!roomConnected||(Date.now()-(pendingInvites.get(roomCode+'/'+uid)||0)<11000);
   button.textContent=T(inRoom?'inRoom':raceSnapshot?'locked':(Date.now()-(pendingInvites.get(roomCode+'/'+uid)||0)<11000)?'inviteSent':'invite');
  }
 }
 async function invite(toUid){
- if(!db||!roomCode||!roomConnected||raceSnapshot||toUid===ownUid())return false;
+ if(!db||!roomCode||!roomConnected||raceSnapshot||toUid===ownUid()||!window.flyingBirdFriendOnline?.(toUid))return false;
  const code=roomCode,key=code+'/'+toUid,uid=ownUid();
  if(Date.now()-(pendingInvites.get(key)||0)<11000)return true;
  pendingInvites.set(key,Date.now());
  setTimeout(()=>{if(Date.now()-(pendingInvites.get(key)||0)>=11000){pendingInvites.delete(key);updateInviteButtons();}},11100);
  try{
+  const online=await get(ref(db,'presence/'+toUid+'/connections'));
+  if(!Object.values(online.val()||{}).some(v=>v===true)||uid!==ownUid()||code!==roomCode||!roomConnected||raceSnapshot)throw Error(T('offline'));
   await set(ref(db,'multiplayerInvites/'+toUid+'/'+code),{fromUid:uid,createdAt:rtStamp(),expiresAt:Date.now()+15*60*1000});
   if(code===roomCode)say(T('inviteSent'));return true;
  }catch(e){pendingInvites.delete(key);if(code===roomCode)say(T('inviteFail')+' ('+(e.code||e.message)+')',true);return false;}
  finally{updateInviteButtons();}
 }
 window.flyingBirdInviteFriend=async uid=>{
- if(!ownUid())return false;
+ if(!ownUid()||!window.flyingBirdFriendOnline?.(uid))return false;
  if(roomCode){if(raceSnapshot){say(T('locked'),true);return false;}return invite(uid);}
  pendingFriendInvite=uid;document.getElementById('fbfPanel').hidden=true;
  open();show('Create');$('fbMpLayout').value=currentLayout();say(T('createInvite'));return null;
@@ -280,21 +282,48 @@ function watchInvites(){
  unInvites=onValue(ref(db,'multiplayerInvites/'+uid),snap=>{
   if(uid!==ownUid())return;
   invites=snap.val()||{};syncInviteRoomChecks();
- },e=>{$('fbMpInvites').textContent=e.message});
+ },e=>{invites={};stopInviteRoomChecks();renderInvites();console.warn('[Flying Bird] Invitations:',e?.code||e.message)});
+}
+const toastWords={
+ EN:{title:'ROOM INVITATION',accept:'Accept',decline:'Decline',busy:'Leave your current room to accept.',failed:'Could not complete the action. Try again.'},
+ RU:{title:'ПРИГЛАШЕНИЕ В КОМНАТУ',accept:'Принять',decline:'Отклонить',busy:'Для входа покинь текущую комнату.',failed:'Не удалось выполнить действие. Попробуй ещё раз.'},
+ ZH:{title:'房间邀请',accept:'接受',decline:'拒绝',busy:'请先离开当前房间。',failed:'操作失败，请重试。'},
+ ES:{title:'INVITACIÓN A LA SALA',accept:'Aceptar',decline:'Rechazar',busy:'Sal de la sala actual para aceptar.',failed:'No se pudo completar. Reintenta.'},
+ PT:{title:'CONVITE PARA SALA',accept:'Aceitar',decline:'Recusar',busy:'Saia da sala atual para aceitar.',failed:'Não foi possível concluir. Tente novamente.'}
+};
+const toastText=k=>(toastWords[lang()]||toastWords.EN)[k];
+const inviteActions=new Set();
+function positionInviteToast(){
+ const box=$('fbMpInviteToasts'),canvas=$('c'),rect=canvas.getBoundingClientRect();
+ const scale=rect.width/(Number(canvas.dataset.logicalWidth)||320);
+ const vp=window.visualViewport,left=vp?.offsetLeft||0,top=vp?.offsetTop||0,width=vp?.width||innerWidth,height=vp?.height||innerHeight;
+ const fs=document.fullscreenElement||document.webkitFullscreenElement;
+ const parent=fs&&fs!==canvas?fs:document.body;if(box.parentElement!==parent)parent.append(box);
+ box.style.left=Math.max(left+8,Math.min(rect.left+8*scale,left+width-260))+'px';
+ box.style.top=Math.max(top+8,Math.min(rect.top+38*scale,top+height-150))+'px';
+ box.style.maxWidth=Math.max(180,width-16)+'px';
 }
 function renderInvites(){
- const box=$('fbMpInvites');box.replaceChildren();
- const pending=Object.entries(invites||{}).some(([c,x])=>codeValid(c)&&x?.expiresAt>Date.now()&&inviteRoomStates.get(c)==='checking');
- const entries=Object.entries(invites||{}).filter(([c,x])=>codeValid(c)&&x?.expiresAt>Date.now()&&inviteRoomStates.get(c)==='valid');
- if(!entries.length){box.hidden=false;box.textContent=pending?T('pending'):T('inviteEmpty');return}
- for(const [c,x] of entries){
-  const r=el('div',null,'mpCard'),label=el('p',c+' · '+(knownNames.get(x.fromUid)?.nick||T('invite'))),row=el('div',null,'mpRow'),join=el('button',T('inviteJoin')),deny=el('button',T('inviteDecline'),'secondary');
-  join.onclick=()=>{if(roomCode)say(T('roomChanged'),true);else void joinRoom(c)};
-  deny.onclick=()=>{void dismissInvite(c)};
-  row.append(join,deny);r.append(label,row);box.append(r);
-  void getCard(x.fromUid).then(card=>{if(label.isConnected)label.textContent=card.nick+' → '+c});
- }
+ const box=$('fbMpInviteToasts');box.replaceChildren();
+ const entries=Object.entries(invites||{}).filter(([c,x])=>codeValid(c)&&x?.expiresAt>Date.now()&&inviteRoomStates.get(c)==='valid').sort((a,b)=>a[1].createdAt-b[1].createdAt);
+ box.hidden=!entries.length;if(!entries.length)return;
+ // One compact card at a time; other invitations remain queued until acted on or expired.
+ const [code,inv]=entries[0],uid=ownUid(),key=uid+'/'+code;
+ const card=el('section',null,'mpInviteToast'),title=el('strong',toastText('title')),label=el('p',(knownNames.get(inv.fromUid)?.nick||'PLAYER')+' → '+code),row=el('div',null,'mpInviteActions'),join=el('button',toastText('accept')),deny=el('button',toastText('decline'));
+ card.setAttribute('role','status');join.type=deny.type='button';join.disabled=!!roomCode||busy||inviteActions.has(key);deny.disabled=inviteActions.has(key);join.title=roomCode?toastText('busy'):'';
+ join.onclick=async()=>{if(roomCode||busy||inviteActions.has(key)||uid!==ownUid())return;inviteActions.add(key);renderInvites();window.flyingBirdPauseForOverlay?.();open();try{await joinRoom(code)}finally{inviteActions.delete(key);renderInvites()}};
+ deny.onclick=async()=>{if(inviteActions.has(key)||uid!==ownUid())return;inviteActions.add(key);renderInvites();try{await dismissInvite(code)}finally{inviteActions.delete(key);renderInvites()}};
+ row.append(join,deny);card.append(title,label,row);if(entries.length>1)card.append(el('small','+'+(entries.length-1)));box.append(card);positionInviteToast();
+ void getCard(inv.fromUid).then(c=>{if(label.isConnected&&uid===ownUid())label.textContent=c.nick+' → '+code});
 }
+window.addEventListener('flyingbird:layout',positionInviteToast);
+window.addEventListener('resize',positionInviteToast);
+window.visualViewport?.addEventListener('resize',positionInviteToast);
+window.visualViewport?.addEventListener('scroll',positionInviteToast);
+document.addEventListener('fullscreenchange',positionInviteToast);
+document.addEventListener('webkitfullscreenchange',positionInviteToast);
+window.addEventListener('flyingbird:friend-presence',updateInviteButtons);
+window.addEventListener('flyingbird:progress-changed',renderInvites);
 // Multiplayer Update 2 — one-shot deterministic survival match. This module lives inside
 // the existing Multiplayer scope; it never calls the solo game score/wallet/save logic.
 let unMatch=null, race=null, raceSnapshot=null, raceOnDisconnect=null, raceRaf=0;
@@ -849,8 +878,8 @@ $('fbMpRaceExit').onclick=raceExitPrompt;$('fbMpRaceExitFinal').onclick=()=>void
 document.addEventListener('visibilitychange',()=>{if(race?.me.alive&&document.hidden&&serverClock()>=race.meta.startAt)void raceFinish('DNF')});
 window.addEventListener('pagehide',()=>{if(race?.me.alive){/* Registered server onDisconnect sets DNF even if JS is stopped. */}});
 
-function open(){renderLabels();if(!ownUid()){document.getElementById('accountBtn')?.click();say(T('noAuth'),true);return}document.getElementById('authPanel').hidden=true;modal.hidden=false;if(!roomCode)show('Home');watchInvites();if(!setDb())say(T('needUrl'),true);else say('');const url=new URL(location.href);const requested=url.searchParams.get('fbRoom');if(requested&&!roomCode){$('fbMpCode').value=requested;say(T('pendingLink'))}}
-function close(){pendingFriendInvite=null;modal.hidden=true;unInvites?.();unInvites=null;stopInviteRoomChecks()}
+function open(){renderLabels();if(!ownUid()){document.getElementById('accountBtn')?.click();say(T('noAuth'),true);return}document.getElementById('authPanel').hidden=true;modal.hidden=false;if(!roomCode)show('Home');if(!unInvites)watchInvites();if(!setDb())say(T('needUrl'),true);else say('');const url=new URL(location.href);const requested=url.searchParams.get('fbRoom');if(requested&&!roomCode){$('fbMpCode').value=requested;say(T('pendingLink'))}}
+function close(){pendingFriendInvite=null;modal.hidden=true;}
 window.flyingBirdOpenMultiplayer=open;
 // The account module already invokes flyingBirdBeforeSignOut before signing out.
 // Chain instead of replacing the Friends Presence cleanup.
@@ -878,6 +907,6 @@ $('fbMpCopyLink').onclick=async()=>{await copy(localCodeLink());say(T('roomLink'
 window.addEventListener('flyingbird:progress-changed',()=>{if(!modal.hidden)renderLabels()});
 window.addEventListener('flyingbird:screen-change',()=>{});
 let prevUid=null;
-onAuthStateChanged(auth,user=>{const uid=user&&!user.isAnonymous?user.uid:null;const changed=prevUid!==uid;prevUid=uid;if(changed&&roomCode)void leaveRoom({silent:true});if(uid&&!modal.hidden)watchInvites();else if(!uid){unInvites?.();unInvites=null;stopInviteRoomChecks();close()}if(uid&&new URL(location.href).searchParams.has('fbRoom')&&!window.__fbMpLinkSeen){window.__fbMpLinkSeen=true;open()}});
+onAuthStateChanged(auth,user=>{const uid=user&&!user.isAnonymous?user.uid:null;const changed=prevUid!==uid;prevUid=uid;if(changed&&roomCode)void leaveRoom({silent:true});if(changed){unInvites?.();unInvites=null;stopInviteRoomChecks();invites={};renderInvites();}if(uid&&!unInvites)watchInvites();else if(!uid)close();if(uid&&new URL(location.href).searchParams.has('fbRoom')&&!window.__fbMpLinkSeen){window.__fbMpLinkSeen=true;open()}});
 // Leave the room on account sign-out, independent of the presence-module sign-out hook.
 window.addEventListener('pagehide',()=>{if(roomCode&&db&&mySeat!==null){/* onDisconnect handles abrupt closing */}});
