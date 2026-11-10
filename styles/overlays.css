@@ -66,8 +66,8 @@
 /* Leaderboards: a menu-only shortcut anchored under the upper-right coin HUD. */
 #fbLbShortcut[hidden],#fbLbPanel[hidden]{display:none!important}
 #fbLbShortcut{position:fixed;z-index:24;right:12px;top:68px;max-width:138px;
-  padding:7px 10px;border:2px solid #2b1b00;border-radius:9px;background:#ffd23f;
-  box-shadow:3px 3px 0 #2b1b00;color:#2b1b00;
+  padding:7px 10px;border:2px solid #2b1b00;border-radius:0;background:#ffd23f;
+  box-shadow:0 3px 0 #2b1b00;color:#2b1b00;
   font:700 11px/1.1 'Courier New',monospace;cursor:pointer;white-space:nowrap}
 #fbLbPanel{position:fixed;inset:0;z-index:110;background:rgba(9,8,28,.93);display:flex;
   align-items:center;justify-content:center;box-sizing:border-box;padding:12px;
@@ -159,3 +159,6 @@
 #fbfBox .fbfActionsMenu[hidden]{display:none!important}
 #fbfBox .fbfActionsMenu button{text-align:left;box-shadow:none;min-height:36px;font-size:11px}
 #fbfBox .fbfItem:has(.fbfActionsMenu:not([hidden])){min-height:205px;z-index:3}
+
+#fbLbShortcut:hover{background:#ffe16b}
+#fbLbShortcut:active{background:#f3bd25}
