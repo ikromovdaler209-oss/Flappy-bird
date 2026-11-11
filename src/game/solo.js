@@ -71,6 +71,13 @@
     { name: 'ROYAL RAVEN', theme:'ROYAL', price:325, rarity:'LEGENDARY', body:'#1c1530',hi:'#4a3a7a',wing:'#6a3fb0',wingD:'#2a1a4e',belly:'#3a2c5c' },
     { name: 'JADE BIRD', theme:'JADE', price:275, rarity:'EPIC', body:'#2fbf8a',hi:'#9af0cf',wing:'#1b8a62',wingD:'#0f5a40',belly:'#d6ffe9' }
     ,{name:'Lorean',art:'lorean',theme:'SWEETS',price:600,bundleTrail:'STARDUST',body:'#82bd48',hi:'#c7ef86',wing:'#579844',wingD:'#326b42',belly:'#b8db79'}
+    // ELITE tier: six premium skins, 350 coins each (same pixel geometry as every other skin).
+    ,{ name: 'AURUM',        theme:'ELITE', price:350, rarity:'ELITE', body:'#e0a516',hi:'#ffe27a',wing:'#8f5b0e',wingD:'#573406',belly:'#fff0b8' }
+    ,{ name: 'OBSIDIAN',     theme:'ELITE', price:350, rarity:'ELITE', body:'#17141f',hi:'#5a4f6b',wing:'#d11f3f',wingD:'#7a0f27',belly:'#3a2f46' }
+    ,{ name: 'ABYSS',        theme:'ELITE', price:350, rarity:'ELITE', body:'#0e2a52',hi:'#3fe0ff',wing:'#1a6fd6',wingD:'#0a3578',belly:'#bfe9ff' }
+    ,{ name: 'ECLIPSE',      theme:'ELITE', price:350, rarity:'ELITE', body:'#241038',hi:'#ffb347',wing:'#ff7a18',wingD:'#a63d00',belly:'#4b2a6b' }
+    ,{ name: 'EMERALD KING', theme:'ELITE', price:350, rarity:'ELITE', body:'#0c4a34',hi:'#3fe0a0',wing:'#e8b923',wingD:'#8a6a0a',belly:'#c9f5de' }
+    ,{ name: 'PLATINUM',     theme:'ELITE', price:350, rarity:'ELITE', body:'#aab4c4',hi:'#f2f6fc',wing:'#3f5bd0',wingD:'#24348a',belly:'#e9eef7' }
   ];
   const SHOP_MAPS = [
     {id:'SAKURA',name:'SAKURA GARDEN',price:250,rarity:'RARE'},
@@ -102,8 +109,6 @@
   wallet.trails = Array.isArray(wallet.trails) ? [...new Set(wallet.trails.filter(id => TRAILS.some(t => t.id === id)))] : [];
   cfg.trail = TRAILS.some(t => t.id === cfg.trail) && wallet.trails.includes(cfg.trail) ? cfg.trail : 'NONE';
   cfg.particleQuality = ['AUTO','HIGH','LOW','OFF'].includes(cfg.particleQuality) ? cfg.particleQuality : 'AUTO';
-  HighFlyGraphics.normalize(cfg);
-  window.flyingBirdGraphicsQuality=()=>cfg.graphicsQuality;
   const saveWallet = () => { store.set('flyingBirdWallet', wallet); window.dispatchEvent(new Event('flyingbird:progress-changed')); };
   // Apply a cloud save to the game's live objects (not just localStorage).
   window.addEventListener('flyingbird:apply-progress', e => {
@@ -116,8 +121,6 @@
       cfg.fps = String(cfg.fps);
       if (cfg.fps !== 'MAX' && !/^\d{2,3}$/.test(cfg.fps)) cfg.fps = 'MAX';
       if (!['AUTO','HIGH','LOW','OFF'].includes(cfg.particleQuality)) cfg.particleQuality = 'AUTO';
-      HighFlyGraphics.normalize(cfg);
-      queueFit();
     }
     if (data.save && typeof data.save === 'object') {
       const x = data.save;
@@ -179,7 +182,7 @@
   if (cfg.fps !== 'MAX' && !/^\d{2,3}$/.test(cfg.fps)) cfg.fps = 'MAX';
   function initWeather() {   // snow on the mountains, rising embers on the volcano
     const n = cfg.map === 'MOUNTAINS' ? Math.round(W * H / 2200) : cfg.map === 'VOLCANO' ? Math.round(W * H / 5000) : 0;
-    weather = Array.from({ length: cfg.fx || matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : Math.ceil(n * HighFlyGraphics.presets[cfg.graphicsQuality].particles / 3) }, () => ({ x: Math.random() * W, y: Math.random() * H, s: Math.random() < 0.3 ? 2 : 1, p: Math.random() * 6.28 }));
+    weather = Array.from({ length: n }, () => ({ x: Math.random() * W, y: Math.random() * H, s: Math.random() < 0.3 ? 2 : 1, p: Math.random() * 6.28 }));
   }
 
   // ---------- Player profile ----------
@@ -447,16 +450,16 @@
   };
   for (const lang of LANGS) Object.assign(I18N[lang], SKIN_TEXT[lang]);
   const NEW_TEXT = {
-    EN:{MAP_FOREST:'ENCHANTED FOREST',MAP_CRYSTAL:'CRYSTAL CAVERNS',MAP_DESERT:'DESERT MIRAGE',TRAIL_FROST:'FROST',TRAIL_STARDUST:'STARDUST',TRAIL_SHADOW:'SHADOW',TRAIL_AURORA:'AURORA',TRAIL_HEART:'HEARTS',SKIN_ARCTIC_OWL:'ARCTIC OWL',SKIN_ROYAL_RAVEN:'ROYAL RAVEN',SKIN_JADE_BIRD:'JADE BIRD'},
-    RU:{MAP_FOREST:'ЗАКОЛДОВАННЫЙ ЛЕС',MAP_CRYSTAL:'КРИСТАЛЬНЫЕ ПЕЩЕРЫ',MAP_DESERT:'МИРАЖ ПУСТЫНИ',TRAIL_FROST:'МОРОЗ',TRAIL_STARDUST:'ЗВЁЗДНАЯ ПЫЛЬ',TRAIL_SHADOW:'ТЕНЬ',TRAIL_AURORA:'АВРОРА',TRAIL_HEART:'СЕРДЕЧКИ',SKIN_ARCTIC_OWL:'ПОЛЯРНАЯ СОВА',SKIN_ROYAL_RAVEN:'КОРОЛЕВСКИЙ ВОРОН',SKIN_JADE_BIRD:'НЕФРИТОВАЯ ПТИЦА'},
-    ZH:{MAP_FOREST:'魔法森林',MAP_CRYSTAL:'水晶洞窟',MAP_DESERT:'沙漠幻景',TRAIL_FROST:'寒霜',TRAIL_STARDUST:'星尘',TRAIL_SHADOW:'暗影',TRAIL_AURORA:'极光',TRAIL_HEART:'爱心',SKIN_ARCTIC_OWL:'北极猫头鹰',SKIN_ROYAL_RAVEN:'皇家渡鸦',SKIN_JADE_BIRD:'翡翠鸟'},
-    ES:{MAP_FOREST:'BOSQUE ENCANTADO',MAP_CRYSTAL:'CAVERNAS DE CRISTAL',MAP_DESERT:'ESPEJISMO DEL DESIERTO',TRAIL_FROST:'ESCARCHA',TRAIL_STARDUST:'POLVO ESTELAR',TRAIL_SHADOW:'SOMBRA',TRAIL_AURORA:'AURORA',TRAIL_HEART:'CORAZONES',SKIN_ARCTIC_OWL:'BÚHO ÁRTICO',SKIN_ROYAL_RAVEN:'CUERVO REAL',SKIN_JADE_BIRD:'AVE DE JADE'},
-    PT:{MAP_FOREST:'FLORESTA ENCANTADA',MAP_CRYSTAL:'CAVERNAS DE CRISTAL',MAP_DESERT:'MIRAGEM DO DESERTO',TRAIL_FROST:'GEADA',TRAIL_STARDUST:'POEIRA ESTELAR',TRAIL_SHADOW:'SOMBRA',TRAIL_AURORA:'AURORA',TRAIL_HEART:'CORAÇÕES',SKIN_ARCTIC_OWL:'CORUJA ÁRTICA',SKIN_ROYAL_RAVEN:'CORVO REAL',SKIN_JADE_BIRD:'PÁSSARO DE JADE'}
+    EN:{MAP_FOREST:'ENCHANTED FOREST',MAP_CRYSTAL:'CRYSTAL CAVERNS',MAP_DESERT:'DESERT MIRAGE',TRAIL_FROST:'FROST',TRAIL_STARDUST:'STARDUST',TRAIL_SHADOW:'SHADOW',TRAIL_AURORA:'AURORA',TRAIL_HEART:'HEARTS',SKIN_ARCTIC_OWL:'ARCTIC OWL',SKIN_ROYAL_RAVEN:'ROYAL RAVEN',SKIN_JADE_BIRD:'JADE BIRD',SKIN_AURUM:'AURUM',SKIN_OBSIDIAN:'OBSIDIAN',SKIN_ABYSS:'ABYSS',SKIN_ECLIPSE:'ECLIPSE',SKIN_EMERALD_KING:'EMERALD KING',SKIN_PLATINUM:'PLATINUM'},
+    RU:{MAP_FOREST:'ЗАКОЛДОВАННЫЙ ЛЕС',MAP_CRYSTAL:'КРИСТАЛЬНЫЕ ПЕЩЕРЫ',MAP_DESERT:'МИРАЖ ПУСТЫНИ',TRAIL_FROST:'МОРОЗ',TRAIL_STARDUST:'ЗВЁЗДНАЯ ПЫЛЬ',TRAIL_SHADOW:'ТЕНЬ',TRAIL_AURORA:'АВРОРА',TRAIL_HEART:'СЕРДЕЧКИ',SKIN_ARCTIC_OWL:'ПОЛЯРНАЯ СОВА',SKIN_ROYAL_RAVEN:'КОРОЛЕВСКИЙ ВОРОН',SKIN_JADE_BIRD:'НЕФРИТОВАЯ ПТИЦА',SKIN_AURUM:'АУРУМ',SKIN_OBSIDIAN:'ОБСИДИАН',SKIN_ABYSS:'БЕЗДНА',SKIN_ECLIPSE:'ЗАТМЕНИЕ',SKIN_EMERALD_KING:'ИЗУМРУДНЫЙ КОРОЛЬ',SKIN_PLATINUM:'ПЛАТИНА'},
+    ZH:{MAP_FOREST:'魔法森林',MAP_CRYSTAL:'水晶洞窟',MAP_DESERT:'沙漠幻景',TRAIL_FROST:'寒霜',TRAIL_STARDUST:'星尘',TRAIL_SHADOW:'暗影',TRAIL_AURORA:'极光',TRAIL_HEART:'爱心',SKIN_ARCTIC_OWL:'北极猫头鹰',SKIN_ROYAL_RAVEN:'皇家渡鸦',SKIN_JADE_BIRD:'翡翠鸟',SKIN_AURUM:'黄金',SKIN_OBSIDIAN:'黑曜石',SKIN_ABYSS:'深渊',SKIN_ECLIPSE:'日食',SKIN_EMERALD_KING:'祖母绿之王',SKIN_PLATINUM:'铂金'},
+    ES:{MAP_FOREST:'BOSQUE ENCANTADO',MAP_CRYSTAL:'CAVERNAS DE CRISTAL',MAP_DESERT:'ESPEJISMO DEL DESIERTO',TRAIL_FROST:'ESCARCHA',TRAIL_STARDUST:'POLVO ESTELAR',TRAIL_SHADOW:'SOMBRA',TRAIL_AURORA:'AURORA',TRAIL_HEART:'CORAZONES',SKIN_ARCTIC_OWL:'BÚHO ÁRTICO',SKIN_ROYAL_RAVEN:'CUERVO REAL',SKIN_JADE_BIRD:'AVE DE JADE',SKIN_AURUM:'AURUM',SKIN_OBSIDIAN:'OBSIDIANA',SKIN_ABYSS:'ABISMO',SKIN_ECLIPSE:'ECLIPSE',SKIN_EMERALD_KING:'REY ESMERALDA',SKIN_PLATINUM:'PLATINO'},
+    PT:{MAP_FOREST:'FLORESTA ENCANTADA',MAP_CRYSTAL:'CAVERNAS DE CRISTAL',MAP_DESERT:'MIRAGEM DO DESERTO',TRAIL_FROST:'GEADA',TRAIL_STARDUST:'POEIRA ESTELAR',TRAIL_SHADOW:'SOMBRA',TRAIL_AURORA:'AURORA',TRAIL_HEART:'CORAÇÕES',SKIN_ARCTIC_OWL:'CORUJA ÁRTICA',SKIN_ROYAL_RAVEN:'CORVO REAL',SKIN_JADE_BIRD:'PÁSSARO DE JADE',SKIN_AURUM:'AURUM',SKIN_OBSIDIAN:'OBSIDIANA',SKIN_ABYSS:'ABISMO',SKIN_ECLIPSE:'ECLIPSE',SKIN_EMERALD_KING:'REI ESMERALDA',SKIN_PLATINUM:'PLATINA'}
   };
   for (const lang of LANGS) Object.assign(I18N[lang], NEW_TEXT[lang]);
   const qualityText = {
-    EN:{GRAPHICS:'GRAPHICS',HIGH:'HIGH',MEDIUM:'MEDIUM',LOW:'LOW'},RU:{GRAPHICS:'ГРАФИКА',HIGH:'ВЫСОКОЕ',MEDIUM:'СРЕДНЕЕ',LOW:'НИЗКОЕ'},
-    ZH:{GRAPHICS:'画质',HIGH:'高',MEDIUM:'中',LOW:'低'},ES:{GRAPHICS:'GRÁFICOS',HIGH:'ALTA',MEDIUM:'MEDIA',LOW:'BAJA'},PT:{GRAPHICS:'GRÁFICOS',HIGH:'ALTA',MEDIUM:'MÉDIA',LOW:'BAIXA'}
+    EN:{HIGH:'HIGH',LOW:'LOW'},RU:{HIGH:'ВЫСОКОЕ',LOW:'НИЗКОЕ'},
+    ZH:{HIGH:'高',LOW:'低'},ES:{HIGH:'ALTA',LOW:'BAJA'},PT:{HIGH:'ALTA',LOW:'BAIXA'}
   };
   for (const lang of LANGS) Object.assign(I18N[lang], qualityText[lang]);
   const EXTREME_TEXT = {
@@ -599,8 +602,10 @@ if (!initialized) {
   const coarsePointer = matchMedia('(pointer: coarse)');
   const particleReducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   function particleLevel() {
-    if (cfg.fx || particleReducedMotion.matches) return 0;
-    return HighFlyGraphics.presets[cfg.graphicsQuality].particles;
+    if (cfg.fx || cfg.particleQuality === 'OFF') return 0;
+    if (cfg.particleQuality === 'LOW') return 1;
+    if (cfg.particleQuality === 'HIGH') return 3;
+    return coarsePointer.matches || particleReducedMotion.matches ? 1 : 2;
   }
   function burst(x, y, n, spd, life, cols = ['#fff']) {
     const quality = particleLevel();
@@ -866,7 +871,7 @@ if (!initialized) {
   const ry = R;
   const x = Math.floor(cx), y = Math.floor(cy);
   // Glow is a draw effect only: collection still uses the original hit distance.
-  if (!opts.static && particleLevel()>1) {
+  if (!opts.static && !cfg.fx && cfg.particleQuality !== 'OFF') {
     const pulse=.13+.07*Math.sin(ticks*.12);
     ctx.save();ctx.globalAlpha=pulse;
     ctx.fillStyle='#ffdc55';ctx.beginPath();ctx.ellipse(x,y,rx+7,ry+7,0,0,Math.PI*2);ctx.fill();
@@ -2047,11 +2052,11 @@ function toggleFS() {
 }
   function drawMenu() {
     if (L) {
-      title('HIGH', W / 2 - 8, 70, 40, '#ffd23f', 'right');
-      title('FLY', W / 2 + 8, 70, 40, '#ff6b9d', 'left');
+      title('FLYING', W / 2 - 8, 70, 40, '#ffd23f', 'right');
+      title('BIRD', W / 2 + 8, 70, 40, '#ff6b9d', 'left');
     } else {
-      title('HIGH', W / 2, 105, 48, '#ffd23f', 'center');
-      title('FLY', W / 2, 155, 48, '#ff6b9d', 'center');
+      title('FLYING', W / 2, 105, 48, '#ffd23f', 'center');
+      title('BIRD', W / 2, 155, 48, '#ff6b9d', 'center');
     }
     drawAvatar(8, 8, 22, profile.av);
     txtFit(profile.nick, 36, 19, 11, 140, '#fff', 'left');
@@ -2398,8 +2403,8 @@ function toggleFS() {
       [tr('MUSIC'), bars(cfg.music), d => { cfg.music = wrap(11, cfg.music, d); }],
       [tr('SOUND_FX'), bars(cfg.sfx), d => { cfg.sfx = wrap(11, cfg.sfx, d); tone(500, 700, 0.08); }],
       [tr('COLOR_MODE'), displayValue(cfg.cb), d => { cfg.cb = cyc(Object.keys(PIPES), cfg.cb, d); }],
-      [tr('REDUCE_EFFECTS'), onoff(cfg.fx), () => { cfg.fx = !cfg.fx; cfg.particleQuality='AUTO'; initWeather(); }],
-      [tr('GRAPHICS'), tr(cfg.graphicsQuality), d => { cfg.graphicsQuality = cyc(['LOW','MEDIUM','HIGH'], cfg.graphicsQuality, d); cfg.particleQuality='AUTO'; initWeather(); queueFit(); window.dispatchEvent(new Event('flyingbird:graphics')); }],
+      [tr('REDUCE_EFFECTS'), onoff(cfg.fx), () => { cfg.fx = !cfg.fx; }],
+      [tr('PARTICLE_QUALITY'), displayValue(cfg.particleQuality), d => { cfg.particleQuality = cyc(['AUTO','HIGH','LOW','OFF'], cfg.particleQuality, d); }],
       [tr('FPS_LIMIT'), cfg.fps === 'MAX' ? tr('MAX') + ' (' + displayHz() + ')' : cfg.fps, d => { const o = fpsOptions(); cfg.fps = cyc(o, o.includes(cfg.fps) ? cfg.fps : 'MAX', d); }],
       [tr('SHOW_FPS'), onoff(cfg.showFps), () => { cfg.showFps = !cfg.showFps; }]
     ];
@@ -2544,7 +2549,7 @@ function toggleFS() {
     if (cfg.showFps) {
       // Second number = the longest gap between two drawn frames in the last ~second.
       const ratio = fpsExpect > 0 ? worstShown / fpsExpect : 0;
-      txt('FPS ' + fpsShown + ' | ' + (worstShown ? Math.round(worstShown) : '-') + 'ms', W - 8, screen==='SETTINGS'?H-30:39, 10,
+      txt('FPS ' + fpsShown + ' | ' + (worstShown ? Math.round(worstShown) : '-') + 'ms', W - 8, 39, 10,
         ratio > 2.2 ? '#ff6b6b' : ratio > 1.5 ? '#ffd23f' : '#9fe870', 'right');
     }
     if (focus >= btns.length) focus = 0;
@@ -2698,7 +2703,8 @@ function toggleFS() {
     layout(land, width, height);
   }
 
-  const r = HighFlyGraphics.density(cfg.graphicsQuality,scale,devicePixelRatio,W,H);
+  const r = Math.min(Math.max(1, scale * Math.min(devicePixelRatio || 1, 2)),
+    Math.sqrt(4200000 / (W * H)));
 
   const backingW = Math.round(W * r), backingH = Math.round(H * r);
   if (canvas.width !== backingW || canvas.height !== backingH) {
@@ -2784,9 +2790,7 @@ fit();
   function drawInterp(a) {
     if (a >= 1 || a <= 0) { draw(); return; }
     const sv = { by: bird.y, br: bird.rot, gx: groundX, bx: bgX };
-    for(const p of pipes){p.renderX=p.x;p.renderTop=p.top;}
-    for(const q of particles){q.renderX=q.x;q.renderY=q.y;}
-    for(const w of weather){w.renderX=w.x;w.renderY=w.y;}
+    const ps = pipes.map(p => [p.x, p.top]), qs = particles.map(q => [q.x, q.y]), ws = weather.map(w => [w.x, w.y]);
     bird.y = lerp(prev.by, bird.y, a); bird.rot = lerp(prev.br, bird.rot, a);
     groundX = lerp(prev.gx, groundX, a); bgX = lerp(prev.bx, bgX, a);
     pipes.forEach(p => { p.x = lerp(p.px, p.x, a); p.top = lerp(p.pt, p.top, a); });
@@ -2794,9 +2798,9 @@ fit();
     weather.forEach(w => { w.x = lerp(w.ox, w.x, a); w.y = lerp(w.oy, w.y, a); });
     try { draw(); } finally {
       bird.y = sv.by; bird.rot = sv.br; groundX = sv.gx; bgX = sv.bx;
-      pipes.forEach(p => { p.x = p.renderX; p.top = p.renderTop; });
-      particles.forEach(q => { q.x = q.renderX; q.y = q.renderY; });
-      weather.forEach(w => { w.x = w.renderX; w.y = w.renderY; });
+      pipes.forEach((p, i) => { p.x = ps[i][0]; p.top = ps[i][1]; });
+      particles.forEach((q, i) => { q.x = qs[i][0]; q.y = qs[i][1]; });
+      weather.forEach((w, i) => { w.x = ws[i][0]; w.y = ws[i][1]; });
     }
   }
   function loop(now) {
