@@ -1,8 +1,8 @@
 {
-  "name": "flying-bird",
-  "version": "2.9.2",
+  "name": "high-fly",
+  "version": "3.0.0-visual.1",
   "private": true,
-  "description": "Flying Bird static web game",
+  "description": "High Fly graphics and optimization update",
   "scripts": {
     "dev": "node tools/serve.mjs",
     "check": "node tools/check.mjs",
@@ -10,7 +10,7 @@
     "test:regression": "node tools/test-regression.mjs",
     "test:experience": "node tools/test-experience.mjs",
     "test:stats": "node tools/test-stats.mjs",
-    "test": "node tools/check.mjs && node tools/test-network.mjs && node tools/test-regression.mjs && node tools/test-experience.mjs && node tools/test-stats.mjs && node tools/test-social-sync.mjs && node tools/test-map-art.mjs && node tools/test-lobby-skins.mjs",
+    "test": "node tools/check.mjs && node tools/test-network.mjs && node tools/test-regression.mjs && node tools/test-experience.mjs && node tools/test-stats.mjs && node tools/test-social-sync.mjs && node tools/test-map-art.mjs && node tools/test-lobby-skins.mjs && node tools/test-graphics.mjs && node tools/test-languages.mjs",
     "test:social": "node tools/test-social-sync.mjs",
     "test:art": "node tools/test-map-art.mjs"
   },

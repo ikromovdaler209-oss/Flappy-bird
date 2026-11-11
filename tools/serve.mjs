@@ -18,4 +18,4 @@ createServer(async (req,res) => {
     res.writeHead(200, {'Content-Type':mime[path.extname(target)]||'application/octet-stream','Cache-Control':'no-cache'});
     res.end(req.method==='HEAD'?undefined:content);
   } catch {res.writeHead(404);res.end('Not Found');}
-}).listen(port, () => console.log(`Flying Bird: http://localhost:${port}`));
+}).listen(port, () => console.log(`High Fly: http://localhost:${port}`));
