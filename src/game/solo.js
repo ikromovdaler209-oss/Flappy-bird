@@ -1367,51 +1367,68 @@ if (!initialized) {
     ctx.save();ctx.imageSmoothingEnabled=true;ctx.scale(.82,.82);ctx.drawImage(loreanFrames.get(frame),-30,-25,64,48);ctx.restore();
   }
 
-  // ZxcGoul — compact hand-drawn Canvas sprite based on the supplied reference:
-  // jagged white hair, single crimson eye, black mask, serrated grin, forked
-  // ember-red wings and a two-part orange bill. Same physics and hitbox.
+  // ZxcGoul — a smaller, more faithful Canvas rendition of the supplied image.
+  // The three crimson appendages are rendered as a built-in signature effect that
+  // always ships with this skin, without adding a separate shop inventory item.
   function drawZxcGoul(wy) {
-    const g=ctx, outline='#100d17', dark='#201a28', red='#ed1226';
+    const g=ctx, outline='#0d0912', shell='#18131f', shellHi='#302736';
     const poly=(pts,color)=>{g.fillStyle=color;g.beginPath();g.moveTo(...pts[0]);for(let i=1;i<pts.length;i++)g.lineTo(...pts[i]);g.closePath();g.fill();};
-    // Red batlike blades behind the head, with thin glowing veins.
-    poly([[-14,-2],[-22,-12],[-25,-17],[-20,-20],[-15,-19],[-10,-16],[-7,-9]],outline);
-    poly([[-15,-5],[-24,-13],[-22,-18],[-15,-17],[-9,-11]],'#91091b');
-    poly([[-18,-15],[-13,-15],[-8,-9],[-14,-12]],red);
-    poly([[-11,8],[-21,9],[-26,15],[-22,11],[-20,19],[-15,12]],outline);
-    poly([[-12,8],[-22,12],[-19,15],[-15,12]],'#ac0b20');
-    g.strokeStyle='#f51d29';g.lineWidth=.85;g.beginPath();g.moveTo(-21,-15);g.lineTo(-13,-12);g.lineTo(-9,-9);g.moveTo(-22,13);g.lineTo(-16,10);g.stroke();
-    // Head and armored mask are deliberately boxy, not a recolored base bird.
-    poly([[-19,-11],[11,-13],[16,-8],[17,9],[9,16],[-15,16],[-20,10]],outline);
-    poly([[-17,-9],[11,-10],[15,-5],[14,8],[7,14],[-13,13],[-17,7]],'#18141f');
-    poly([[-17,2],[-10,-1],[-5,4],[1,7],[8,11],[-14,11]],'#312a36');
-    poly([[-15,7],[-7,10],[2,12],[-13,14]],'#0d0c14');
-    // Black visor split by one vivid glowing scarlet eye.
-    poly([[-2,-7],[12,-8],[13,1],[1,3]],'#07070d');
-    g.fillStyle='rgba(255,16,31,.23)';g.beginPath();g.arc(7,-3,6.5,0,Math.PI*2);g.fill();
-    g.fillStyle='#a40012';g.beginPath();g.arc(7,-3,3.1,0,Math.PI*2);g.fill();
-    g.fillStyle='#ff1726';g.beginPath();g.arc(7,-3,2.1,0,Math.PI*2);g.fill();
-    g.fillStyle='#ffb2a2';g.fillRect(6,-5,1.6,1.6);
-    // White spiky fringe with cold lavender shadow facets.
-    poly([[-20,-12],[-14,-16],[-10,-16],[-4,-21],[-1,-18],[6,-20],[7,-17],[15,-16],[13,-12],[19,-10],[15,-5],[18,-2],[10,-5],[6,-3],[3,-9],[-1,-5],[-4,0],[-7,-6],[-12,2],[-14,-4],[-20,0],[-18,-6],[-23,-5]],outline);
-    poly([[-20,-12],[-13,-16],[-10,-15],[-4,-20],[-1,-17],[5,-19],[7,-16],[14,-15],[12,-11],[17,-9],[13,-6],[16,-3],[9,-7],[6,-5],[3,-11],[-1,-8],[-4,-2],[-7,-9],[-12,-1],[-14,-7],[-20,-2],[-17,-8],[-22,-7]],'#f3f1ff');
-    poly([[-15,-12],[-11,-15],[-9,-12],[-14,-7]],'#a8a6c4');
-    poly([[-5,-17],[-2,-16],[-6,-8],[-10,-5]],'#b9b6d5');
-    poly([[4,-17],[7,-16],[9,-9],[7,-10]],'#cac5df');
-    poly([[11,-13],[15,-10],[14,-6],[12,-8]],'#aaa8c8');
-    // Lower black mask, exposed jagged teeth with a crimson seam.
-    poly([[-10,3],[9,1],[11,8],[-8,10]],'#09090f');
-    poly([[-8,4],[8,3],[7,7],[-7,8]],'#d9dce7');
-    for(let i=-5;i<8;i+=4){g.fillStyle='#726577';g.fillRect(i,4,1,4);}
-    g.fillStyle='#a20d23';g.fillRect(-7,8,15,1.5);
-    // Two separated glowing orange beak plates to the right.
-    poly([[14,-8],[27,-10],[28,1],[15,3]],outline);
-    poly([[16,-7],[25,-8],[26,-1],[16,0]],'#ff6b35');
-    poly([[16,1],[27,1],[27,9],[16,10]],outline);
-    poly([[17,2],[25,2],[25,7],[17,8]],'#e95129');
-    g.fillStyle='#ff9861';g.fillRect(17,-6,6,1.2);
-    g.fillStyle='#ff7241';g.fillRect(18,3,6,1);
-    // Tiny bobbing feather to make animation distinguishable in a thumbnail.
-    poly([[-12,11+wy*.22],[-6,12+wy*.22],[-8,14+wy*.22],[-14,14+wy*.22]],dark);
+    const line=(pts,color,width=.9,alpha=1)=>{g.save();g.globalAlpha=alpha;g.strokeStyle=color;g.lineWidth=width;g.beginPath();g.moveTo(...pts[0]);for(let i=1;i<pts.length;i++)g.lineTo(...pts[i]);g.stroke();g.restore();};
+    g.save();
+    // Slightly smaller than the previous draft so the skin sits closer to standard birds.
+    g.scale(.87,.87);
+    const sway=wy*.34;
+    // Three crimson tendrils bundled with the skin.
+    const tendril=(pts,fill,vein)=>{
+      poly(pts,outline);
+      poly([[pts[0][0]+1.1,pts[0][1]],[pts[1][0]+1.3,pts[1][1]],[pts[2][0]+1.4,pts[2][1]],[pts[3][0]+1.2,pts[3][1]],[pts[4][0]+1,pts[4][1]],[pts[5][0]+1.1,pts[5][1]]],fill);
+      line([pts[1],[pts[2][0]+1.8,pts[2][1]+.5],[pts[3][0]+1.1,pts[3][1]+.2]],vein,.9,.88);
+    };
+    tendril([[-12,-2],[-23,-15-sway],[-27,-21-sway*1.2],[-21,-20-sway],[-14,-17-sway*.35],[-9,-9]],'#960d21','#ff3a49');
+    tendril([[-14,2],[-27,0-sway*.18],[-31,4+sway*.2],[-27,7+sway*.4],[-18,8+sway*.2],[-11,7]],'#86091d','#ff2f41');
+    tendril([[-11,9],[-22,13+sway*.45],[-28,20+sway],[-23,18+sway*.9],[-15,16+sway*.55],[-10,13]],'#a40f24','#ff5362');
+    g.fillStyle='rgba(255,28,58,.13)';g.beginPath();g.ellipse(-20,1,12,16,0,0,Math.PI*2);g.fill();
+    // Main head silhouette.
+    poly([[-19,-12],[11,-14],[17,-9],[18,8],[10,16],[-14,16],[-21,10],[-21,-2]],outline);
+    poly([[-17,-10],[10,-11],[15,-7],[15,7],[8,14],[-13,13],[-18,8],[-18,-1]],shell);
+    poly([[-16,2],[-9,-1],[-5,3],[0,7],[7,10],[-13,11]],shellHi);
+    poly([[-15,7],[-8,9],[0,12],[-13,14]],'#0b0a10');
+    // Hair — denser and more jagged, closer to the reference.
+    poly([[-22,-12],[-18,-16],[-15,-16],[-10,-20],[-7,-18],[-2,-22],[1,-19],[7,-21],[9,-18],[15,-17],[16,-13],[20,-11],[17,-8],[20,-5],[16,-4],[13,-1],[9,-4],[5,-2],[2,-7],[-2,-4],[-6,0],[-9,-5],[-13,2],[-16,-2],[-20,0],[-18,-5],[-23,-5]],outline);
+    poly([[-21,-12],[-17,-15],[-14,-15],[-9,-19],[-6,-17],[-2,-21],[1,-18],[6,-20],[8,-17],[14,-16],[15,-13],[18,-10],[16,-8],[18,-5],[14,-5],[12,-2],[8,-5],[5,-3],[2,-8],[-2,-6],[-6,-1],[-9,-7],[-13,0],[-15,-4],[-19,-1],[-17,-6],[-22,-6]],'#f5f3ff');
+    poly([[-15,-12],[-11,-15],[-8,-11],[-14,-7]],'#b5b1d4');
+    poly([[-7,-18],[-2,-18],[-5,-11],[-9,-6]],'#c9c4e2');
+    poly([[1,-20],[6,-18],[7,-12],[4,-13]],'#d0cae4');
+    poly([[10,-15],[14,-13],[13,-8],[10,-9]],'#b4b0ca');
+    // Visor and single red eye.
+    poly([[-2,-7],[12,-8],[13,1],[1,3]],'#06060b');
+    g.fillStyle='rgba(255,24,40,.26)';g.beginPath();g.arc(7,-3,6.9,0,Math.PI*2);g.fill();
+    g.fillStyle='#7d0914';g.beginPath();g.arc(7,-3,3.4,0,Math.PI*2);g.fill();
+    g.fillStyle='#ff1428';g.beginPath();g.arc(7,-3,2.35,0,Math.PI*2);g.fill();
+    g.fillStyle='#ffc4b8';g.fillRect(6.3,-5.1,1.2,1.2);
+    line([[8,-8],[8,-12],[9,-14]],'#d81628',.7,.8);
+    line([[8,-1],[8,4],[7,6]],'#d81628',.7,.64);
+    // Face plates and bolts.
+    poly([[-16,-7],[-8,-10],[-4,-7],[-12,-3]],'#0e0d15');
+    poly([[-17,0],[-11,-1],[-7,3],[-14,5]],'#25202c');
+    g.fillStyle='#8f8998';g.beginPath();g.arc(-10.5,1.6,1.4,0,Math.PI*2);g.fill();g.fillStyle='#d7d5dd';g.beginPath();g.arc(-10.1,1.1,.45,0,Math.PI*2);g.fill();
+    g.fillStyle='#8f8998';g.beginPath();g.arc(2.2,10.6,1.35,0,Math.PI*2);g.fill();g.fillStyle='#d7d5dd';g.beginPath();g.arc(1.8,10.2,.42,0,Math.PI*2);g.fill();
+    // Mouth / teeth.
+    poly([[-8,2],[9,1],[11,8],[-8,10]],'#08080e');
+    poly([[-7,4],[8,3],[8,7],[-7,8]],'#dde0ea');
+    for(let i=-5;i<8;i+=3){g.fillStyle='#6e6478';g.fillRect(i,4,1,4);}
+    g.fillStyle='#a10c23';g.fillRect(-7.2,8.1,15.7,1.55);
+    g.fillStyle='#cf192f';g.fillRect(-3,2.8,11,.8);
+    // Two orange beak blocks.
+    poly([[13.5,-8],[27,-10],[28,1],[14.5,2.7]],outline);
+    poly([[15.5,-7],[25.5,-8],[26.5,-1],[16,0]],'#ff6f38');
+    poly([[15.2,1.2],[27.2,1.2],[27.2,9.2],[15.2,10.2]],outline);
+    poly([[16.5,2.2],[25.4,2.2],[25.4,7.4],[16.6,8.2]],'#ea532a');
+    g.fillStyle='#ff9f6e';g.fillRect(17.4,-6,6.1,1.1);
+    g.fillStyle='#ff7342';g.fillRect(18.1,3,6,1);
+    // Small lower shard.
+    poly([[-11,11+wy*.24],[-5,12+wy*.24],[-7,14.5+wy*.24],[-13,14.5+wy*.24]],'#251c30');
+    g.restore();
   }
 
   function birdShapes(sk, wy) {
