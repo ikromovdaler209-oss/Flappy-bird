@@ -113,7 +113,14 @@
     {id:'MOTH',name:'LUMEN MOTHS',price:425,rarity:'LEGENDARY',colors:['#a3ffe1','#a88bff','#f7dcff']},
     {id:'PRISM',name:'PRISM SHARDS',price:475,rarity:'LEGENDARY',colors:['#79ecff','#ff80e9','#fff1aa']},
     {id:'GLITCH',name:'GLITCH',price:450,rarity:'LEGENDARY',colors:['#47efff','#ff4ca8','#d9f9ff']},
-    {id:'CONSTELLATION',name:'CONSTELLATION',price:550,rarity:'LEGENDARY',colors:['#c4c7ff','#fff1b7','#78dcff']}
+    {id:'CONSTELLATION',name:'CONSTELLATION',price:550,rarity:'LEGENDARY',colors:['#c4c7ff','#fff1b7','#78dcff']},
+    // Six hand-drawn trails; append-only IDs preserve existing players' cloud cosmetics.
+    {id:'INKFLOW',name:'INK FLOW',price:350,rarity:'EPIC',colors:['#131b28','#647487','#d4e1eb']},
+    {id:'BUBBLE',name:'BUBBLEVERSE',price:375,rarity:'EPIC',colors:['#85e7ff','#ffc1eb','#c7d8ff']},
+    {id:'SONIC',name:'SONIC PULSE',price:450,rarity:'LEGENDARY',colors:['#49edff','#867bff','#e3ffff']},
+    {id:'PHOENIX',name:'PHOENIX FEATHERS',price:500,rarity:'LEGENDARY',colors:['#f7b447','#ff7242','#fff0b4']},
+    {id:'LUNAR',name:'LUNAR PHASES',price:575,rarity:'LEGENDARY',colors:['#d8e4fa','#7e97cf','#f8faff']},
+    {id:'OMEN',name:'CRIMSON OMEN',price:650,rarity:'LEGENDARY',colors:['#10111e','#a4172a','#ff5061']}
   ];
   const wallet = store.get('flyingBirdWallet', { coins: 0, owned: [], maps: [], trails: [] });
   wallet.coins = Math.max(0, Math.floor(Number(wallet.coins) || 0));
@@ -505,6 +512,15 @@
     PT:{TRAIL_RIFT:'FENDA',TRAIL_ARCANE:'SIGILOS ARCANOS',TRAIL_CHRONO:'ENGRENAGENS DO TEMPO',TRAIL_ORIGAMI:'VOO ORIGAMI',TRAIL_MOTH:'MARIPOSAS LUMINOSAS',TRAIL_PRISM:'ESTILHAÇOS PRISMA',TRAIL_GLITCH:'FALHA DIGITAL',TRAIL_CONSTELLATION:'CONSTELAÇÃO'}
   };
   for(const lang of LANGS) Object.assign(I18N[lang],EXPANDED_TRAIL_TEXT[lang]);
+  // All new cosmetic labels are localized, even when shop language is switched mid-session.
+  const SIX_TRAIL_TEXT = {
+    EN:{TRAIL_INKFLOW:'INK FLOW',TRAIL_BUBBLE:'BUBBLEVERSE',TRAIL_SONIC:'SONIC PULSE',TRAIL_PHOENIX:'PHOENIX FEATHERS',TRAIL_LUNAR:'LUNAR PHASES',TRAIL_OMEN:'CRIMSON OMEN'},
+    RU:{TRAIL_INKFLOW:'ПОТОК ЧЕРНИЛ',TRAIL_BUBBLE:'МИР ПУЗЫРЕЙ',TRAIL_SONIC:'ЗВУКОВОЙ ИМПУЛЬС',TRAIL_PHOENIX:'ПЕРЬЯ ФЕНИКСА',TRAIL_LUNAR:'ФАЗЫ ЛУНЫ',TRAIL_OMEN:'БАГРОВОЕ ЗНАМЕНИЕ'},
+    ZH:{TRAIL_INKFLOW:'水墨流痕',TRAIL_BUBBLE:'泡泡宇宙',TRAIL_SONIC:'声波脉冲',TRAIL_PHOENIX:'凤凰之羽',TRAIL_LUNAR:'月相之光',TRAIL_OMEN:'猩红凶兆'},
+    ES:{TRAIL_INKFLOW:'FLUJO DE TINTA',TRAIL_BUBBLE:'UNIVERSO DE BURBUJAS',TRAIL_SONIC:'PULSO SÓNICO',TRAIL_PHOENIX:'PLUMAS DE FÉNIX',TRAIL_LUNAR:'FASES LUNARES',TRAIL_OMEN:'PRESAGIO CARMESÍ'},
+    PT:{TRAIL_INKFLOW:'FLUXO DE TINTA',TRAIL_BUBBLE:'UNIVERSO DE BOLHAS',TRAIL_SONIC:'PULSO SÔNICO',TRAIL_PHOENIX:'PENAS DE FÊNIX',TRAIL_LUNAR:'FASES DA LUA',TRAIL_OMEN:'PRESSÁGIO CARMESIM'}
+  };
+  for(const lang of LANGS) Object.assign(I18N[lang], SIX_TRAIL_TEXT[lang]);
   const tr = key => (I18N[cfg.lang] || I18N.EN)[key] || I18N.EN[key] || key;
   const displayValue = value => ({
     NIGHT:tr('NIGHT'), DAY:tr('DAY'), AUTO:tr('AUTO'),
@@ -658,6 +674,17 @@ if (!initialized) {
     bird.vy = -4.4; save.flaps++;
     tone(380, 640, 0.1);
     burst(bird.x + 2, bird.y + bird.h, 4, 1.2, 18, ['#fff', '#ffe98a']);
+    // A brief, capped pulse on each actual flap makes premium trails respond to input.
+    if(ELITE_TRAIL_IDS.has(cfg.trail) && particleLevel() && !screen){
+      const t=TRAILS.find(item=>item.id===cfg.trail);
+      const n=particleLevel()===1?2:3;
+      for(let j=0;j<n;j++){
+        const life=16+j*3;
+        trailParticles.push({x:bird.x-6-j*2,y:bird.y+bird.h*.5,
+          vx:-2.3-j*.37,vy:(j-1)*.65-.24,life,max:life,
+          col:t.colors[j%t.colors.length],size:5.1+j*.2,k:cfg.trail,i:(ticks+j*3)|0,flare:true});
+      }
+    }
   }
 
   // Make each new gap reachable from the last one. On tall phones the old
@@ -742,7 +769,7 @@ if (!initialized) {
       const t=TRAILS.find(t=>t.id===cfg.trail);
       if(t){const count=particleLevel();
         const premium=PREMIUM_TRAIL_IDS.has(t.id);
-        const emitted=premium?Math.max(1,Math.ceil(count*.67)):count;
+        const emitted=ELITE_TRAIL_IDS.has(t.id)?Math.max(1,Math.ceil(count*.52)):premium?Math.max(1,Math.ceil(count*.67)):count;
         for(let i=0;i<emitted;i++){
           if(t.id==='HEART'&&ticks%3)continue;
           const life=premium?23+Math.random()*15:17+Math.random()*16;
@@ -751,7 +778,8 @@ if (!initialized) {
             life,max:premium?life:33,col:t.colors[Math.floor(Math.random()*t.colors.length)],
             size:premium?3+Math.random()*2.1:2+Math.random()*3,k:t.id,i:(ticks+i)|0});
         }
-        if(trailParticles.length>120)trailParticles.splice(0,trailParticles.length-120);
+        const maxTrail=ELITE_TRAIL_IDS.has(t.id)?(count===1?32:count===2?48:64):120;
+        if(trailParticles.length>maxTrail)trailParticles.splice(0,trailParticles.length-maxTrail);
       }
     }
 
@@ -1363,7 +1391,8 @@ if (!initialized) {
     ctx.restore();
   }
 
-  const PREMIUM_TRAIL_IDS = new Set(['RIFT','ARCANE','CHRONO','ORIGAMI','MOTH','PRISM','GLITCH','CONSTELLATION']);
+  const ELITE_TRAIL_IDS = new Set(['INKFLOW','BUBBLE','SONIC','PHOENIX','LUNAR','OMEN']);
+  const PREMIUM_TRAIL_IDS = new Set(['RIFT','ARCANE','CHRONO','ORIGAMI','MOTH','PRISM','GLITCH','CONSTELLATION',...ELITE_TRAIL_IDS]);
   const NEWTR = Object.fromEntries(['FROST','STARDUST','SHADOW','AURORA','HEART',...PREMIUM_TRAIL_IDS].map(id => [id, TRAILS.find(t => t.id === id).colors]));
 
   // All eight effects share one compact vector renderer in game, shop, avatar preview
@@ -1438,6 +1467,68 @@ if (!initialized) {
       g.fillStyle='#1a244f';g.fillRect(-2,-2,7,2);
       g.fillStyle='#f4faff';g.fillRect(-3,-2,5,1);g.fillRect(2,3,2,1);
       if((seed+Math.floor(time/5))%4===0){g.fillStyle='#ff4ca8';g.fillRect(6,-7,1,4);g.fillStyle='#48e8ff';g.fillRect(-7,4,5,1);}
+    }else if(id==='INKFLOW'){
+      // A directional sumi-e brushstroke, not a recolored square particle.
+      g.rotate(Math.sin(t*.57)*.42);
+      poly([[-8,-1],[-4,-4],[2,-3],[7,-1],[3,1],[-3,2],[-8,3]],'#131a26');
+      g.strokeStyle='#8292a4';g.lineWidth=.85;g.beginPath();g.moveTo(-7,0);g.bezierCurveTo(-3,-4,2,-2,6,-1);g.stroke();
+      g.strokeStyle='#c3d2dd';g.lineWidth=.5;g.beginPath();g.moveTo(-5,-1);g.quadraticCurveTo(0,-3,4,-1);g.stroke();
+      disc(-7,-4,.9,'#718091');disc(5,3,.6,'#dce9f1');
+      if(seed%3===0)disc(-3,5,1.2,'#354152');
+    }else if(id==='BUBBLE'){
+      // Iridescent thin-film bubbles, drifting upward and swelling before they pop.
+      const rad=5.2+Math.sin(t*.6)*.45;
+      disc(0,0,rad,'rgba(149,220,255,.09)');
+      g.strokeStyle='#9ae9ff';g.lineWidth=1;g.beginPath();g.arc(0,0,rad,0,Math.PI*2);g.stroke();
+      g.strokeStyle='#efb5ff';g.lineWidth=1.35;g.beginPath();g.arc(0,0,rad,-.22,1.7);g.stroke();
+      g.strokeStyle='#bbfff9';g.lineWidth=.8;g.beginPath();g.arc(0,0,rad,2.55,4.55);g.stroke();
+      disc(-2.2,-2,1.18,'#e9ffff');disc(2.6,2.7,.56,'#ffd2f6');
+      if(seed%4===0){g.strokeStyle='rgba(222,249,255,.72)';g.lineWidth=.65;g.beginPath();g.arc(0,0,rad+2.7,.4,2.9);g.stroke();}
+    }else if(id==='SONIC'){
+      // Ring + 8 radial wave bars; each flap emits its own larger, faster pulse.
+      const r=4.8+Math.sin(t*.9)*.7;
+      disc(0,0,6.7,'rgba(45,211,255,.10)');
+      ring(r,'#52eaff',1.25,-.35,2.8);ring(r,'#b6b0ff',1.15,3.1,5.95);
+      for(let j=0;j<8;j++){
+        const a=j*Math.PI/4+t*.05,inner=6.3,outer=inner+1.3+(j%3)*1.1;
+        g.strokeStyle=j%2?'#9a9aff':'#92faff';g.lineWidth=.75;
+        g.beginPath();g.moveTo(Math.cos(a)*inner,Math.sin(a)*inner);g.lineTo(Math.cos(a)*outer,Math.sin(a)*outer);g.stroke();
+      }
+      disc(0,0,1.25,'#ecfeff');
+    }else if(id==='PHOENIX'){
+      // Two-tone curved feathers with a quill, barbs and a soft ember, separate from Fire.
+      g.rotate(-.45+Math.sin(t*.6)*.38);
+      disc(0,1,6.8,'rgba(255,143,52,.12)');
+      g.fillStyle='#d44c30';g.beginPath();g.moveTo(-5,6);g.bezierCurveTo(-8,-4,-1,-9,5,-8);g.bezierCurveTo(8,-2,4,4,-5,6);g.fill();
+      g.fillStyle='#ffc05e';g.beginPath();g.moveTo(-5,6);g.bezierCurveTo(-3,-4,1,-8,5,-8);g.bezierCurveTo(6,-1,1,3,-5,6);g.fill();
+      g.strokeStyle='#fff0af';g.lineWidth=.9;g.beginPath();g.moveTo(-6,7);g.quadraticCurveTo(.5,-2,5,-8);g.stroke();
+      g.strokeStyle='#8d2e32';g.lineWidth=.55;g.beginPath();g.moveTo(-3,1);g.lineTo(2,1);g.moveTo(-1,-2);g.lineTo(4,-3);g.moveTo(-4,4);g.lineTo(-1,4);g.stroke();
+      disc(7,-7,.9,'#ffe698');
+    }else if(id==='LUNAR'){
+      // True phase silhouettes: crescent -> quarter -> gibbous -> full -> waning.
+      const phase=((seed%8)+8)%8/8, waxing=phase<=.5;
+      disc(0,0,6.3,'rgba(165,193,252,.16)');
+      g.save();if(!waxing)g.scale(-1,1);
+      disc(0,0,4.9,'#18233f');
+      if(phase!==0){
+        const q=waxing?phase:1-phase, terminator=Math.cos(q*2*Math.PI)*4.9;
+        g.fillStyle='#e1eaff';g.beginPath();g.moveTo(0,-4.9);
+        g.arc(0,0,4.9,-Math.PI/2,Math.PI/2,false);
+        g.bezierCurveTo(terminator*1.35,4.9,terminator*1.35,-4.9,0,-4.9);g.closePath();g.fill();
+      }
+      g.restore();
+      g.strokeStyle='rgba(139,169,243,.78)';g.lineWidth=.75;g.beginPath();g.arc(0,0,5.8,.35,2.55);g.stroke();
+      if(seed%3===0)disc(7,-5,.75,'#eff7ff');
+    }else if(id==='OMEN'){
+      // Obsidian smoke with red cracks, a sinister red glint and floating cinders.
+      g.rotate(Math.sin(t*.42)*.24);
+      disc(0,0,7.3,'rgba(218,27,48,.13)');
+      poly([[-8,5],[-6,1],[-7,-4],[-2,-7],[0,-5],[3,-8],[7,-4],[5,0],[8,4],[3,6],[-1,4],[-5,7]],'#0d101a');
+      poly([[-5,5],[-2,-1],[0,-3],[2,-1],[5,-5],[4,1],[7,3],[1,4]],'#29303c');
+      g.strokeStyle='#a4192a';g.lineWidth=1.25;g.beginPath();g.moveTo(-7,3);g.lineTo(-3,0);g.lineTo(-1,3);g.lineTo(2,-3);g.lineTo(6,-5);g.stroke();
+      g.strokeStyle='#f43c52';g.lineWidth=.8;g.beginPath();g.moveTo(-3,-3);g.lineTo(-1,-5);g.lineTo(0,-3);g.moveTo(3,1);g.lineTo(5,3);g.stroke();
+      disc(2,-1,1.2,'#ff5d64');disc(-6,5,.7,'#ff7380');
+      if(seed%3===0)disc(7,-7,.9,'#dc243b');
     }else if(id==='CONSTELLATION'){
       g.rotate(Math.sin(t*.22)*.25);
       g.strokeStyle='#9ba7fa';g.lineWidth=.8;g.beginPath();g.moveTo(-5,3);g.lineTo(-2,-3);g.lineTo(4,-5);g.lineTo(6,2);g.lineTo(-2,-3);g.stroke();
@@ -1475,6 +1566,12 @@ if (!initialized) {
     else if(p.k==='PRISM'){p.vx*=Math.pow(.986,dt);}
     else if(p.k==='GLITCH'){p.vy*=Math.pow(.97,dt);}
     else if(p.k==='CONSTELLATION'){p.vx*=Math.pow(.995,dt);p.vy*=Math.pow(.995,dt);}
+    else if(p.k==='INKFLOW'){p.vx*=Math.pow(.955,dt);p.vy+=Math.sin((p.max-p.life)*.15+p.i)*.012*dt;}
+    else if(p.k==='BUBBLE'){p.vy-=.033*dt;p.vx*=Math.pow(.991,dt);p.size=Math.min(6.5,p.size+.026*dt);}
+    else if(p.k==='SONIC'){p.vx*=Math.pow(.97,dt);p.size=Math.min(7,p.size+.04*dt);}
+    else if(p.k==='PHOENIX'){p.vy-=.024*dt;p.y+=Math.sin((p.max-p.life)*.22+p.i)*.13*dt;}
+    else if(p.k==='LUNAR'){p.vx*=Math.pow(.994,dt);p.vy*=Math.pow(.994,dt);}
+    else if(p.k==='OMEN'){p.vx*=Math.pow(.985,dt);p.vy-=.015*dt;p.size=Math.min(6.8,p.size+.036*dt);}
   }
 
   function trailMark(id,x,y,s,i,a,now){   // one cheap pixel renderer for live particles and for shop previews
@@ -1836,7 +1933,7 @@ if (!initialized) {
       vgG=ctx.createLinearGradient(0,0,0,70);vgG.addColorStop(0,'rgba(5,4,25,.26)');vgG.addColorStop(1,'rgba(5,4,25,0)');}
     ctx.fillStyle=hzG;ctx.fillRect(0,GROUND-70,W,70);ctx.fillStyle=vgG;ctx.fillRect(0,0,W,70);
   }
-  const NEW_ITEMS=new Set(['MAPS:CELESTIAL','MAPS:CYBERPUNK','MAPS:MYSTIC','MAPS:SHATTERED','MAPS:FOREST','MAPS:CRYSTAL','MAPS:DESERT','TRAILS:FROST','TRAILS:STARDUST','TRAILS:SHADOW','TRAILS:AURORA','TRAILS:HEART']);
+  const NEW_ITEMS=new Set(['MAPS:CELESTIAL','MAPS:CYBERPUNK','MAPS:MYSTIC','MAPS:SHATTERED','MAPS:FOREST','MAPS:CRYSTAL','MAPS:DESERT','TRAILS:FROST','TRAILS:STARDUST','TRAILS:SHADOW','TRAILS:AURORA','TRAILS:HEART','TRAILS:INKFLOW','TRAILS:BUBBLE','TRAILS:SONIC','TRAILS:PHOENIX','TRAILS:LUNAR','TRAILS:OMEN']);
   const isNew=i=>i.kind==='BIRDS'?NEW_SKIN.has(i.name):NEW_ITEMS.has(i.kind+':'+i.id);
   function premiumArt(key,x,y,w,h,staticCard=false){
     if(ELITE_MAPS.has(key)){eliteArt(key,x,y,w,h,staticCard);return;}
@@ -3290,7 +3387,7 @@ fit();
       track.particles=track.particles.filter(p=>p.life>0);
       if(enabled&&def&&player.active!==false){
         const premium=PREMIUM_TRAIL_IDS.has(type);
-        track.emission+=(premium?Math.max(.7,quality*.67):quality)*dt;
+        track.emission+=(ELITE_TRAIL_IDS.has(type)?Math.max(.55,quality*.52):premium?Math.max(.7,quality*.67):quality)*dt;
         const count=Math.min(9,Math.floor(track.emission));track.emission-=count;
         for(let i=0;i<count;i++){
           if(type==='HEART'&&Math.random()<.5)continue;
@@ -3301,7 +3398,8 @@ fit();
             size:premium?3+Math.random()*2.1:2+Math.random()*3,k:type,i:Math.floor(now/16)+i,
             opacity:Math.max(0,Math.min(1,Number(player.alpha??1)))});
         }
-        if(track.particles.length>120)track.particles.splice(0,track.particles.length-120);
+        const maxPerBird=ELITE_TRAIL_IDS.has(type)?(quality===1?28:quality===2?42:56):120;
+        if(track.particles.length>maxPerBird)track.particles.splice(0,track.particles.length-maxPerBird);
       }
       if(type==='CONSTELLATION')constellationLinks(track.particles);
       for(const p of track.particles){

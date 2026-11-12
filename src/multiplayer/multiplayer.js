@@ -499,7 +499,14 @@ function ghostY(uid,p){
 // Equipment is deliberately a small, one-time RTDB write per round. The player
 // controls their own cosmetics; other participants only read the immutable record.
 // Never use the account avatar as the authoritative equipped bird skin.
-const MP_TRAIL_IDS=new Set(['NONE','FIRE','WATER','LIGHTNING','RAINBOW','NATURE','GOLDEN','FROST','STARDUST','SHADOW','AURORA','HEART']);
+// Keep this multiplayer allowlist aligned with the solo shop. Prior premium trails
+// were unintentionally downgraded to NONE when a race began.
+const MP_TRAIL_IDS=new Set([
+ 'NONE','FIRE','WATER','LIGHTNING','RAINBOW','NATURE','GOLDEN',
+ 'FROST','STARDUST','SHADOW','AURORA','HEART',
+ 'RIFT','ARCANE','CHRONO','ORIGAMI','MOTH','PRISM','GLITCH','CONSTELLATION',
+ 'INKFLOW','BUBBLE','SONIC','PHOENIX','LUNAR','OMEN'
+]);
 function sanitizeRaceCosmetics(value){
  const max=window.flyingBirdFriendSkinPalette?.length||24;
  const n=Number(value?.skin);
