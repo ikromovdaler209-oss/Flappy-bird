@@ -1367,67 +1367,65 @@ if (!initialized) {
     ctx.save();ctx.imageSmoothingEnabled=true;ctx.scale(.82,.82);ctx.drawImage(loreanFrames.get(frame),-30,-25,64,48);ctx.restore();
   }
 
-  // ZxcGoul — a smaller, more faithful Canvas rendition of the supplied image.
-  // The three crimson appendages are rendered as a built-in signature effect that
-  // always ships with this skin, without adding a separate shop inventory item.
+  // ZxcGoul — Tokyo Ghoul-inspired special skin: smaller silhouette, whiter layered
+  // hair, one red ghoul eye, darker mask/jaw and three kagune-like tendrils that
+  // trail behind the bird while still using the normal collision geometry.
   function drawZxcGoul(wy) {
-    const g=ctx, outline='#0d0912', shell='#18131f', shellHi='#302736';
+    const g=ctx, outline='#0b0911', shell='#16131d', shellMid='#2b2334';
     const poly=(pts,color)=>{g.fillStyle=color;g.beginPath();g.moveTo(...pts[0]);for(let i=1;i<pts.length;i++)g.lineTo(...pts[i]);g.closePath();g.fill();};
     const line=(pts,color,width=.9,alpha=1)=>{g.save();g.globalAlpha=alpha;g.strokeStyle=color;g.lineWidth=width;g.beginPath();g.moveTo(...pts[0]);for(let i=1;i<pts.length;i++)g.lineTo(...pts[i]);g.stroke();g.restore();};
+    const orb=(x,y,r,c)=>{g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fillStyle=c;g.fill();};
     g.save();
-    // Slightly smaller than the previous draft so the skin sits closer to standard birds.
-    g.scale(.87,.87);
+    g.scale(.82,.82);
     const sway=wy*.34;
-    // Three crimson tendrils bundled with the skin.
-    const tendril=(pts,fill,vein)=>{
+    // Kagune-inspired bundled trail.
+    const tendril=(pts,fill,glow)=>{
       poly(pts,outline);
-      poly([[pts[0][0]+1.1,pts[0][1]],[pts[1][0]+1.3,pts[1][1]],[pts[2][0]+1.4,pts[2][1]],[pts[3][0]+1.2,pts[3][1]],[pts[4][0]+1,pts[4][1]],[pts[5][0]+1.1,pts[5][1]]],fill);
-      line([pts[1],[pts[2][0]+1.8,pts[2][1]+.5],[pts[3][0]+1.1,pts[3][1]+.2]],vein,.9,.88);
+      poly([[pts[0][0]+1.2,pts[0][1]],[pts[1][0]+1.5,pts[1][1]],[pts[2][0]+1.4,pts[2][1]],[pts[3][0]+1.1,pts[3][1]],[pts[4][0]+1.1,pts[4][1]],[pts[5][0]+1,pts[5][1]]],fill);
+      line([pts[1],[pts[2][0]+1.8,pts[2][1]+.4],[pts[3][0]+1.1,pts[3][1]+.2]],glow,.95,.9);
     };
-    tendril([[-12,-2],[-23,-15-sway],[-27,-21-sway*1.2],[-21,-20-sway],[-14,-17-sway*.35],[-9,-9]],'#960d21','#ff3a49');
-    tendril([[-14,2],[-27,0-sway*.18],[-31,4+sway*.2],[-27,7+sway*.4],[-18,8+sway*.2],[-11,7]],'#86091d','#ff2f41');
-    tendril([[-11,9],[-22,13+sway*.45],[-28,20+sway],[-23,18+sway*.9],[-15,16+sway*.55],[-10,13]],'#a40f24','#ff5362');
-    g.fillStyle='rgba(255,28,58,.13)';g.beginPath();g.ellipse(-20,1,12,16,0,0,Math.PI*2);g.fill();
-    // Main head silhouette.
-    poly([[-19,-12],[11,-14],[17,-9],[18,8],[10,16],[-14,16],[-21,10],[-21,-2]],outline);
-    poly([[-17,-10],[10,-11],[15,-7],[15,7],[8,14],[-13,13],[-18,8],[-18,-1]],shell);
-    poly([[-16,2],[-9,-1],[-5,3],[0,7],[7,10],[-13,11]],shellHi);
-    poly([[-15,7],[-8,9],[0,12],[-13,14]],'#0b0a10');
-    // Hair — denser and more jagged, closer to the reference.
-    poly([[-22,-12],[-18,-16],[-15,-16],[-10,-20],[-7,-18],[-2,-22],[1,-19],[7,-21],[9,-18],[15,-17],[16,-13],[20,-11],[17,-8],[20,-5],[16,-4],[13,-1],[9,-4],[5,-2],[2,-7],[-2,-4],[-6,0],[-9,-5],[-13,2],[-16,-2],[-20,0],[-18,-5],[-23,-5]],outline);
-    poly([[-21,-12],[-17,-15],[-14,-15],[-9,-19],[-6,-17],[-2,-21],[1,-18],[6,-20],[8,-17],[14,-16],[15,-13],[18,-10],[16,-8],[18,-5],[14,-5],[12,-2],[8,-5],[5,-3],[2,-8],[-2,-6],[-6,-1],[-9,-7],[-13,0],[-15,-4],[-19,-1],[-17,-6],[-22,-6]],'#f5f3ff');
-    poly([[-15,-12],[-11,-15],[-8,-11],[-14,-7]],'#b5b1d4');
-    poly([[-7,-18],[-2,-18],[-5,-11],[-9,-6]],'#c9c4e2');
-    poly([[1,-20],[6,-18],[7,-12],[4,-13]],'#d0cae4');
-    poly([[10,-15],[14,-13],[13,-8],[10,-9]],'#b4b0ca');
-    // Visor and single red eye.
-    poly([[-2,-7],[12,-8],[13,1],[1,3]],'#06060b');
-    g.fillStyle='rgba(255,24,40,.26)';g.beginPath();g.arc(7,-3,6.9,0,Math.PI*2);g.fill();
-    g.fillStyle='#7d0914';g.beginPath();g.arc(7,-3,3.4,0,Math.PI*2);g.fill();
-    g.fillStyle='#ff1428';g.beginPath();g.arc(7,-3,2.35,0,Math.PI*2);g.fill();
-    g.fillStyle='#ffc4b8';g.fillRect(6.3,-5.1,1.2,1.2);
-    line([[8,-8],[8,-12],[9,-14]],'#d81628',.7,.8);
-    line([[8,-1],[8,4],[7,6]],'#d81628',.7,.64);
-    // Face plates and bolts.
+    tendril([[-13,-1],[-24,-14-sway],[-29,-20-sway*1.15],[-23,-20-sway*.95],[-15,-17-sway*.25],[-10,-8]],'#8c0b1f','#ff3d4f');
+    tendril([[-15,3],[-29,2-sway*.12],[-33,6+sway*.16],[-29,10+sway*.35],[-20,10+sway*.14],[-12,8]],'#760818','#ff3244');
+    tendril([[-12,10],[-23,15+sway*.35],[-30,22+sway],[-24,20+sway*.82],[-16,18+sway*.48],[-11,14]],'#9b0c22','#ff5365');
+    g.fillStyle='rgba(255,25,48,.13)';g.beginPath();g.ellipse(-21,2,13,16,0,0,Math.PI*2);g.fill();
+    // Main silhouette.
+    poly([[-18,-12],[10,-14],[16,-9],[18,7],[10,16],[-13,16],[-20,10],[-21,-1]],outline);
+    poly([[-16,-10],[9,-11],[14,-7],[15,7],[8,14],[-12,13],[-18,8],[-18,0]],shell);
+    poly([[-16,1],[-9,-2],[-4,2],[1,7],[7,10],[-13,11]],shellMid);
+    poly([[-15,7],[-8,9],[1,12],[-13,14]],'#09080e');
+    // Kaneki-like layered white hair.
+    poly([[-22,-12],[-18,-16],[-15,-16],[-10,-21],[-7,-18],[-2,-23],[1,-20],[7,-22],[9,-18],[15,-17],[17,-13],[20,-11],[18,-7],[20,-4],[15,-4],[12,-1],[8,-4],[4,-2],[1,-8],[-2,-5],[-6,0],[-9,-5],[-13,2],[-16,-2],[-20,0],[-18,-5],[-23,-5]],outline);
+    poly([[-21,-12],[-17,-15],[-14,-15],[-9,-20],[-6,-17],[-2,-22],[1,-19],[6,-21],[8,-17],[14,-16],[16,-13],[18,-10],[16,-7],[18,-5],[14,-5],[11,-2],[8,-5],[4,-3],[1,-9],[-2,-6],[-6,-1],[-9,-7],[-13,0],[-15,-4],[-19,-1],[-17,-6],[-22,-6]],'#f7f5ff');
+    poly([[-16,-12],[-12,-15],[-9,-11],[-14,-7]],'#bcb8d9');
+    poly([[-8,-19],[-3,-18],[-6,-11],[-10,-6]],'#d0cbe5');
+    poly([[0,-21],[6,-19],[7,-12],[4,-13]],'#d8d2ea');
+    poly([[9,-16],[14,-13],[13,-8],[10,-9]],'#bbb7d0');
+    // Black sclera + red ghoul eye, opposite side hidden by hair.
+    poly([[-1,-8],[12,-8],[13,1],[2,3]],'#04050a');
+    g.fillStyle='rgba(255,20,38,.28)';g.beginPath();g.arc(7,-3,7,0,Math.PI*2);g.fill();
+    orb(7,-3,3.5,'#66060f'); orb(7,-3,2.45,'#ff162b'); orb(7,-3,1.1,'#ffd6d0');
+    line([[8,-8],[8,-12],[9,-14]],'#de1627',.7,.8);
+    line([[8,-1],[8,4],[7,6]],'#de1627',.7,.62);
+    // Face plates / cheek shadows.
     poly([[-16,-7],[-8,-10],[-4,-7],[-12,-3]],'#0e0d15');
-    poly([[-17,0],[-11,-1],[-7,3],[-14,5]],'#25202c');
-    g.fillStyle='#8f8998';g.beginPath();g.arc(-10.5,1.6,1.4,0,Math.PI*2);g.fill();g.fillStyle='#d7d5dd';g.beginPath();g.arc(-10.1,1.1,.45,0,Math.PI*2);g.fill();
-    g.fillStyle='#8f8998';g.beginPath();g.arc(2.2,10.6,1.35,0,Math.PI*2);g.fill();g.fillStyle='#d7d5dd';g.beginPath();g.arc(1.8,10.2,.42,0,Math.PI*2);g.fill();
-    // Mouth / teeth.
-    poly([[-8,2],[9,1],[11,8],[-8,10]],'#08080e');
-    poly([[-7,4],[8,3],[8,7],[-7,8]],'#dde0ea');
-    for(let i=-5;i<8;i+=3){g.fillStyle='#6e6478';g.fillRect(i,4,1,4);}
-    g.fillStyle='#a10c23';g.fillRect(-7.2,8.1,15.7,1.55);
-    g.fillStyle='#cf192f';g.fillRect(-3,2.8,11,.8);
-    // Two orange beak blocks.
-    poly([[13.5,-8],[27,-10],[28,1],[14.5,2.7]],outline);
-    poly([[15.5,-7],[25.5,-8],[26.5,-1],[16,0]],'#ff6f38');
-    poly([[15.2,1.2],[27.2,1.2],[27.2,9.2],[15.2,10.2]],outline);
-    poly([[16.5,2.2],[25.4,2.2],[25.4,7.4],[16.6,8.2]],'#ea532a');
-    g.fillStyle='#ff9f6e';g.fillRect(17.4,-6,6.1,1.1);
-    g.fillStyle='#ff7342';g.fillRect(18.1,3,6,1);
-    // Small lower shard.
-    poly([[-11,11+wy*.24],[-5,12+wy*.24],[-7,14.5+wy*.24],[-13,14.5+wy*.24]],'#251c30');
+    poly([[-17,0],[-11,-1],[-7,3],[-14,5]],'#221d29');
+    orb(-10.4,1.5,1.35,'#8b8497'); orb(-10,1.1,.42,'#e6e3ec');
+    orb(1.9,10.5,1.28,'#8b8497'); orb(1.6,10.1,.4,'#e6e3ec');
+    // Dark ghoul mask + exposed teeth.
+    poly([[-8,2],[9,1],[11,8],[-8,10]],'#07070c');
+    poly([[-7,4],[8,3],[8,7],[-7,8]],'#e5e7ee');
+    for(let i=-5;i<8;i+=3){g.fillStyle='#70677a';g.fillRect(i,4,1,4);}
+    g.fillStyle='#aa0d23';g.fillRect(-7.1,8.05,15.4,1.55);
+    g.fillStyle='#cf1a2e';g.fillRect(-3,2.7,10.8,.82);
+    // Bird beak retained but integrated more cleanly into the face.
+    poly([[13.5,-8],[26.5,-10],[27.5,1],[14.5,2.6]],outline);
+    poly([[15.3,-7],[25.2,-8],[26.2,-1.1],[15.9,0]],'#ff7440');
+    poly([[15.1,1.1],[27,1.1],[27,9],[15.1,10]],outline);
+    poly([[16.4,2.1],[25.1,2.1],[25.1,7.3],[16.4,8.1]],'#eb552a');
+    g.fillStyle='#ff9a71';g.fillRect(17.1,-6,6,1.05);
+    g.fillStyle='#ff7342';g.fillRect(17.8,3,5.8,.95);
+    // Tiny lower shard for motion readability.
+    poly([[-11,11+wy*.22],[-5,12+wy*.22],[-7,14.4+wy*.22],[-13,14.4+wy*.22]],'#231b2d');
     g.restore();
   }
 
