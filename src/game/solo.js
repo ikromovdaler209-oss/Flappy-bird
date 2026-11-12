@@ -546,6 +546,9 @@
   const mapOK = id => !!MAPS[id] && (!SHOP_MAPS.some(m => m.id === id) || wallet.maps.includes(id));
   const trailOK = id => id === 'NONE' || wallet.trails.includes(id);
   const skinOK = i => !!SKINS[i] && (i < 4 ? maxBest() >= SKINS[i].need : wallet.owned.includes(i));
+  // All map and trail showcases reflect the player's live equipped skin, including
+  // changes restored from the account cloud and changes made in the inventory.
+  const equippedPreviewSkin = () => SKINS[skinOK(cfg.skin) ? cfg.skin : 0];
   if (!skinOK(cfg.skin)) cfg.skin = 0;
   if (!mapOK(cfg.map)) cfg.map = 'CITY';
 
@@ -2234,8 +2237,7 @@ if (!initialized) {
     const pipeX = x + w * .72;
     const pal = MAPS[key]?.pipes?.[0] || GREEN;
     drawPreviewPipePair(pal,x,y,w,h,center,gap,pipeX,pipeW);
-    const sk = key==='CITY'?SKINS[0]:SKINS[Math.min(3, key==='MOUNTAINS'?2:key==='VOLCANO'?1:3)];
-    animatedBirdIcon(sk,x+w*.3,center,Math.min(.88,Math.max(.5,h/60)),{phase:x*.03,drift:2});
+    animatedBirdIcon(equippedPreviewSkin(),x+w*.3,center,Math.min(.88,Math.max(.5,h/60)),{phase:x*.03,drift:2});
     }
     ctx.restore();
   }
@@ -2711,7 +2713,7 @@ function toggleFS() {
     }
     ctx.globalAlpha=1;
     const k=large?Math.min(2,Math.max(1.25,h/110)):Math.min(.98,Math.max(.55,h/67));
-    animatedBirdIcon(SKINS[skinOK(cfg.skin)?cfg.skin:0],bx,by,k,{phase:1.7,drift:2,rotBase:-.09});
+    animatedBirdIcon(equippedPreviewSkin(),bx,by,k,{phase:1.7,drift:2,rotBase:-.09});
     if(large){
       // Subtle frame corners help the player read the larger active-effect preview.
       ctx.fillStyle='rgba(219,241,255,.37)';
@@ -2794,7 +2796,7 @@ function toggleFS() {
     const center=y+h*.49;
     const pipeX=x+w*.7;
     drawPreviewPipePair(pal,x,y,w,h,center,gap,pipeX,Math.max(17,Math.min(34,w*.095)));
-    animatedBirdIcon(SKINS[skinOK(cfg.skin)?cfg.skin:0],x+w*.29+Math.sin(ticks*.07)*Math.min(12,w*.03),center+Math.sin(ticks*.09)*Math.min(6,h*.035),Math.min(1.08,Math.max(.58,h/150)),{trailId:cfg.trail,drift:4,phase:h*.01});
+    animatedBirdIcon(equippedPreviewSkin(),x+w*.29+Math.sin(ticks*.07)*Math.min(12,w*.03),center+Math.sin(ticks*.09)*Math.min(6,h*.035),Math.min(1.08,Math.max(.58,h/150)),{trailId:cfg.trail,drift:4,phase:h*.01});
     ctx.restore();
   }
   function itemArt(item,x,y,w,h){
