@@ -34,6 +34,15 @@
     HARD: { gap: -10, spd: 1.12, mv: 5 },
     EXTREME: { gap: -5, spd: 1.12, mv: 3 }
   };
+  // Collectible coin payouts scale by obstacles already passed in this run.
+  // Each mode has its own 2-coin and 3-coin unlock thresholds.
+  const COIN_REWARD_THRESHOLDS = {
+    EASY: [50, 100], NORMAL: [35, 70], HARD: [26, 52], EXTREME: [14, 36]
+  };
+  const coinReward = (mode, passedPipes) => {
+    const [twoCoins, threeCoins] = COIN_REWARD_THRESHOLDS[mode] || COIN_REWARD_THRESHOLDS.NORMAL;
+    return passedPipes >= threeCoins ? 3 : passedPipes >= twoCoins ? 2 : 1;
+  };
   // One EXTREME level every eight scored pipes. A cap keeps it progressively
   // challenging without producing mathematically unplayable gaps or speeds.
   const extremeTier = () => cfg.diff === 'EXTREME' ? Math.min(10, Math.floor(score / 8)) : 0;
@@ -837,8 +846,9 @@ if (!initialized) {
         const birdCX = bird.x + bird.w / 2, birdCY = bird.y + bird.h / 2;
         if (state === 'PLAYING' && !p.coinTaken && Math.abs(birdCX - coinX) < 15 && Math.abs(birdCY - coinY) < 17) {
           p.coinTaken = true;
-          wallet.coins++;
-          save.earnedCoins = (save.earnedCoins || 0) + 1;
+          const reward = coinReward(cfg.diff, score);
+          wallet.coins += reward;
+          save.earnedCoins = (save.earnedCoins || 0) + reward;
           saveWallet(); saveGame();
           tone(1040, 1560, 0.13, 'square', 0.07);
           burst(coinX, coinY, 10, 2, 24, ['#fff2a6', '#ffd23f', '#ff9f1c']);
