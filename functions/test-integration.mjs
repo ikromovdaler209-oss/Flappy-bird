@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import {getFirestore} from 'firebase-admin/firestore';
+import {getDatabase} from 'firebase-admin/database';
+import {saveHighFlyProgress,settleHighFlyRound} from './index.js';
+const db=getFirestore(),rt=getDatabase(),uid='server_test_user01';
+const auth={uid,token:{firebase:{sign_in_provider:'password'}}};
+const call=data=>saveHighFlyProgress.run({auth,data:{...data,expectedUid:uid}});
+const zero={cfg:{graphicsQuality:'MEDIUM'},save:{games:0,pipes:0,flaps:0,earnedCoins:0,best:{EASY:0,NORMAL:0,HARD:0,EXTREME:0},ach:{}},wallet:{coins:0,owned:[],maps:[],trails:[]}};
+await assert.rejects(saveHighFlyProgress.run({data:zero}),e=>e.code==='unauthenticated');
+assert.ok((await call(zero)).ok);
+let earned=structuredClone(zero);earned.save.games=1;earned.save.pipes=5;earned.save.earnedCoins=5;earned.wallet.coins=5;
+assert.ok((await call(earned)).ok);
+assert.ok((await call(earned)).ok);assert.equal((await db.doc('progress/'+uid).get()).data().wallet.coins,5);
+let cheat=structuredClone(earned);cheat.wallet.coins=999999;await assert.rejects(call(cheat),e=>e.code==='failed-precondition');
+// Legacy balance retained; server prices paid once, even with duplicate concurrent calls.
+await db.doc('progress/'+uid).set({...earned,wallet:{...earned.wallet,coins:1000}});
+const buy=structuredClone(earned);buy.wallet={coins:400,owned:[22],maps:[],trails:['STARDUST']};
+await Promise.all([call(buy),call(buy)]);assert.equal((await db.doc('progress/'+uid).get()).data().wallet.coins,400);
+assert.equal((await db.doc('publicStats/'+uid).get()).data().coins,400);
+const path='multiplayerRounds/FBM-ABCD-EFGH/r0',other='server_test_user02',startAt=Date.now()-10000;
+await rt.ref(path).set({meta:{startAt},roster:{[uid]:true,[other]:true},players:{[uid]:{status:'SURVIVED',tick:120,elapsedMs:2000,score:1},[other]:{status:'DEAD',tick:60,elapsedMs:1000,score:0}}});
+await assert.rejects(settleHighFlyRound.run({auth,data:{path,expectedUid:uid,win:true}}),e=>e.code==='invalid-argument');
+await assert.rejects(settleHighFlyRound.run({auth:{...auth,uid:'not_in_roster'},data:{path,expectedUid:uid}}),e=>e.code==='permission-denied');
+const a=await Promise.all([settleHighFlyRound.run({auth,data:{path,expectedUid:uid}}),settleHighFlyRound.run({auth,data:{path,expectedUid:uid}})]);
+assert.equal(a.filter(x=>x.kind==='ok').length,1);
+const totals=(await db.doc('multiplayerStats/'+uid).get()).data();assert.equal(totals.matches,1);assert.equal(totals.wins,1);
+console.log('PASS Functions + real emulator storage: auth required, paid purchase, concurrent idempotency, forged wallet rejected, server-derived match, foreign roster rejected, one receipt/one win');
+process.exit(0);

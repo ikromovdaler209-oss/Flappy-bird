@@ -1,0 +1,73 @@
+import {initializeTestEnvironment,assertFails,assertSucceeds} from '@firebase/rules-unit-testing';
+import {readFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+const rules=readFileSync('firebase-rules/High_Fly_RTDB_v3_FULL.json','utf8');
+const env=await initializeTestEnvironment({projectId:'demo-flying-bird',database:{host:'127.0.0.1',port:9000,rules}});
+const ids=['host_player_00001','friend_player_0002','kicked_player_0003'];
+const dbs=ids.map(uid=>env.authenticatedContext(uid).database());
+const code='FBM-ABCD-EFGH',room='multiplayerRooms/'+code;
+const init={hostUid:ids[0],meta:{capacity:3,layout:'PORTRAIT',map:'CITY',diff:'NORMAL',version:0,createdAt:Date.now()},seatOf:{[ids[0]]:'0'},slots:{0:{uid:ids[0],skin:0,ready:false,rev:0,joinedAt:Date.now()}}};
+let count=0;async function ok(p){await assertSucceeds(p);count++}async function denied(p){await assertFails(p);count++}
+const round=(version)=>{const roster={},players={},seats={};for(let i=0;i<(version===0?3:2);i++){let uid=ids[i];roster[uid]=true;seats[i]=uid;players[uid]={status:'ALIVE',tick:0,y:180,vy:0,score:0,elapsedMs:0,lastSeen:Date.now()}}return {meta:{hostUid:ids[0],seed:123,startAt:Date.now()+10500,createdAt:Date.now(),map:'CITY',diff:'NORMAL',layout:'PORTRAIT',version},roster,players,seats}};
+try{
+ await env.clearDatabase();
+ await denied(env.unauthenticatedContext().database().ref(room).set(init));
+ await denied(env.authenticatedContext(ids[0],{firebase:{sign_in_provider:'anonymous'}}).database().ref(room).set(init));
+ await ok(dbs[0].ref(room).set(init));
+ for(let i=1;i<3;i++){
+  await ok(dbs[i].ref('multiplayerRounds/'+code+'/r0/meta').get());
+  await ok(dbs[i].ref(room+'/seatOf/'+ids[i]).set(String(i)));
+  await ok(dbs[i].ref(room+'/slots/'+i).set({uid:ids[i],skin:i,ready:false,rev:0,joinedAt:Date.now()}));
+ }
+ await denied(dbs[1].ref(room+'/slots/1').update({skin:0}));
+ const claims=await Promise.allSettled([dbs[1].ref(room+'/slots/1').update({skin:5}),dbs[2].ref(room+'/slots/2').update({skin:5})]);
+ assert.equal(claims.filter(x=>x.status==='fulfilled').length,1,'Exactly one simultaneous reservation wins');
+ for(let i=1;i<3;i++)await ok(dbs[i].ref(room+'/slots/'+i).update({skin:i}));
+ const path0='multiplayerRounds/'+code+'/r0';
+ await denied(dbs[0].ref(path0).set(round(0)));
+ await denied(dbs[0].ref(path0+'/players/'+ids[0]).update({status:'SURVIVED',tick:60,elapsedMs:1000}));
+ await denied(dbs[1].ref(path0+'/players/'+ids[1]).update({tick:600000,elapsedMs:10000000}));
+ await denied(dbs[1].ref(path0+'/players/'+ids[1]).update({tick:60.5,elapsedMs:1000}));
+ await denied(dbs[1].ref(path0+'/players/'+ids[1]).update({tick:60,elapsedMs:9999}));
+ await denied(dbs[1].ref(path0+'/players/'+ids[1]).update({tick:60,elapsedMs:1000,score:9999}));
+ for(let i of [1,2,0])await ok(dbs[i].ref(room+'/slots/'+i).update({ready:true,rev:0}));
+ await denied(dbs[1].ref(path0).set(round(0)));
+ await denied(dbs[0].ref('multiplayerRounds/'+code+'/r1').set(round(0)));
+ await denied(dbs[1].ref(room+'/slots/1').update({skin:7,ready:true}));
+ await ok(dbs[0].ref(path0).set(round(0)));
+ await denied(dbs[1].ref(path0+'/cosmetics/'+ids[1]).set({skin:0,trail:'NONE'}));
+ await ok(dbs[1].ref(path0+'/cosmetics/'+ids[1]).set({skin:1,trail:'NONE'}));
+ await denied(dbs[0].ref(path0).set(round(0)));
+ await env.withSecurityRulesDisabled(c=>c.database().ref(path0+'/meta/startAt').set(Date.now()-10000));
+ await denied(dbs[0].ref(path0+'/seats/1').set(ids[2]));
+ await denied(dbs[0].ref(room+'/meta').set({...init.meta,version:1}));
+ await denied(dbs[0].ref(room+'/bans/'+ids[2]).set(true));
+ for(let i of [1,2,0])await ok(dbs[i].ref(path0+'/players/'+ids[i]).update({status:i===0?'SURVIVED':'DEAD',tick:100+i,elapsedMs:Math.round((100+i)*1000/60),lastSeen:Date.now()}));
+ await denied(dbs[1].ref(room+'/meta').set({...init.meta,version:1}));
+ await ok(dbs[0].ref(room+'/meta').set({...init.meta,version:1}));
+ await denied(dbs[0].ref(room+'/meta').set({...init.meta,version:1}));
+ await ok(dbs[0].ref(room+'/bans/'+ids[2]).set(true));
+ await ok(dbs[0].ref(room+'/slots/2').remove());
+ await denied(dbs[0].ref(room+'/bans/'+ids[2]).remove());
+ await denied(dbs[2].ref(room+'/seatOf/'+ids[2]).set('2'));
+ await denied(dbs[2].ref(room+'/slots/2').set({uid:ids[2],ready:false,rev:1,joinedAt:Date.now()}));
+ await denied(dbs[2].ref('multiplayerRounds/'+code+'/r1/meta').get());
+ const path1='multiplayerRounds/'+code+'/r1';
+ await denied(dbs[0].ref(path1).set(round(1)));
+ for(let i=0;i<2;i++)await ok(dbs[i].ref(room+'/slots/'+i).update({ready:true,rev:1}));
+ const bad=round(1);delete bad.seats[1];await denied(dbs[0].ref(path1).set(bad));
+ await ok(dbs[0].ref(path1).set(round(1)));
+ await env.withSecurityRulesDisabled(c=>c.database().ref(path1+'/meta/startAt').set(Date.now()-10000));
+ await denied(dbs[1].ref(path0+'/players/'+ids[1]).update({status:'ALIVE',tick:200,elapsedMs:3333,lastSeen:Date.now()}));
+ await denied(dbs[1].ref(path0+'/players/'+ids[1]+'/status').set('DNF'));
+ assert.equal((await dbs[1].ref(path1+'/players/'+ids[1]+'/status').get()).val(),'ALIVE');
+ for(let i=0;i<2;i++)await ok(dbs[i].ref(path1+'/players/'+ids[i]).update({status:'DEAD',tick:120,elapsedMs:2000,lastSeen:Date.now()}));
+ await ok(dbs[0].ref(room+'/meta').set({...init.meta,version:2}));
+ assert.equal((await dbs[0].ref(room+'/bans/'+ids[2]).get()).val(),true);
+ // Even a second rematch never clears a ban, nor lets the kicked UID read/join.
+ await denied(dbs[2].ref(room+'/slots/2').set({uid:ids[2],ready:false,rev:2,joinedAt:Date.now()}));
+ await env.withSecurityRulesDisabled(c=>c.database().ref(room+'/slots').remove());
+ await denied(dbs[0].ref(room).remove());
+ assert.equal((await dbs[0].ref(room+'/bans/'+ids[2]).get()).val(),true);
+ console.log('PASS actual RTDB emulator:',count,'allow/deny checks; two rounds, Ready reset, immutable round paths, late packets, ties and persistent Kick');
+}finally{await env.cleanup()}
