@@ -87,6 +87,7 @@
     ,{ name: 'ECLIPSE',      theme:'ELITE', price:350, rarity:'ELITE', body:'#241038',hi:'#ffb347',wing:'#ff7a18',wingD:'#a63d00',belly:'#4b2a6b' }
     ,{ name: 'EMERALD KING', theme:'ELITE', price:350, rarity:'ELITE', body:'#0c4a34',hi:'#3fe0a0',wing:'#e8b923',wingD:'#8a6a0a',belly:'#c9f5de' }
     ,{ name: 'PLATINUM',     theme:'ELITE', price:350, rarity:'ELITE', body:'#aab4c4',hi:'#f2f6fc',wing:'#3f5bd0',wingD:'#24348a',belly:'#e9eef7' }
+    ,{ name: 'ZxcGoul', art: 'zxcgoul', theme: 'SPECIAL', price: 450, rarity: 'SPECIAL', body: '#16141e', hi: '#ffffff', wing: '#ae1127', wingD: '#590719', belly: '#34303d' }
   ];
   const SHOP_MAPS = [
     {id:'SAKURA',name:'SAKURA GARDEN',price:250,rarity:'RARE'},
@@ -1366,7 +1367,55 @@ if (!initialized) {
     ctx.save();ctx.imageSmoothingEnabled=true;ctx.scale(.82,.82);ctx.drawImage(loreanFrames.get(frame),-30,-25,64,48);ctx.restore();
   }
 
+  // ZxcGoul — compact hand-drawn Canvas sprite based on the supplied reference:
+  // jagged white hair, single crimson eye, black mask, serrated grin, forked
+  // ember-red wings and a two-part orange bill. Same physics and hitbox.
+  function drawZxcGoul(wy) {
+    const g=ctx, outline='#100d17', dark='#201a28', red='#ed1226';
+    const poly=(pts,color)=>{g.fillStyle=color;g.beginPath();g.moveTo(...pts[0]);for(let i=1;i<pts.length;i++)g.lineTo(...pts[i]);g.closePath();g.fill();};
+    // Red batlike blades behind the head, with thin glowing veins.
+    poly([[-14,-2],[-22,-12],[-25,-17],[-20,-20],[-15,-19],[-10,-16],[-7,-9]],outline);
+    poly([[-15,-5],[-24,-13],[-22,-18],[-15,-17],[-9,-11]],'#91091b');
+    poly([[-18,-15],[-13,-15],[-8,-9],[-14,-12]],red);
+    poly([[-11,8],[-21,9],[-26,15],[-22,11],[-20,19],[-15,12]],outline);
+    poly([[-12,8],[-22,12],[-19,15],[-15,12]],'#ac0b20');
+    g.strokeStyle='#f51d29';g.lineWidth=.85;g.beginPath();g.moveTo(-21,-15);g.lineTo(-13,-12);g.lineTo(-9,-9);g.moveTo(-22,13);g.lineTo(-16,10);g.stroke();
+    // Head and armored mask are deliberately boxy, not a recolored base bird.
+    poly([[-19,-11],[11,-13],[16,-8],[17,9],[9,16],[-15,16],[-20,10]],outline);
+    poly([[-17,-9],[11,-10],[15,-5],[14,8],[7,14],[-13,13],[-17,7]],'#18141f');
+    poly([[-17,2],[-10,-1],[-5,4],[1,7],[8,11],[-14,11]],'#312a36');
+    poly([[-15,7],[-7,10],[2,12],[-13,14]],'#0d0c14');
+    // Black visor split by one vivid glowing scarlet eye.
+    poly([[-2,-7],[12,-8],[13,1],[1,3]],'#07070d');
+    g.fillStyle='rgba(255,16,31,.23)';g.beginPath();g.arc(7,-3,6.5,0,Math.PI*2);g.fill();
+    g.fillStyle='#a40012';g.beginPath();g.arc(7,-3,3.1,0,Math.PI*2);g.fill();
+    g.fillStyle='#ff1726';g.beginPath();g.arc(7,-3,2.1,0,Math.PI*2);g.fill();
+    g.fillStyle='#ffb2a2';g.fillRect(6,-5,1.6,1.6);
+    // White spiky fringe with cold lavender shadow facets.
+    poly([[-20,-12],[-14,-16],[-10,-16],[-4,-21],[-1,-18],[6,-20],[7,-17],[15,-16],[13,-12],[19,-10],[15,-5],[18,-2],[10,-5],[6,-3],[3,-9],[-1,-5],[-4,0],[-7,-6],[-12,2],[-14,-4],[-20,0],[-18,-6],[-23,-5]],outline);
+    poly([[-20,-12],[-13,-16],[-10,-15],[-4,-20],[-1,-17],[5,-19],[7,-16],[14,-15],[12,-11],[17,-9],[13,-6],[16,-3],[9,-7],[6,-5],[3,-11],[-1,-8],[-4,-2],[-7,-9],[-12,-1],[-14,-7],[-20,-2],[-17,-8],[-22,-7]],'#f3f1ff');
+    poly([[-15,-12],[-11,-15],[-9,-12],[-14,-7]],'#a8a6c4');
+    poly([[-5,-17],[-2,-16],[-6,-8],[-10,-5]],'#b9b6d5');
+    poly([[4,-17],[7,-16],[9,-9],[7,-10]],'#cac5df');
+    poly([[11,-13],[15,-10],[14,-6],[12,-8]],'#aaa8c8');
+    // Lower black mask, exposed jagged teeth with a crimson seam.
+    poly([[-10,3],[9,1],[11,8],[-8,10]],'#09090f');
+    poly([[-8,4],[8,3],[7,7],[-7,8]],'#d9dce7');
+    for(let i=-5;i<8;i+=4){g.fillStyle='#726577';g.fillRect(i,4,1,4);}
+    g.fillStyle='#a20d23';g.fillRect(-7,8,15,1.5);
+    // Two separated glowing orange beak plates to the right.
+    poly([[14,-8],[27,-10],[28,1],[15,3]],outline);
+    poly([[16,-7],[25,-8],[26,-1],[16,0]],'#ff6b35');
+    poly([[16,1],[27,1],[27,9],[16,10]],outline);
+    poly([[17,2],[25,2],[25,7],[17,8]],'#e95129');
+    g.fillStyle='#ff9861';g.fillRect(17,-6,6,1.2);
+    g.fillStyle='#ff7241';g.fillRect(18,3,6,1);
+    // Tiny bobbing feather to make animation distinguishable in a thumbnail.
+    poly([[-12,11+wy*.22],[-6,12+wy*.22],[-8,14+wy*.22],[-14,14+wy*.22]],dark);
+  }
+
   function birdShapes(sk, wy) {
+    if (sk.art === 'zxcgoul') { drawZxcGoul(wy); return; }
     if (sk.art === 'lorean') { drawLorean(wy); return; }
     const S = SPEC[sk.name];
     // tail feathers
@@ -2814,6 +2863,7 @@ function toggleFS() {
     else if(item.kind==='TRAILS'){ctx.fillStyle='#172642';ctx.fillRect(x,y,w,h);drawTrailIcon(item.id,x,y,w,h);}
     else {drawBirdPreviewScene(item.skin,x,y,w,h,cfg.trail||'NONE');}
   }
+  const specialName = () => ({EN:'SPECIAL',RU:'ОСОБЫЙ',ZH:'特别',ES:'ESPECIAL',PT:'ESPECIAL'})[cfg.lang] || 'SPECIAL';
   function drawCosmetics(inventory){
     const tab=inventory?inventoryTab:shopTab, page=inventory?inventoryPage:shopPage;
     ctx.fillStyle='rgba(11,17,39,.97)';ctx.fillRect(0,0,W,H);
@@ -2858,6 +2908,7 @@ function toggleFS() {
         itemArt(item,x+5,y+5,artW,ch-10);
         if(tab==='MAPS')tag(tr('WORLD'),x+7,y+7,Math.min(48,artW-5),14,false,7);
         if(isNew(item))tag(tr('NEW'),x+5+artW-35,y+ch-24,31,14,true,7);
+        if(item.kind==='BIRDS'&&item.rarity==='SPECIAL')tag(specialName(),x+7,y+7,Math.min(66,artW-4),14,true,7);
         cosmeticLabel(name,rightX+rightW/2,y+16,11,rightW-5,'#fff');
         cosmeticLabel(tab==='MAPS'?tr('MAP_TYPE'):tab==='TRAILS'?tr('TRAIL_TYPE'):tr('BIRD_TYPE'),rightX+rightW/2,y+29,8,rightW-6,'#8fc0ff');
         cosmeticLabel(status,rightX+rightW/2,y+41,9,rightW-5,equipped?'#ffd23f':owned?'#a7f3ce':'#ffdc98');
@@ -2875,6 +2926,7 @@ function toggleFS() {
         itemArt(item,x+5,y+5,cw-10,artH);
         if(tab==='MAPS')tag(tr('WORLD'),x+7,y+7,48,14,false,7);
         if(isNew(item))tag(tr('NEW'),x+cw-44,y+7,36,14,true,7);
+        if(item.kind==='BIRDS'&&item.rarity==='SPECIAL')tag(specialName(),x+7,y+7,Math.min(72,cw-14),14,true,8);
         ctx.fillStyle='#1b2d4d';ctx.fillRect(x+5,y+artH+5,cw-10,Math.max(0,ch-artH-10));
         const nameY=y+artH+16;
         cosmeticLabel(name,x+cw/2,nameY,12,cw-13,'#fff');
@@ -2920,7 +2972,7 @@ function toggleFS() {
     const name=itemName(previewItem);
     cosmeticLabel(name,W/2,56,16,W-35,'#fff');
     const kind=previewItem.kind==='MAPS'?'MAP_TYPE':previewItem.kind==='BIRDS'?'BIRD_TYPE':'TRAIL_TYPE';
-    cosmeticLabel(tr(kind)+(previewItem.skin?.bundleTrail?' + STARDUST':''),W/2,74,10,W-45,'#a9bbd6');
+    cosmeticLabel(tr(kind)+(previewItem.rarity==='SPECIAL'?' · '+specialName():'')+(previewItem.skin?.bundleTrail?' + STARDUST':''),W/2,74,10,W-45,'#a9bbd6');
     const x=18,y=91,w=W-36,backY=H-38,actionY=backY-41;
     const detailsY=actionY-39;
     const h=Math.max(40,Math.min(L?Math.max(145,Math.min(300,H*.37)):Math.max(300,H*.72),detailsY-y-10));

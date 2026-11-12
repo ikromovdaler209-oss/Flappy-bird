@@ -6,6 +6,7 @@ import {getFirestore,collection,doc,query,where,limit,getDocsFromServer,getDocFr
 import {getDatabase,ref,get,onValue,set,update,remove,runTransaction,onDisconnect,serverTimestamp as rtStamp} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js';
 import {assessReadyRoom,isFreshPlayerState,newGhostTrack,acceptGhostPacket,ghostPosition,newNetworkStats,noteWriteAck,publishInterval,networkQuality,rankRacePlayers} from './netcode.js';
 import {roundPath,roundFinished,spectatorTarget,nextRoundMeta} from './experience.js';
+import {speedForScore,gapForScore,movingSpec,tierForScore,distanceForTick,scoreForDistance} from './difficulty.js';
 import {submitRound,resultLine,onChange as onMpStats} from '../firebase/mp-stats.js';
 const FB_CONFIG={apiKey:'AIzaSyBXhPjfPGPjD6SX6ISyd9UIGcwIGDir2IE',authDomain:'flying-bird-d6832.firebaseapp.com',projectId:'flying-bird-d6832',storageBucket:'flying-bird-d6832.firebasestorage.app',messagingSenderId:'824302202629',appId:'1:824302202629:web:885e30d34fb1ddaa56516c'};
 const app=getApps().length?getApp():initializeApp(FB_CONFIG),auth=getAuth(app),fsdb=getFirestore(app);
@@ -13,11 +14,11 @@ const $=id=>document.getElementById(id), modal=$('fbMpPanel'), alpha='23456789AB
 const mapIds=['CITY','MOUNTAINS','VOLCANO','SAKURA','NEON','OCEAN','VOLCANO_PLUS','COSMIC','FOREST','CRYSTAL','DESERT','CELESTIAL','CYBERPUNK','MYSTIC','SHATTERED','TEMPEST','ECLIPSE_REALM','PRISM','CLOCKWORK','AURORA','NECROPOLIS'];
 const lang=()=>{try{return JSON.parse(localStorage.getItem('flyingBirdCfg')||'{}').lang||'EN'}catch{return 'EN'}};
 const words={
- EN:{title:'🐤 MULTIPLAYER',subtitle:'ROOMS & LOBBY · v2.6',create:'CREATE ROOM',join:'JOIN ROOM',joinBy:'JOIN BY CODE',invites:'INVITATIONS',db:'Realtime Database connection',dbHint:'Use the same exact Database URL as Friends → Online status settings. Your existing value is reused automatically.',saveDb:'SAVE DATABASE URL',players:'PLAYERS',map:'Map',capacity:'Players',layout:'Orientation',diff:'Difficulty',ready:"I'M READY",unready:'CANCEL READY',start:'START MATCH',save:'SAVE ROOM SETTINGS',invite:'INVITE FRIENDS',load:'LOAD FRIENDS',share:'SHARE LINK',leave:'LEAVE ROOM',copy:'COPY CODE',copyLink:'INVITE LINK',back:'BACK',kick:'KICK',host:'HOST',readyState:'READY',notReady:'NOT READY',createAction:'CREATE',noAuth:'Sign in to your Firebase account to use multiplayer.',needUrl:'Database URL is not configured. The project owner should set it once in the HTML; invitation links can configure it automatically.',notFound:'Room not found or not available.',banned:'You were kicked and permanently blocked from this room.',full:'This room is full.',layoutMismatch:'This room uses the other screen orientation. Rotate the device to join.',mustReady:'All players, including the host, must press Ready. At least 2 players are required.',engine:'All participants are ready! Multiplayer gameplay will be implemented in Update 2; the match is not started yet.',onlyHost:'Only the host can change room settings or kick players.',settingsChanged:'Settings updated. Everyone must press Ready again.',inviteSent:'Invitation sent.',inviteFail:'In-app invitation requires friend presence permission. You can share the invitation link instead.',inviteEmpty:'No incoming invitations.',noFriends:'No friends loaded. Open Friends once to sync the friend online permissions if invitations fail.',kickConfirm:'Kick this player? They will never be allowed to rejoin this room.',kicked:'Removed from the room. You cannot rejoin it.',left:'You left the room.',joined:'Joined room.',roomClosed:'Room was closed.',roomChanged:'Room changed. Return to the lobby.',error:'Operation failed',pending:'Connecting…',limit:'Invite only friends who have granted you presence access.',pendingLink:'Invite link detected. Sign in and join the room.',online:'Ready for lobby',startTip:'Match launch requires all current players to be ready (minimum 2).',matchPending:'Update 1 builds rooms and lobbies only.',inviteJoin:'JOIN',inviteDecline:'DISMISS',roomLink:'Room link copied.',codeCopied:'Room code copied.',orientation:'Orientation',inviteNone:'Share the room link with friends if in-app invitations are unavailable.'},
- RU:{title:'🐤 МУЛЬТИПЛЕЕР',subtitle:'КОМНАТЫ И ЛОББИ · v2.6',create:'СОЗДАТЬ КОМНАТУ',join:'ПРИСОЕДИНИТЬСЯ',joinBy:'ВОЙТИ ПО КОДУ',invites:'ПРИГЛАШЕНИЯ',db:'Подключение Realtime Database',dbHint:'Используй тот же URL базы, что в Friends → Online status settings. Сохранённый адрес подставится автоматически.',saveDb:'СОХРАНИТЬ URL',players:'ИГРОКИ',map:'Карта',capacity:'Игроки',layout:'Ориентация',diff:'Сложность',ready:'ГОТОВ',unready:'ОТМЕНИТЬ ГОТОВНОСТЬ',start:'НАЧАТЬ МАТЧ',save:'СОХРАНИТЬ НАСТРОЙКИ',invite:'ПРИГЛАСИТЬ ДРУЗЕЙ',load:'ЗАГРУЗИТЬ ДРУЗЕЙ',share:'ПОДЕЛИТЬСЯ ССЫЛКОЙ',leave:'ПОКИНУТЬ КОМНАТУ',copy:'КОПИРОВАТЬ КОД',copyLink:'ССЫЛКА',back:'НАЗАД',kick:'ИСКЛЮЧИТЬ',host:'ХОЗЯИН',readyState:'ГОТОВ',notReady:'НЕ ГОТОВ',createAction:'СОЗДАТЬ',noAuth:'Войди в аккаунт Firebase, чтобы пользоваться мультиплеером.',needUrl:'Адрес базы не настроен. Владелец проекта должен указать его один раз в HTML; приглашение по ссылке также настроит адрес автоматически.',notFound:'Комната не найдена или недоступна.',banned:'Хозяин исключил тебя; повторный вход в эту комнату запрещён.',full:'Комната заполнена.',layoutMismatch:'Для этой комнаты нужна другая ориентация экрана. Поверни устройство.',mustReady:'Все игроки, включая хозяина, должны нажать «Готов». Минимум 2 игрока.',engine:'Все готовы! Сам игровой матч появится в Multiplayer Update 2; сейчас комната только подготовлена.',onlyHost:'Только хозяин может изменять настройки комнаты и исключать игроков.',settingsChanged:'Настройки обновлены. Всем нужно снова нажать «Готов».',inviteSent:'Приглашение отправлено.',inviteFail:'Для приглашения в игре нужно разрешение статуса друга. Можешь отправить ссылку.',inviteEmpty:'Нет новых приглашений.',noFriends:'Друзья не загрузились. Если приглашения не проходят, открой Friends для синхронизации разрешений.',kickConfirm:'Исключить игрока? Он больше никогда не войдёт в эту комнату.',kicked:'Тебя исключили. Повторно войти в эту комнату нельзя.',left:'Ты вышел из комнаты.',joined:'Подключено к комнате.',roomClosed:'Комната закрыта.',roomChanged:'Комната изменилась. Вернись в лобби.',error:'Ошибка',pending:'Подключение…',limit:'Приглашения доступны друзьям, разрешившим показ онлайна.',pendingLink:'Найдена ссылка на комнату. Войди в аккаунт и присоединяйся.',online:'Лобби подключено',startTip:'Для запуска должны быть готовы все участники. Минимум 2.',matchPending:'Обновление 1 — только комнаты и лобби.',inviteJoin:'ВОЙТИ',inviteDecline:'СКРЫТЬ',roomLink:'Ссылка скопирована.',codeCopied:'Код скопирован.',orientation:'Ориентация',inviteNone:'Если приглашение в игре не работает, отправь другу ссылку на комнату.'},
- ZH:{title:'🐤 多人游戏',subtitle:'房间与大厅 · v2.5',create:'创建房间',join:'加入房间',joinBy:'使用代码加入',invites:'邀请',db:'实时数据库连接',dbHint:'使用好友在线状态设置中的相同数据库 URL。',saveDb:'保存地址',players:'玩家',map:'地图',capacity:'人数',layout:'方向',diff:'难度',ready:'准备就绪',unready:'取消准备',start:'开始比赛',save:'保存房间设置',invite:'邀请好友',load:'加载好友',share:'分享链接',leave:'离开房间',copy:'复制代码',copyLink:'邀请链接',back:'返回',kick:'踢出',host:'房主',readyState:'已准备',notReady:'未准备',createAction:'创建',noAuth:'请先登录账户。',needUrl:'请设置数据库 URL。',notFound:'找不到房间。',banned:'你已被踢出，无法重新加入该房间。',full:'房间已满。',layoutMismatch:'房间屏幕方向不同，请旋转设备。',mustReady:'所有玩家必须准备，至少两人。',engine:'全员准备！实际比赛将在更新2中推出。',onlyHost:'只有房主可以管理房间。',settingsChanged:'设置已更改，请重新准备。',inviteSent:'邀请已发送。',inviteFail:'无法发送游戏内邀请，请分享链接。',inviteEmpty:'没有邀请。',noFriends:'暂无好友。',kickConfirm:'踢出玩家并永久禁止返回此房间？',kicked:'你已被踢出该房间。',left:'已离开房间。',joined:'已加入房间。',roomClosed:'房间已关闭。',roomChanged:'房间变化。',error:'操作失败',pending:'连接中…',limit:'好友需允许在线状态访问。',pendingLink:'发现房间邀请链接。',online:'已连接',startTip:'至少两名玩家且所有人准备。',matchPending:'更新1仅包含大厅。',inviteJoin:'加入',inviteDecline:'忽略',roomLink:'已复制链接。',codeCopied:'已复制代码。',orientation:'方向',inviteNone:'可分享链接邀请好友。'},
- ES:{title:'🐤 MULTIJUGADOR',subtitle:'SALAS Y LOBBY · v2.5',create:'CREAR SALA',join:'ENTRAR',joinBy:'ENTRAR POR CÓDIGO',invites:'INVITACIONES',db:'Conexión Realtime Database',dbHint:'Usa la misma URL de Friends.',saveDb:'GUARDAR URL',players:'JUGADORES',map:'Mapa',capacity:'Jugadores',layout:'Orientación',diff:'Dificultad',ready:'LISTO',unready:'CANCELAR LISTO',start:'EMPEZAR',save:'GUARDAR AJUSTES',invite:'INVITAR AMIGOS',load:'CARGAR AMIGOS',share:'COMPARTIR ENLACE',leave:'SALIR DE SALA',copy:'COPIAR CÓDIGO',copyLink:'ENLACE',back:'VOLVER',kick:'EXPULSAR',host:'ANFITRIÓN',readyState:'LISTO',notReady:'NO LISTO',createAction:'CREAR',noAuth:'Inicia sesión para jugar.',needUrl:'Configura la URL de Realtime Database.',notFound:'Sala no encontrada.',banned:'Has sido expulsado y no puedes volver.',full:'Sala llena.',layoutMismatch:'Gira el dispositivo para unirte.',mustReady:'Todos deben estar listos; mínimo dos.',engine:'¡Todos listos! El juego llegará en la actualización 2.',onlyHost:'Solo el anfitrión puede administrar.',settingsChanged:'Ajustes cambiados. Todos deben volver a estar listos.',inviteSent:'Invitación enviada.',inviteFail:'No se pudo invitar; comparte el enlace.',inviteEmpty:'Sin invitaciones.',noFriends:'No se encontraron amigos.',kickConfirm:'¿Expulsar y bloquear permanentemente en esta sala?',kicked:'Has sido expulsado.',left:'Has salido.',joined:'Conectado.',roomClosed:'Sala cerrada.',roomChanged:'Sala cambiada.',error:'Error',pending:'Conectando…',limit:'Solo amigos con permiso de presencia.',pendingLink:'Enlace de invitación detectado.',online:'Lobby activo',startTip:'Todos deben estar listos.',matchPending:'Actualización 1: solo lobby.',inviteJoin:'ENTRAR',inviteDecline:'DESCARTAR',roomLink:'Enlace copiado.',codeCopied:'Código copiado.',orientation:'Orientación',inviteNone:'También puedes compartir el enlace.'},
- PT:{title:'🐤 MULTIJOGADOR',subtitle:'SALAS E LOBBY · v2.5',create:'CRIAR SALA',join:'ENTRAR',joinBy:'ENTRAR COM CÓDIGO',invites:'CONVITES',db:'Conexão Realtime Database',dbHint:'Use a mesma URL da configuração de Friends.',saveDb:'SALVAR URL',players:'JOGADORES',map:'Mapa',capacity:'Jogadores',layout:'Orientação',diff:'Dificuldade',ready:'PRONTO',unready:'CANCELAR',start:'INICIAR',save:'SALVAR CONFIGURAÇÕES',invite:'CONVIDAR AMIGOS',load:'CARREGAR AMIGOS',share:'COMPARTILHAR LINK',leave:'SAIR DA SALA',copy:'COPIAR CÓDIGO',copyLink:'LINK',back:'VOLTAR',kick:'EXPULSAR',host:'ANFITRIÃO',readyState:'PRONTO',notReady:'NÃO PRONTO',createAction:'CRIAR',noAuth:'Entre na conta para jogar.',needUrl:'Informe a URL do banco de dados.',notFound:'Sala não encontrada.',banned:'Você foi expulso e não pode retornar.',full:'Sala cheia.',layoutMismatch:'Gire o dispositivo para entrar.',mustReady:'Todos devem estar prontos, mínimo dois.',engine:'Todos prontos! A partida virá na atualização 2.',onlyHost:'Só o anfitrião pode gerenciar.',settingsChanged:'Configurações alteradas. Todos devem ficar prontos novamente.',inviteSent:'Convite enviado.',inviteFail:'Não foi possível convidar; compartilhe o link.',inviteEmpty:'Sem convites.',noFriends:'Sem amigos carregados.',kickConfirm:'Expulsar e bloquear nesta sala permanentemente?',kicked:'Você foi expulso.',left:'Você saiu.',joined:'Conectado.',roomClosed:'Sala encerrada.',roomChanged:'Sala alterada.',error:'Erro',pending:'Conectando…',limit:'Amigos com permissão de presença.',pendingLink:'Link de sala detectado.',online:'Lobby conectado',startTip:'Todos prontos, mínimo dois.',matchPending:'Atualização 1: apenas lobby.',inviteJoin:'ENTRAR',inviteDecline:'DISPENSAR',roomLink:'Link copiado.',codeCopied:'Código copiado.',orientation:'Orientação',inviteNone:'Compartilhe o link para convidar amigos.'}}
+ EN:{title:'🐤 MULTIPLAYER',subtitle:'ROOMS & LOBBY · v2.6',create:'CREATE ROOM',join:'JOIN ROOM',joinBy:'JOIN BY CODE',invites:'INVITATIONS',db:'Realtime Database connection',dbHint:'Use the same exact Database URL as Friends → Online status settings. Your existing value is reused automatically.',saveDb:'SAVE DATABASE URL',players:'PLAYERS',map:'Map',capacity:'Players',layout:'Orientation',diff:'Difficulty',ready:"I'M READY",unready:'CANCEL READY',start:'START MATCH',save:'SAVE ROOM SETTINGS',invite:'INVITE FRIENDS',load:'LOAD FRIENDS',share:'SHARE LINK',leave:'LEAVE ROOM',copy:'COPY CODE',copyLink:'INVITE LINK',back:'BACK',kick:'KICK',host:'HOST',readyState:'READY',notReady:'NOT READY',createAction:'CREATE',noAuth:'Sign in to your Firebase account to use multiplayer.',needUrl:'Database URL is not configured. The project owner should set it once in the HTML; invitation links can configure it automatically.',notFound:'Room not found or not available.',banned:'You were kicked and permanently blocked from this room.',full:'This room is full.',layoutMismatch:'This room uses the other screen orientation. Rotate the device to join.',mustReady:'All players, including the host, must press Ready. At least 2 players are required.',engine:'All participants are ready! Multiplayer gameplay will be implemented in Update 2; the match is not started yet.',onlyHost:'Only the host can change room settings or kick players.',settingsChanged:'Settings updated. Everyone must press Ready again.',settingsUnchanged:'Room settings are already up to date.',inviteSent:'Invitation sent.',inviteFail:'In-app invitation requires friend presence permission. You can share the invitation link instead.',inviteEmpty:'No incoming invitations.',noFriends:'No friends loaded. Open Friends once to sync the friend online permissions if invitations fail.',kickConfirm:'Kick this player? They will never be allowed to rejoin this room.',kicked:'Removed from the room. You cannot rejoin it.',left:'You left the room.',joined:'Joined room.',roomClosed:'Room was closed.',roomChanged:'Room changed. Return to the lobby.',error:'Operation failed',pending:'Connecting…',limit:'Invite only friends who have granted you presence access.',pendingLink:'Invite link detected. Sign in and join the room.',online:'Ready for lobby',startTip:'Match launch requires all current players to be ready (minimum 2).',matchPending:'Update 1 builds rooms and lobbies only.',inviteJoin:'JOIN',inviteDecline:'DISMISS',roomLink:'Room link copied.',codeCopied:'Room code copied.',orientation:'Orientation',inviteNone:'Share the room link with friends if in-app invitations are unavailable.'},
+ RU:{title:'🐤 МУЛЬТИПЛЕЕР',subtitle:'КОМНАТЫ И ЛОББИ · v2.6',create:'СОЗДАТЬ КОМНАТУ',join:'ПРИСОЕДИНИТЬСЯ',joinBy:'ВОЙТИ ПО КОДУ',invites:'ПРИГЛАШЕНИЯ',db:'Подключение Realtime Database',dbHint:'Используй тот же URL базы, что в Friends → Online status settings. Сохранённый адрес подставится автоматически.',saveDb:'СОХРАНИТЬ URL',players:'ИГРОКИ',map:'Карта',capacity:'Игроки',layout:'Ориентация',diff:'Сложность',ready:'ГОТОВ',unready:'ОТМЕНИТЬ ГОТОВНОСТЬ',start:'НАЧАТЬ МАТЧ',save:'СОХРАНИТЬ НАСТРОЙКИ',invite:'ПРИГЛАСИТЬ ДРУЗЕЙ',load:'ЗАГРУЗИТЬ ДРУЗЕЙ',share:'ПОДЕЛИТЬСЯ ССЫЛКОЙ',leave:'ПОКИНУТЬ КОМНАТУ',copy:'КОПИРОВАТЬ КОД',copyLink:'ССЫЛКА',back:'НАЗАД',kick:'ИСКЛЮЧИТЬ',host:'ХОЗЯИН',readyState:'ГОТОВ',notReady:'НЕ ГОТОВ',createAction:'СОЗДАТЬ',noAuth:'Войди в аккаунт Firebase, чтобы пользоваться мультиплеером.',needUrl:'Адрес базы не настроен. Владелец проекта должен указать его один раз в HTML; приглашение по ссылке также настроит адрес автоматически.',notFound:'Комната не найдена или недоступна.',banned:'Хозяин исключил тебя; повторный вход в эту комнату запрещён.',full:'Комната заполнена.',layoutMismatch:'Для этой комнаты нужна другая ориентация экрана. Поверни устройство.',mustReady:'Все игроки, включая хозяина, должны нажать «Готов». Минимум 2 игрока.',engine:'Все готовы! Сам игровой матч появится в Multiplayer Update 2; сейчас комната только подготовлена.',onlyHost:'Только хозяин может изменять настройки комнаты и исключать игроков.',settingsChanged:'Настройки обновлены. Всем нужно снова нажать «Готов».',settingsUnchanged:'Параметры комнаты уже сохранены.',inviteSent:'Приглашение отправлено.',inviteFail:'Для приглашения в игре нужно разрешение статуса друга. Можешь отправить ссылку.',inviteEmpty:'Нет новых приглашений.',noFriends:'Друзья не загрузились. Если приглашения не проходят, открой Friends для синхронизации разрешений.',kickConfirm:'Исключить игрока? Он больше никогда не войдёт в эту комнату.',kicked:'Тебя исключили. Повторно войти в эту комнату нельзя.',left:'Ты вышел из комнаты.',joined:'Подключено к комнате.',roomClosed:'Комната закрыта.',roomChanged:'Комната изменилась. Вернись в лобби.',error:'Ошибка',pending:'Подключение…',limit:'Приглашения доступны друзьям, разрешившим показ онлайна.',pendingLink:'Найдена ссылка на комнату. Войди в аккаунт и присоединяйся.',online:'Лобби подключено',startTip:'Для запуска должны быть готовы все участники. Минимум 2.',matchPending:'Обновление 1 — только комнаты и лобби.',inviteJoin:'ВОЙТИ',inviteDecline:'СКРЫТЬ',roomLink:'Ссылка скопирована.',codeCopied:'Код скопирован.',orientation:'Ориентация',inviteNone:'Если приглашение в игре не работает, отправь другу ссылку на комнату.'},
+ ZH:{title:'🐤 多人游戏',subtitle:'房间与大厅 · v2.5',create:'创建房间',join:'加入房间',joinBy:'使用代码加入',invites:'邀请',db:'实时数据库连接',dbHint:'使用好友在线状态设置中的相同数据库 URL。',saveDb:'保存地址',players:'玩家',map:'地图',capacity:'人数',layout:'方向',diff:'难度',ready:'准备就绪',unready:'取消准备',start:'开始比赛',save:'保存房间设置',invite:'邀请好友',load:'加载好友',share:'分享链接',leave:'离开房间',copy:'复制代码',copyLink:'邀请链接',back:'返回',kick:'踢出',host:'房主',readyState:'已准备',notReady:'未准备',createAction:'创建',noAuth:'请先登录账户。',needUrl:'请设置数据库 URL。',notFound:'找不到房间。',banned:'你已被踢出，无法重新加入该房间。',full:'房间已满。',layoutMismatch:'房间屏幕方向不同，请旋转设备。',mustReady:'所有玩家必须准备，至少两人。',engine:'全员准备！实际比赛将在更新2中推出。',onlyHost:'只有房主可以管理房间。',settingsChanged:'设置已更改，请重新准备。',settingsUnchanged:'房间设置没有变化。',inviteSent:'邀请已发送。',inviteFail:'无法发送游戏内邀请，请分享链接。',inviteEmpty:'没有邀请。',noFriends:'暂无好友。',kickConfirm:'踢出玩家并永久禁止返回此房间？',kicked:'你已被踢出该房间。',left:'已离开房间。',joined:'已加入房间。',roomClosed:'房间已关闭。',roomChanged:'房间变化。',error:'操作失败',pending:'连接中…',limit:'好友需允许在线状态访问。',pendingLink:'发现房间邀请链接。',online:'已连接',startTip:'至少两名玩家且所有人准备。',matchPending:'更新1仅包含大厅。',inviteJoin:'加入',inviteDecline:'忽略',roomLink:'已复制链接。',codeCopied:'已复制代码。',orientation:'方向',inviteNone:'可分享链接邀请好友。'},
+ ES:{title:'🐤 MULTIJUGADOR',subtitle:'SALAS Y LOBBY · v2.5',create:'CREAR SALA',join:'ENTRAR',joinBy:'ENTRAR POR CÓDIGO',invites:'INVITACIONES',db:'Conexión Realtime Database',dbHint:'Usa la misma URL de Friends.',saveDb:'GUARDAR URL',players:'JUGADORES',map:'Mapa',capacity:'Jugadores',layout:'Orientación',diff:'Dificultad',ready:'LISTO',unready:'CANCELAR LISTO',start:'EMPEZAR',save:'GUARDAR AJUSTES',invite:'INVITAR AMIGOS',load:'CARGAR AMIGOS',share:'COMPARTIR ENLACE',leave:'SALIR DE SALA',copy:'COPIAR CÓDIGO',copyLink:'ENLACE',back:'VOLVER',kick:'EXPULSAR',host:'ANFITRIÓN',readyState:'LISTO',notReady:'NO LISTO',createAction:'CREAR',noAuth:'Inicia sesión para jugar.',needUrl:'Configura la URL de Realtime Database.',notFound:'Sala no encontrada.',banned:'Has sido expulsado y no puedes volver.',full:'Sala llena.',layoutMismatch:'Gira el dispositivo para unirte.',mustReady:'Todos deben estar listos; mínimo dos.',engine:'¡Todos listos! El juego llegará en la actualización 2.',onlyHost:'Solo el anfitrión puede administrar.',settingsChanged:'Ajustes cambiados. Todos deben volver a estar listos.',settingsUnchanged:'Los ajustes de la sala ya están guardados.',inviteSent:'Invitación enviada.',inviteFail:'No se pudo invitar; comparte el enlace.',inviteEmpty:'Sin invitaciones.',noFriends:'No se encontraron amigos.',kickConfirm:'¿Expulsar y bloquear permanentemente en esta sala?',kicked:'Has sido expulsado.',left:'Has salido.',joined:'Conectado.',roomClosed:'Sala cerrada.',roomChanged:'Sala cambiada.',error:'Error',pending:'Conectando…',limit:'Solo amigos con permiso de presencia.',pendingLink:'Enlace de invitación detectado.',online:'Lobby activo',startTip:'Todos deben estar listos.',matchPending:'Actualización 1: solo lobby.',inviteJoin:'ENTRAR',inviteDecline:'DESCARTAR',roomLink:'Enlace copiado.',codeCopied:'Código copiado.',orientation:'Orientación',inviteNone:'También puedes compartir el enlace.'},
+ PT:{title:'🐤 MULTIJOGADOR',subtitle:'SALAS E LOBBY · v2.5',create:'CRIAR SALA',join:'ENTRAR',joinBy:'ENTRAR COM CÓDIGO',invites:'CONVITES',db:'Conexão Realtime Database',dbHint:'Use a mesma URL da configuração de Friends.',saveDb:'SALVAR URL',players:'JOGADORES',map:'Mapa',capacity:'Jogadores',layout:'Orientação',diff:'Dificuldade',ready:'PRONTO',unready:'CANCELAR',start:'INICIAR',save:'SALVAR CONFIGURAÇÕES',invite:'CONVIDAR AMIGOS',load:'CARREGAR AMIGOS',share:'COMPARTILHAR LINK',leave:'SAIR DA SALA',copy:'COPIAR CÓDIGO',copyLink:'LINK',back:'VOLTAR',kick:'EXPULSAR',host:'ANFITRIÃO',readyState:'PRONTO',notReady:'NÃO PRONTO',createAction:'CRIAR',noAuth:'Entre na conta para jogar.',needUrl:'Informe a URL do banco de dados.',notFound:'Sala não encontrada.',banned:'Você foi expulso e não pode retornar.',full:'Sala cheia.',layoutMismatch:'Gire o dispositivo para entrar.',mustReady:'Todos devem estar prontos, mínimo dois.',engine:'Todos prontos! A partida virá na atualização 2.',onlyHost:'Só o anfitrião pode gerenciar.',settingsChanged:'Ajustes alterados, todos devem estar prontos novamente.',settingsUnchanged:'As configurações da sala já estão salvas.',inviteSent:'Convite enviado.',inviteFail:'Não foi possível convidar; compartilhe o link.',inviteEmpty:'Sem convites.',noFriends:'Sem amigos carregados.',kickConfirm:'Expulsar e bloquear nesta sala permanentemente?',kicked:'Você foi expulso.',left:'Você saiu.',joined:'Conectado.',roomClosed:'Sala encerrada.',roomChanged:'Sala alterada.',error:'Erro',pending:'Conectando…',limit:'Amigos com permissão de presença.',pendingLink:'Link de sala detectado.',online:'Lobby conectado',startTip:'Todos prontos, mínimo dois.',matchPending:'Atualização 1: apenas lobby.',inviteJoin:'ENTRAR',inviteDecline:'DISPENSAR',roomLink:'Link copiado.',codeCopied:'Código copiado.',orientation:'Orientação',inviteNone:'Compartilhe o link para convidar amigos.'}}
 ;
 const experienceWords={
  EN:{subtitle:'ROOMS & MATCHES · v3.0',rematch:'REMATCH',waitHost:'WAITING FOR HOST',roundInfo:'The host opens the next round. Everyone presses Ready again.',spectating:'SPECTATING',previous:'PREVIOUS',next:'NEXT',waitingResults:'Waiting for final results…',readyCount:'READY',connected:'CONNECTED',connecting:'CONNECTING',offline:'OFFLINE',preparing:'PREPARING RACE',lobby:'RETURN TO ROOM',createInvite:'Create a room to invite this friend.',inviteSent:'INVITATION SENT',inviteBusy:'SENDING…',inviteFail:'Could not invite. Check friendship and online-status permissions.',noFriends:'No available friends.',inviteNone:'Invite friends below or directly from your friends list.',personalResult:'YOUR RESULT',place:'PLACE',survival:'SURVIVAL TIME',roundChanged:'New round. Press Ready when you are ready.',invite:'INVITE',inRoom:'IN ROOM',locked:'MATCH IN PROGRESS'},
@@ -67,11 +68,25 @@ function readinessExplanation(){
  return lang()==='RU'?'Все готовы. Хозяин может начать матч.':'Everyone is ready. Host can start.';
 }
 async function refreshPlayers(){const token=roomToken;const ids=memberSeats().map(([,v])=>v.uid);await Promise.all(ids.map(getCard));if(roomToken===token)renderLobby()}
+// RTDB presence/Ready updates can rerender the lobby while the host is editing.
+// Only a new server config version, room or host can overwrite local selections.
+let lobbyDraftKey='';
+const lobbyConfigIds=['fbMpLobbyCapacity','fbMpLobbyDifficulty','fbMpLobbyMap'];
+function syncLobbyDraft(meta,host){
+ const key=roomCode+':'+meta.version+':'+roomData.hostUid;
+ if(lobbyDraftKey!==key){
+  $('fbMpLobbyCapacity').value=String(meta.capacity);
+  $('fbMpLobbyDifficulty').value=meta.diff;
+  $('fbMpLobbyMap').value=meta.map;
+  lobbyDraftKey=key;
+ }
+ for(const id of lobbyConfigIds)$(id).disabled=!host||busy||!roomConnected||!!raceSnapshot||matchLaunchPending;
+ $('fbMpApplyConfig').disabled=!host||busy||!roomConnected||!!raceSnapshot||matchLaunchPending;
+}
 function renderLobby(){if(!roomData||!roomCode)return;const host=roomData.hostUid===ownUid(),seats=memberSeats(),mine=seats.find(([,v])=>v.uid===ownUid()),vers=roomData.meta?.version??0;
  $('fbMpRoomCode').textContent=roomCode;$('fbMpRoomInfo').textContent=seats.length+'/'+roomData.meta.capacity+' · '+roomData.meta.layout+' · '+roomData.meta.diff;
  $('fbMpLayoutInfo').textContent=T('orientation')+': '+roomData.meta.layout;
- $('fbMpLobbyCapacity').value=String(roomData.meta.capacity);$('fbMpLobbyDifficulty').value=roomData.meta.diff;$('fbMpLobbyMap').value=roomData.meta.map;
- for(const id of ['fbMpLobbyCapacity','fbMpLobbyDifficulty','fbMpLobbyMap','fbMpApplyConfig'])$(id).disabled=!host||busy||!roomConnected||!!raceSnapshot||matchLaunchPending;
+ syncLobbyDraft(roomData.meta,host);
  $('fbMpReady').textContent=mine&&activeReady(mine[1])?T('unready'):T('ready');$('fbMpReady').disabled=busy||!mine||!roomConnected||!!raceSnapshot;
  $('fbMpReady').setAttribute('aria-pressed',String(!!mine&&activeReady(mine[1])));
  const count=seats.filter(([,p])=>activeReady(p)).length;
@@ -119,7 +134,7 @@ async function ensureLobbySkin(){
  try{if(!await claimLobbySkin(wanted)&&roomCode===code)chooseLobbySkin();}finally{skinClaimBusy=false;}
 }
 
-function clearListeners(){skinChoosing=false;window.flyingBirdCloseSkinInventory?.();matchLaunchPending=false;pendingInvites.clear();watchedVersion=null;friendLoadToken++;roomConnectionUnsub?.();roomConnectionUnsub=null;roomConnected=false;roomToken++;unRoom?.();unKicked?.();unMatch?.();unMatch=null;unRoom=null;unKicked=null;roomCode=null;roomData=null;mySeat=null;raceCleanup();knownNames.clear()}
+function clearListeners(){lobbyDraftKey='';skinChoosing=false;window.flyingBirdCloseSkinInventory?.();matchLaunchPending=false;pendingInvites.clear();watchedVersion=null;friendLoadToken++;roomConnectionUnsub?.();roomConnectionUnsub=null;roomConnected=false;roomToken++;unRoom?.();unKicked?.();unMatch?.();unMatch=null;unRoom=null;unKicked=null;roomCode=null;roomData=null;mySeat=null;raceCleanup();knownNames.clear()}
 async function leaveRoom({silent=false,kicked=false,closeRoom=true}={}){const activeRace=race;if(activeRace?.me.alive)void raceFinish('DNF');if(activeRace?.finalWritePromise)await waitRaceWrite(activeRace.finalWritePromise);const code=roomCode,seat=mySeat,data=roomData;clearListeners();show('Home');if(!code||!db)return;const r=ref(db,roomPath(code));try{
  if(!kicked&&seat!==null){const host=data?.hostUid===ownUid(),seats=Object.entries(data?.slots||{}).filter(([,x])=>x?.uid&&x.uid!==ownUid()).sort((a,b)=>Number(a[0])-Number(b[0]));
  if(host&&seats.length){try{await set(ref(db,roomPath(code)+'/hostUid'),seats[0][1].uid)}catch(e){if(!silent)say(T('error')+': '+e.message,true);return}}
@@ -219,7 +234,30 @@ async function changeReady(){
  }catch(e){say(T('error')+': READY · '+(e?.code||e?.message||String(e)),true)}
  finally{setBusy(false)}
 }
-async function saveConfig(){if(raceSnapshot)return;if(!roomData||!roomCode||roomData.hostUid!==ownUid()){say(T('onlyHost'),true);return}const m=roomData.meta,capacity=Number($('fbMpLobbyCapacity').value);if(memberSeats().some(([seat])=>Number(seat)>=capacity)){say(T('full'),true);return}const nm={...m,capacity,map:$('fbMpLobbyMap').value,diff:$('fbMpLobbyDifficulty').value,version:m.version+1};try{await set(ref(db,roomPath(roomCode)+'/meta'),nm);say(T('settingsChanged'))}catch(e){say(T('error')+': '+e.message,true)}}
+async function saveConfig(){
+ if(busy||raceSnapshot||matchLaunchPending)return;
+ if(!roomData||!roomCode||!roomConnected||roomData.hostUid!==ownUid()){say(T('onlyHost'),true);return}
+ const code=roomCode,capacity=Number($('fbMpLobbyCapacity').value),map=$('fbMpLobbyMap').value,diff=$('fbMpLobbyDifficulty').value;
+ if(![3,5,10].includes(capacity)||!mapIds.includes(map)||!['EASY','NORMAL','HARD','EXTREME'].includes(diff)){say(T('error')+': Invalid room settings.',true);return}
+ if(memberSeats().some(([seat])=>Number(seat)>=capacity)){say(T('full'),true);return}
+ setBusy(true);say('');
+ try{
+  // Check again against the latest room state: joins and other host actions
+  // may have happened while this client was viewing its lobby draft.
+  const snap=await get(ref(db,roomPath(code)));
+  if(!snap.exists()||code!==roomCode)throw Error(T('roomClosed'));
+  const latest=snap.val();
+  if(latest.hostUid!==ownUid())throw Error(T('onlyHost'));
+  if(Object.entries(latest.slots||{}).some(([seat,p])=>p?.uid&&Number(seat)>=capacity))throw Error(T('full'));
+  if(latest.meta?.version!==roomData.meta?.version)throw Error(T('roomChanged'));
+  if(latest.meta.capacity===capacity&&latest.meta.map===map&&latest.meta.diff===diff){say(T('settingsUnchanged'));return;}
+  const nm={...latest.meta,capacity,map,diff,version:latest.meta.version+1};
+  await set(ref(db,roomPath(code)+'/meta'),nm);
+  // Other clients' Ready states become invalid when the version changes.
+  say(T('settingsChanged'));
+ }catch(e){say(T('error')+': SAVE_CONFIG · '+(e.code||e.message),true)}
+ finally{setBusy(false)}
+}
 async function loadFriends(){
  if(!ownUid()||!roomCode)return;
  const token=++friendLoadToken,code=roomCode,uid=ownUid(),target=$('fbMpFriends');
@@ -393,7 +431,7 @@ function readRaceServerOffset(){
   }catch{finish(false)}
  });
 }
-const RACE_FPS=60, RACE_STEP=1000/RACE_FPS, RACE_PHASE=1800;
+const RACE_FPS=60, RACE_STEP=1000/RACE_FPS;
 const RACE_GRAVITY=.26, RACE_FLAP=-4.4, RACE_PIPE_WIDTH=52;
 const RACE_WORDS={
  EN:{title:'LAST BIRD STANDING',loading:'Preparing the shared course…',countdown:'READY',go:'GO!',time:'SURVIVAL',alive:'ALIVE',dead:'ELIMINATED',dnf:'DISCONNECTED',survived:'WINNER',winner:'LAST BIRD STANDING!',tie:'SHARED PLACE',finished:'MATCH RESULTS',exit:'EXIT MATCH',exitConfirm:'Leave this match? You will be eliminated and cannot return.',instructions:'TAP / SPACE TO FLAP · Last survivor wins',stage:'SPEED',wait:'WAITING FOR THE START',startError:'Cannot start match',onlineError:'Lost connection: eliminated',noRestart:'This match has already begun; joining late is disabled.'},
@@ -407,50 +445,52 @@ for(const [key,value] of Object.entries(fullscreenWords))Object.assign(RACE_WORD
 const RT=k=>(RACE_WORDS[lang()]||RACE_WORDS.EN)[k]||RACE_WORDS.EN[k]||k;
 const raceUI=$('fbMpRace'),raceCanvas=$('fbMpRaceCanvas'),raceCtx=raceCanvas.getContext('2d');
 const RC={ink:'#120e2f',yellow:'#ffd23f',cream:'#fff9e9'};
-function raceWorld(layout){return layout==='LANDSCAPE'?{layout,w:640,h:360,ground:312,bx:140,spawnX:725,spacing:205}:{layout,w:320,h:480,ground:428,bx:76,spawnX:405,spacing:180}}
+// Use the same reference world dimensions, pipe spacing and bird anchor as Solo.
+function raceWorld(layout){return layout==='LANDSCAPE'?{layout,w:640,h:360,ground:316,bx:120,spawnX:650,spacing:230}:{layout,w:320,h:480,ground:430,bx:70,spawnX:330,spacing:175}}
 function serverClock(){return Date.now()+raceServerOffset}
 function hash01(seed,index){let n=(seed ^ Math.imul(index+1,0x9e3779b1))>>>0;n=Math.imul(n^(n>>>16),0x7feb352d);n=Math.imul(n^(n>>>15),0x846ca68b);return ((n^(n>>>16))>>>0)/4294967296}
-function courseSpeed(diff){return ({EASY:2.55,NORMAL:2.85,HARD:3.12,EXTREME:3.35})[diff]||2.85}
+function courseSpeed(diff){return speedForScore(diff,0)}
 function distanceAt(t,base,world=null,diff=null){
- if(diff==='HARD'&&world){
-  // Integrate piecewise-constant speed by shared passed-pipe distance, not client FPS.
-  let remaining=Math.max(0,t),travel=0;
-  for(let tier=0;tier<10;tier++){
-   const end=world.spawnX-world.bx+52+(16*(tier+1)-1)*world.spacing;
-   const speed=base*(1+tier*.052),duration=(end-travel)/speed;
-   if(remaining<=duration)return travel+remaining*speed;
-   remaining-=duration;travel=end;
-  }
-  return travel+remaining*base*1.52;
- }
- const stage=Math.floor(t/RACE_PHASE),part=t-stage*RACE_PHASE,accelerating=Math.min(stage,16);
- const cumulative=stage+.036*(accelerating*(accelerating-1)/2+(stage-accelerating)*16);
- return base*(RACE_PHASE*cumulative+part*(1+accelerating*.036))}
-function pipeSpec(index,session){const cached=session.course[index];if(cached)return cached;
- const {world,meta}=session,baseGap=({EASY:156,NORMAL:146,HARD:136,EXTREME:130})[meta.diff]||146;
- let c=session.course.length?session.course[session.course.length-1].center:world.ground*.45;
+ return world?distanceForTick(t,diff||'NORMAL',world):Math.max(0,t)*base;
+}
+function pipeSpec(index,session){
+ const cached=session.course[index];if(cached)return cached;
+ const {world,meta}=session;
+ let center=session.course.length?session.course[session.course.length-1].center:world.ground*.45;
  for(let i=session.course.length;i<=index;i++){
-   const baseSpeed=courseSpeed(meta.diff),distance=i*world.spacing;
-   // Approximate the difficulty stage when this obstacle reaches the playfield.
-   let left=0,right=180000;for(let b=0;b<18;b++){const mid=(left+right)/2;if(distanceAt(mid,baseSpeed,world,meta.diff)<distance)left=mid;else right=mid}
-   const stage=meta.diff==='HARD'?Math.min(10,Math.floor(i/16)):Math.min(16,Math.floor(right/RACE_PHASE));
-   const gap=Math.max(meta.diff==='EASY'?118:105,baseGap-Math.min(26,stage*2));
-   const mobile=meta.layout==='PORTRAIT';
-   const amp=hash01(meta.seed,i+800)> (meta.diff==='EASY'?.86:meta.diff==='NORMAL'?.70:.58)? (meta.diff==='EXTREME'?17:13):0;
-   const min=35+gap/2+amp,max=world.ground-35-gap/2-amp;
-   const jitter=(hash01(meta.seed,i+191)*2-1)*(mobile?54:58);
-   c=Math.max(min,Math.min(max,c+jitter+(world.ground*.45-c)*.10));
-   session.course.push({center:c,gap,amp,phase:hash01(meta.seed,i+390)*6.283,stage,index:i});
+  const gap=gapForScore(meta.diff,i,meta.layout),tier=tierForScore(meta.diff,i);
+  const amp=movingSpec(meta.diff,i,hash01(meta.seed,i+800));
+  const min=40+amp+gap/2,max=world.ground-40-amp-gap/2;
+  // Solo bounds the next opening by available flight time. Apply the same
+  // reachability bound with seeded jitter so every client sees one course.
+  if(i===0){
+   center=Math.max(min,Math.min(max,world.ground*.42+(hash01(meta.seed,i+191)*2-1)*90));
+  }else{
+   const previous=session.course[i-1];
+   const freeTicks=Math.max(1,world.spacing-RACE_PIPE_WIDTH-20-8)/speedForScore(meta.diff,i);
+   const halfGap=Math.max(0,(Math.min(previous.gap,gap)-16-8)/2);
+   const maxStep=Math.max(30,Math.min(105,freeTicks*2.25+halfGap*.44-(previous.amp+amp)*.8));
+   const bias=(world.ground/2-center)*.12;
+   const step=Math.max(-maxStep,Math.min(maxStep,(hash01(meta.seed,i+191)*2-1)*maxStep+bias));
+   center=Math.max(min,Math.min(max,center+step));
+  }
+  session.course.push({center,gap,amp,phase:hash01(meta.seed,i+390)*6.283,stage:tier,index:i});
  }
  return session.course[index];
 }
-function pipesNear(tick,session){const {world}=session,speed=courseSpeed(session.meta.diff),travel=distanceAt(tick,speed,world,session.meta.diff);
- // spawnX is the SAME for every device in the same room. A wider screen changes
- // what is visible, never when a pipe reaches the bird or the collision tick.
+function pipesNear(tick,session){
+ const {world}=session,travel=distanceForTick(tick,session.meta.diff,world);
  const first=Math.max(0,Math.floor((travel-world.spawnX-110)/world.spacing)-1);
  const last=Math.max(first+1,Math.ceil((travel+world.w-world.spawnX+100)/world.spacing)+1);
  const result=[];
- for(let i=first;i<=last&&i<4000;i++){const p=pipeSpec(i,session),x=world.spawnX+i*world.spacing-travel;const top=p.center-p.gap/2+Math.sin(tick*.042+p.phase)*p.amp;result.push({...p,x,top})}return result}
+ for(let i=first;i<=last&&i<4000;i++){
+  const p=pipeSpec(i,session),x=world.spawnX+i*world.spacing-travel;
+  const phaseSpeed=.04+tierForScore(session.meta.diff,scoreForDistance(travel,world))*.0015;
+  const top=p.center-p.gap/2+Math.sin(tick*phaseSpeed+p.phase)*p.amp;
+  result.push({...p,x,top});
+ }
+ return result;
+}
 function raceRecord(uid){return raceSnapshot?.players?.[uid]||null}
 function aliveRace(r){return r?.status==='ALIVE'}
 function raceMe(){return raceRecord(ownUid())}
@@ -572,7 +612,7 @@ function raceDraw(){
   for(const b of birds)raceBird(b.x,b.y,b.skin,b.alpha,tick%10<4,b.rotation);
  }
  g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';g.strokeStyle='#19102e';g.lineWidth=4;g.font='bold '+(r.meta.layout==='PORTRAIT'?18:23)+'px Courier New';g.fillStyle='#fffbe8';const msg=!raceClockReady?RT('loading'):remaining>0?(remaining>3.3?RT('countdown'):String(Math.max(1,Math.ceil(remaining)))):r.finished?'':(!myself.alive?'':'');if(msg){g.strokeText(msg,w*(r.meta.layout==='PORTRAIT'?.36:.5),h*.26);g.fillText(msg,w*(r.meta.layout==='PORTRAIT'?.36:.5),h*.26)}
- const traveled=distanceAt(tick,courseSpeed(r.meta.diff),r.world,r.meta.diff);const passed=Math.max(0,Math.floor((traveled-(r.world.spawnX-r.world.bx+52))/r.world.spacing)+1);const currentStage=r.meta.diff==='HARD'?Math.min(10,Math.floor(passed/16)):Math.min(16,Math.floor(tick/RACE_PHASE));g.font='bold 12px Courier New';g.textAlign='left';g.fillText(RT('time')+' '+formatTime(elapsed),10,r.meta.layout==='LANDSCAPE'?74:80);const speedText=RT('stage')+' ×'+(1+currentStage*(r.meta.diff==='HARD'?.052:.036)).toFixed(2);if(raceSpeedBadge.textContent!==speedText)raceSpeedBadge.textContent=speedText;
+ const traveled=distanceForTick(tick,r.meta.diff,r.world);const passed=scoreForDistance(traveled,r.world);g.font='bold 12px Courier New';g.textAlign='left';g.fillText(RT('time')+' '+formatTime(elapsed),10,r.meta.layout==='LANDSCAPE'?74:80);const speedText=RT('stage')+' ×'+(speedForScore(r.meta.diff,passed)/speedForScore(r.meta.diff,0)).toFixed(2);if(raceSpeedBadge.textContent!==speedText)raceSpeedBadge.textContent=speedText;
  if(!r.finished&&remaining<=0&&r.startFlash>0){g.font='bold 35px Courier New';g.textAlign='center';g.strokeText(RT('go'),w/2,h*.31);g.fillText(RT('go'),w/2,h*.31);r.startFlash--}
 
 }
@@ -706,7 +746,7 @@ function raceStep(tick){if(!race||!race.me.alive)return;const r=race,m=r.me,w=r.
  if(r.flapQueued){m.vy=RACE_FLAP;r.flapQueued=false}m.vy=Math.min(m.vy+RACE_GRAVITY,7.5);m.y+=m.vy;if(m.y<0){m.y=0;m.vy=0}
  for(const p of pipesNear(tick,r)){const x=p.x;if(x+RACE_PIPE_WIDTH+4<w.bx||x-4>w.bx+24)continue;if(m.y+2<p.top||m.y+16>p.top+p.gap){void raceFinish('DEAD');return}}
  if(m.y+18>=w.ground){m.y=w.ground-18;void raceFinish('DEAD');return}
- m.score=0;const base=courseSpeed(r.meta.diff),travel=distanceAt(tick,base,w,r.meta.diff);m.score=Math.max(0,Math.floor((travel-(w.spawnX-w.bx+RACE_PIPE_WIDTH))/w.spacing)+1);
+ m.score=scoreForDistance(distanceForTick(tick,r.meta.diff,w),w);
  m.elapsedMs=Math.round(tick*RACE_STEP);m.tick=tick;
 }
 async function racePublish(final=false,r=race){

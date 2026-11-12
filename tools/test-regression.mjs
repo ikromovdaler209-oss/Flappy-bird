@@ -9,13 +9,14 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import vm from 'node:vm';
 import {rankRacePlayers, newNetworkStats, noteWriteAck} from '../src/multiplayer/netcode.js';
+import {speedForScore,gapForScore,movingSpec,tierForScore,distanceForTick,scoreForDistance} from '../src/multiplayer/difficulty.js';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const src=await readFile(path.join(root,'src/multiplayer/multiplayer.js'),'utf8');
 function cut(start,end){const a=src.indexOf(start),b=src.indexOf(end,a+start.length);assert.ok(a!==-1&&b>a,`Missing source section ${start}`);return src.slice(a,b)}
 function run(code,context){vm.createContext(context);vm.runInContext(code,context);return context}
 function approx(actual,expected,epsilon=1e-7){assert.ok(Math.abs(actual-expected)<epsilon,`Expected ${expected}, got ${actual}`)}
 
-const physics={RACE_PHASE:1800};
+const physics={RACE_PIPE_WIDTH:52,speedForScore,gapForScore,movingSpec,tierForScore,distanceForTick,scoreForDistance};
 run(cut('function raceWorld(','function raceRecord('),physics);
 for(const layout of ['PORTRAIT','LANDSCAPE'])for(const diff of ['EASY','NORMAL','HARD','EXTREME']){
  const world=physics.raceWorld(layout),meta={layout,diff,seed:13371337};
@@ -27,14 +28,20 @@ for(const layout of ['PORTRAIT','LANDSCAPE'])for(const diff of ['EASY','NORMAL',
  for(const p of late.course){approx(p.center,positions.get(p.index));approx(p.center,allAtOnce.course[p.index].center)}
  for(let i=0;i<sequential.course.length;i++)approx(allAtOnce.course[i].center,positions.get(i));
 }
-for(const diff of ['EASY','NORMAL','HARD','EXTREME']){
- const base=physics.courseSpeed(diff),maxSpeed=base*(1+16*.036);
- for(const t of [28801,30601,32400,32401,54000,110000]){
-  const d=physics.distanceAt(t,base)-physics.distanceAt(t-1,base);
-  approx(d,maxSpeed,2e-7);
+for(const layout of ['PORTRAIT','LANDSCAPE'])for(const diff of ['EASY','NORMAL','HARD','EXTREME']){
+ const world=physics.raceWorld(layout),terminal=diff==='HARD'?160:diff==='EXTREME'?80:35;
+ const expected=speedForScore(diff,terminal+1),base=physics.courseSpeed(diff);
+ approx(base,speedForScore(diff,0));
+ for(const t of [36000,70000,110000]){
+  const d=physics.distanceAt(t,base,world,diff)-physics.distanceAt(t-1,base,world,diff);
+  approx(d,expected,2e-7);
+ }
+ for(const t of [0,100,600,3600,54000]){
+  const traveled=physics.distanceAt(t,base,world,diff);
+  approx(traveled,distanceForTick(t,diff,world));
  }
 }
-console.log('PASS shared-course determinism: layouts/difficulties, early vs late vs batched requests; 9-minute cap');
+console.log('PASS shared-course determinism: layouts/difficulties, early vs late vs batched requests; Solo-equivalent acceleration cap');
 
 function scored(uid,tick,status='DEAD'){return {uid,tick,status,elapsedMs:Math.round(tick*1000/60)}}
 const one=rankRacePlayers([scored('a',60),scored('b',61)]);
