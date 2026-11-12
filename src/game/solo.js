@@ -1367,65 +1367,138 @@ if (!initialized) {
     ctx.save();ctx.imageSmoothingEnabled=true;ctx.scale(.82,.82);ctx.drawImage(loreanFrames.get(frame),-30,-25,64,48);ctx.restore();
   }
 
-  // ZxcGoul — Tokyo Ghoul-inspired special skin: smaller silhouette, whiter layered
-  // hair, one red ghoul eye, darker mask/jaw and three kagune-like tendrils that
-  // trail behind the bird while still using the normal collision geometry.
+  // ZxcGoul: a bird silhouette with ghoul-inspired hair, kagune and mask.
+  // The kagune are built-in animated ribbons, not a purchasable Trail ID.
   function drawZxcGoul(wy) {
-    const g=ctx, outline='#0b0911', shell='#16131d', shellMid='#2b2334';
-    const poly=(pts,color)=>{g.fillStyle=color;g.beginPath();g.moveTo(...pts[0]);for(let i=1;i<pts.length;i++)g.lineTo(...pts[i]);g.closePath();g.fill();};
-    const line=(pts,color,width=.9,alpha=1)=>{g.save();g.globalAlpha=alpha;g.strokeStyle=color;g.lineWidth=width;g.beginPath();g.moveTo(...pts[0]);for(let i=1;i<pts.length;i++)g.lineTo(...pts[i]);g.stroke();g.restore();};
-    const orb=(x,y,r,c)=>{g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fillStyle=c;g.fill();};
-    g.save();
-    g.scale(.82,.82);
-    const sway=wy*.34;
-    // Kagune-inspired bundled trail.
-    const tendril=(pts,fill,glow)=>{
-      poly(pts,outline);
-      poly([[pts[0][0]+1.2,pts[0][1]],[pts[1][0]+1.5,pts[1][1]],[pts[2][0]+1.4,pts[2][1]],[pts[3][0]+1.1,pts[3][1]],[pts[4][0]+1.1,pts[4][1]],[pts[5][0]+1,pts[5][1]]],fill);
-      line([pts[1],[pts[2][0]+1.8,pts[2][1]+.4],[pts[3][0]+1.1,pts[3][1]+.2]],glow,.95,.9);
+    const g = ctx;
+    const ink = '#0b0911', armor = '#19141f', rim = '#39303f';
+    const poly = (points, color) => {
+      g.fillStyle = color; g.beginPath(); g.moveTo(points[0][0], points[0][1]);
+      for (let i = 1; i < points.length; i++) g.lineTo(points[i][0], points[i][1]);
+      g.closePath(); g.fill();
     };
-    tendril([[-13,-1],[-24,-14-sway],[-29,-20-sway*1.15],[-23,-20-sway*.95],[-15,-17-sway*.25],[-10,-8]],'#8c0b1f','#ff3d4f');
-    tendril([[-15,3],[-29,2-sway*.12],[-33,6+sway*.16],[-29,10+sway*.35],[-20,10+sway*.14],[-12,8]],'#760818','#ff3244');
-    tendril([[-12,10],[-23,15+sway*.35],[-30,22+sway],[-24,20+sway*.82],[-16,18+sway*.48],[-11,14]],'#9b0c22','#ff5365');
-    g.fillStyle='rgba(255,25,48,.13)';g.beginPath();g.ellipse(-21,2,13,16,0,0,Math.PI*2);g.fill();
-    // Main silhouette.
-    poly([[-18,-12],[10,-14],[16,-9],[18,7],[10,16],[-13,16],[-20,10],[-21,-1]],outline);
-    poly([[-16,-10],[9,-11],[14,-7],[15,7],[8,14],[-12,13],[-18,8],[-18,0]],shell);
-    poly([[-16,1],[-9,-2],[-4,2],[1,7],[7,10],[-13,11]],shellMid);
-    poly([[-15,7],[-8,9],[1,12],[-13,14]],'#09080e');
-    // Kaneki-like layered white hair.
-    poly([[-22,-12],[-18,-16],[-15,-16],[-10,-21],[-7,-18],[-2,-23],[1,-20],[7,-22],[9,-18],[15,-17],[17,-13],[20,-11],[18,-7],[20,-4],[15,-4],[12,-1],[8,-4],[4,-2],[1,-8],[-2,-5],[-6,0],[-9,-5],[-13,2],[-16,-2],[-20,0],[-18,-5],[-23,-5]],outline);
-    poly([[-21,-12],[-17,-15],[-14,-15],[-9,-20],[-6,-17],[-2,-22],[1,-19],[6,-21],[8,-17],[14,-16],[16,-13],[18,-10],[16,-7],[18,-5],[14,-5],[11,-2],[8,-5],[4,-3],[1,-9],[-2,-6],[-6,-1],[-9,-7],[-13,0],[-15,-4],[-19,-1],[-17,-6],[-22,-6]],'#f7f5ff');
-    poly([[-16,-12],[-12,-15],[-9,-11],[-14,-7]],'#bcb8d9');
-    poly([[-8,-19],[-3,-18],[-6,-11],[-10,-6]],'#d0cbe5');
-    poly([[0,-21],[6,-19],[7,-12],[4,-13]],'#d8d2ea');
-    poly([[9,-16],[14,-13],[13,-8],[10,-9]],'#bbb7d0');
-    // Black sclera + red ghoul eye, opposite side hidden by hair.
-    poly([[-1,-8],[12,-8],[13,1],[2,3]],'#04050a');
-    g.fillStyle='rgba(255,20,38,.28)';g.beginPath();g.arc(7,-3,7,0,Math.PI*2);g.fill();
-    orb(7,-3,3.5,'#66060f'); orb(7,-3,2.45,'#ff162b'); orb(7,-3,1.1,'#ffd6d0');
-    line([[8,-8],[8,-12],[9,-14]],'#de1627',.7,.8);
-    line([[8,-1],[8,4],[7,6]],'#de1627',.7,.62);
-    // Face plates / cheek shadows.
-    poly([[-16,-7],[-8,-10],[-4,-7],[-12,-3]],'#0e0d15');
-    poly([[-17,0],[-11,-1],[-7,3],[-14,5]],'#221d29');
-    orb(-10.4,1.5,1.35,'#8b8497'); orb(-10,1.1,.42,'#e6e3ec');
-    orb(1.9,10.5,1.28,'#8b8497'); orb(1.6,10.1,.4,'#e6e3ec');
-    // Dark ghoul mask + exposed teeth.
-    poly([[-8,2],[9,1],[11,8],[-8,10]],'#07070c');
-    poly([[-7,4],[8,3],[8,7],[-7,8]],'#e5e7ee');
-    for(let i=-5;i<8;i+=3){g.fillStyle='#70677a';g.fillRect(i,4,1,4);}
-    g.fillStyle='#aa0d23';g.fillRect(-7.1,8.05,15.4,1.55);
-    g.fillStyle='#cf1a2e';g.fillRect(-3,2.7,10.8,.82);
-    // Bird beak retained but integrated more cleanly into the face.
-    poly([[13.5,-8],[26.5,-10],[27.5,1],[14.5,2.6]],outline);
-    poly([[15.3,-7],[25.2,-8],[26.2,-1.1],[15.9,0]],'#ff7440');
-    poly([[15.1,1.1],[27,1.1],[27,9],[15.1,10]],outline);
-    poly([[16.4,2.1],[25.1,2.1],[25.1,7.3],[16.4,8.1]],'#eb552a');
-    g.fillStyle='#ff9a71';g.fillRect(17.1,-6,6,1.05);
-    g.fillStyle='#ff7342';g.fillRect(17.8,3,5.8,.95);
-    // Tiny lower shard for motion readability.
-    poly([[-11,11+wy*.22],[-5,12+wy*.22],[-7,14.4+wy*.22],[-13,14.4+wy*.22]],'#231b2d');
+    const stroke = (points, color, width = 1) => {
+      g.strokeStyle = color; g.lineWidth = width; g.lineCap = 'round';
+      g.lineJoin = 'round'; g.beginPath(); g.moveTo(points[0][0], points[0][1]);
+      for (let i = 1; i < points.length; i++) g.lineTo(points[i][0], points[i][1]);
+      g.stroke();
+    };
+    const dot = (x, y, r, color) => {
+      g.fillStyle = color; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    };
+    g.save();
+    g.scale(.86, .86); // Body remains comparable to ordinary birds; ribbons are a visual trail.
+
+    // Each kagune is a tapered, rippling ribbon with a moving highlight and faint echo.
+    const phase = (cfg.fx ? 0 : ticks * .105);
+    const kagune = (index, anchorY, tipY, length, phaseOffset) => {
+      const count = 12;
+      const points = [];
+      for (let i = 0; i <= count; i++) {
+        const u = i / count;
+        const bend = u * u * (3 - 2 * u);
+        points.push({
+          x: -14 - length * u,
+          y: anchorY + (tipY - anchorY) * bend +
+            Math.sin(phase - u * 3.9 + phaseOffset) * (1.15 * u + 3.4 * u * u) +
+            Math.cos(phase * .62 + u * 4.2 + index) * (1.45 * u),
+        });
+      }
+      const ribbon = (offset, width, color, alpha) => {
+        const left = [], right = [];
+        for (let i = 0; i <= count; i++) {
+          const u = i / count;
+          const prev = points[Math.max(0, i - 1)], next = points[Math.min(count, i + 1)];
+          const dx = next.x - prev.x, dy = next.y - prev.y;
+          const d = Math.hypot(dx, dy) || 1;
+          const nx = -dy / d, ny = dx / d;
+          const half = (1 - u) * width * (1 + .15 * Math.sin(u * Math.PI));
+          left.push([points[i].x + nx * (half + offset), points[i].y + ny * (half + offset)]);
+          right.push([points[i].x - nx * (half - offset), points[i].y - ny * (half - offset)]);
+        }
+        g.save(); g.globalAlpha *= alpha; poly(left.concat(right.reverse()), color); g.restore();
+      };
+      // Short motion echo enhances the flowing look without additional particles.
+      g.save(); g.translate(-3, (index - 1) * 1.4); ribbon(0, 3.4, '#ed1e37', .17); g.restore();
+      ribbon(0, 3.5, '#100711', 1);
+      ribbon(.12, 2.55, ['#860819', '#a20a23', '#760919'][index], 1);
+      stroke(points.slice(1, count - 1).map((p, j) => [p.x, p.y - .7 - Math.sin(j * .8 + phase) * .25]), '#ef2b42', .85);
+      // A few small embers travel along the centerline; capped to three per ribbon.
+      if (!cfg.fx) for (let k = 0; k < 3; k++) {
+        const p = points[(k * 4 + (Math.floor(ticks / 5) % 4)) % count];
+        dot(p.x, p.y, .42 + k * .1, k === 0 ? '#ff8490' : '#e63149');
+      }
+    };
+    kagune(0, -5, -18, 32, .0);
+    kagune(1, 0, 0, 39, 1.45);
+    kagune(2, 5, 20, 34, 2.8);
+
+    // Pointed tail feathers, separated from the red kagune.
+    poly([[-14,-4],[-27,-11],[-24,-5],[-30,-3],[-23,0],[-27,7],[-13,7]], ink);
+    poly([[-15,-3],[-24,-8],[-21,-3],[-26,-2],[-20,1],[-23,5],[-13,5]], '#39303f');
+    stroke([[-23,-4],[-15,0]], '#666075', .65);
+
+    // Wide, tapered bird body — not a round or square character head.
+    poly([[-17,-9],[-11,-13],[3,-12],[12,-8],[16,-2],[14,7],[7,13],[-7,13],[-17,8],[-21,0]], ink);
+    poly([[-16,-8],[-10,-11],[2,-10],[11,-7],[14,-1],[12,6],[6,11],[-7,11],[-15,6],[-19,0]], armor);
+    poly([[-15,4],[-8,8],[4,11],[-7,12],[-15,8]], '#3a2a38');
+    poly([[-15,-8],[-11,-10],[-4,-9],[-12,-4]], '#4a4054');
+
+    // A broad hinged wing and three separated feather tips establish a real bird shape.
+    const flap = Math.max(-3, Math.min(3, wy * .55));
+    poly([[-10,-5],[-18,-9 + flap],[-25,-6 + flap],[-23,1 + flap],
+      [-29,8 + flap],[-23,10 + flap],[-25,16 + flap],[-17,14 + flap],
+      [-15,19 + flap],[-8,13 + flap],[-5,9],[-1,2]], ink);
+    poly([[-10,-4],[-17,-7 + flap],[-22,-5 + flap],[-21,1 + flap],
+      [-26,7 + flap],[-20,8 + flap],[-22,14 + flap],[-16,12 + flap],
+      [-14,16 + flap],[-8,10 + flap],[-5,7],[-3,2]], '#332939');
+    poly([[-19,-5 + flap],[-12,-3 + flap],[-8,2],[-16,0 + flap]], '#65596d');
+    poly([[-22,7 + flap],[-16,6 + flap],[-10,9],[-20,12 + flap]], '#6b2437');
+    stroke([[-21,1 + flap],[-13,3],[-8,5]], '#88788a', .9);
+    stroke([[-20,9 + flap],[-14,9],[-10,11]], '#b12d43', .85);
+
+    // A black ghoul mask stretches from cheek toward the beak.
+    poly([[-12,-1],[-2,-5],[9,-4],[15,0],[13,9],[5,12],[-10,8]], '#06070d');
+    poly([[-11,0],[-5,-3],[-1,1],[-6,5],[-12,4]], '#30283b');
+    stroke([[-15,3],[-8,6],[-4,10]], '#544458', 1.5);
+    // Jagged grin with alternating upper/lower teeth, red gums and metal rivets.
+    poly([[-5,3],[8,2],[10,7],[-4,9]], '#9f1026');
+    poly([[-4,3.8],[7.6,2.8],[8.3,6.8],[-3.5,7.6]], '#e7e8f0');
+    for (let i = -3; i <= 7; i += 2) {
+      poly([[i,3.7],[i+1.05,3.55],[i+.45,5.45]], '#4c4054');
+      poly([[i,7.5],[i+1.05,7.35],[i+.6,5.85]], '#4c4054');
+    }
+    stroke([[-5,8],[3,8.5],[9,7]], '#ec263a', .9);
+    dot(-12,4.7,1.45,'#aaa8ba');dot(-12.3,4.2,.48,'#fff');
+    dot(8.1,10,1.25,'#aaa8ba');dot(7.9,9.7,.4,'#fff');
+
+    // One eye: dark sclera, luminous red iris, crack-like blood veins.
+    poly([[1,-8],[12,-8],[13,1],[3,2],[-1,-2]], '#03040a');
+    dot(7,-3,5.8,'rgba(255,18,38,.20)');
+    dot(7,-3,3.25,'#70020c');dot(7,-3,2.2,'#f5152a');
+    dot(7,-3,1.05,'#ffb6a9');dot(6.3,-3.7,.5,'#fff1e8');
+    stroke([[9,-8],[10,-10],[9,-12]], '#c80c21', .8);
+    stroke([[9,-1],[10,2],[9,4]], '#c80c21', .8);
+
+    // Two bright beak plates — retains an unmistakable bird profile.
+    poly([[14,-6],[25,-7],[28,-5],[28,1],[15,2]], ink);
+    poly([[15,-5],[25,-6],[26.4,-4],[26,0],[15,0]], '#ff773d');
+    poly([[15,2],[28,2],[27,8],[15,10]], ink);
+    poly([[16,3],[25.8,3],[25,7],[16,8]], '#e8532b');
+    g.fillStyle='#ffa66e';g.fillRect(17,-4.5,7,1.25);
+    g.fillStyle='#ff8850';g.fillRect(18,4.1,6,1.0);
+
+    // White spiky hair, layered with lavender undersides; doesn't erase the wing.
+    poly([[-17,-11],[-13,-15],[-8,-15],[-3,-19],[0,-17],[6,-20],[10,-16],
+      [14,-16],[15,-13],[19,-11],[17,-7],[20,-5],[15,-5],[13,-2],
+      [9,-5],[6,-3],[3,-8],[-1,-4],[-4,0],[-8,-5],[-11,-2],[-14,-4],[-18,-3],[-16,-7],[-21,-6]], ink);
+    poly([[-16,-11],[-12,-14],[-7,-14],[-3,-18],[0,-16],[6,-19],[9,-15],
+      [13,-15],[14,-12],[18,-10],[16,-7],[18,-5],[14,-6],[12,-3],
+      [8,-6],[6,-4],[3,-9],[-1,-6],[-4,-1],[-8,-7],[-11,-3],[-14,-5],[-17,-4],[-15,-8],[-20,-7]], '#f5f2ff');
+    poly([[-15,-11],[-12,-14],[-9,-12],[-14,-8]], '#ada9cb');
+    poly([[-5,-17],[-2,-17],[-6,-10],[-9,-6]], '#c8c3e1');
+    poly([[4,-17],[8,-16],[10,-10],[7,-12]], '#cec8e2');
+    poly([[11,-13],[16,-10],[14,-6],[12,-8]], '#aca6c5');
     g.restore();
   }
 
