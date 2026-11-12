@@ -145,7 +145,8 @@
       ECLIPSE_REALM:['#09091a','#4c283d','#a25b57'],
       PRISM:['#172051','#7297d8','#b8d9f2'],
       CLOCKWORK:['#231d30','#84644f','#bd9c77'],
-      AURORA:['#061834','#1e507a','#599b9c']
+      AURORA:['#061834','#1e507a','#599b9c'],
+      NECROPOLIS:['#06050b','#2c0e17','#5b1926']
     };
     if(!worlds[s.map])return;
     const {x=0,y=0,w,h}=s;
@@ -323,6 +324,32 @@
         const px=x+mod(i*93+t*.17-scroll*.04,w+12)-6,py=y+mod(i*59-t*.20,h*.95);
         circ('rgba(255,224,170,.54)',px,py,1.2*k);
       }
+    }else if(s.map==='NECROPOLIS'){
+      // A cursed red-black grave realm: crimson moon, skull cairns, chains and ember ash.
+      const mx=x+w*.72,my=y+h*.18;
+      glow(mx,my,72*k,'rgba(255,60,82,.22)');circ('#6d1326',mx,my,22*k);circ('#1a0a10',mx-3*k,my-2*k,16*k);
+      for(let i=0;i<5;i++){
+        const px=x+w*(.14+i*.18)+Math.sin(t*.004+i)*5*k,py=y+h*(.33+(i%2)*.07);
+        poly(i%2?'#28131e':'#351420',[px-20*k,py+17*k,px-6*k,py-9*k,px+11*k,py-19*k,px+24*k,py+12*k,px+10*k,py+25*k]);
+        rect('#7a2638',px-2*k,py-10*k,4*k,18*k);
+        rect('#f2e3df',px-9*k,py-2*k,18*k,10*k);rect('#f2e3df',px-5*k,py-7*k,10*k,7*k);
+        rect('#130b0f',px-6*k,py-1*k,3*k,3*k);rect('#130b0f',px+3*k,py-1*k,3*k,3*k);rect('#130b0f',px-2*k,py+4*k,4*k,2*k);
+      }
+      tile(154*k,.16,(bx,i)=>{
+        const bh=(76+(i%3)*18)*k;
+        rect('#201019',bx+16*k,floor-bh,48*k,bh);rect('#5f2032',bx+10*k,floor-bh-6*k,60*k,8*k);
+        for(let j=0;j<3;j++){rect('#f2e3df',bx+(20+j*12)*k,floor-bh+13*k,6*k,6*k);rect('#130b0f',bx+(22+j*12)*k,floor-bh+15*k,2*k,2*k);}
+        line('#8f3042',bx+82*k,floor-12*k,bx+114*k,floor-36*k,3*k);line('#8f3042',bx+82*k,floor-28*k,bx+114*k,floor-4*k,3*k);
+      });
+      tile(96*k,.30,(bx,i)=>{
+        const h1=(26+(i%4)*6)*k;
+        poly('#2d131d',[bx+6*k,floor,bx+22*k,floor-h1,bx+38*k,floor]);
+        rect('#f3dfdb',bx+18*k,floor-h1+4*k,8*k,8*k);rect('#130b0f',bx+20*k,floor-h1+6*k,2*k,2*k);rect('#130b0f',bx+24*k,floor-h1+6*k,2*k,2*k);
+        line('#7f2c3c',bx+52*k,floor-32*k,bx+68*k,floor-48*k,2*k);line('#7f2c3c',bx+52*k,floor-18*k,bx+68*k,floor-34*k,2*k);
+      });
+      if(q>0){
+        for(let i=0;i<q*10;i++){const px=x+mod(i*81+t*.14-scroll*.05,w+18)-9,py=y+mod(i*53+t*.42,h);rect(i%4?'rgba(255,91,114,.48)':'rgba(255,215,221,.45)',px,py,2*k,2*k);}
+      }
     }else if(s.map==='AURORA'){
       // Glassy ice palace under moving, multi-color aurora ribbons; snow and hanging icicles.
       const mx=x+w*.72,my=y+h*.19;
@@ -367,7 +394,7 @@
       }
     }
     // Small world-specific tessellated stage, permanently below playable pipes.
-    const floorCol={TEMPEST:['#243e60','#9dcbe5'],ECLIPSE_REALM:['#3a233a','#df8767'],PRISM:['#3b65a1','#bdefff'],CLOCKWORK:['#6f503f','#e5bf84'],AURORA:['#2d5d7a','#b3eced']}[s.map];
+    const floorCol={TEMPEST:['#243e60','#9dcbe5'],ECLIPSE_REALM:['#3a233a','#df8767'],PRISM:['#3b65a1','#bdefff'],CLOCKWORK:['#6f503f','#e5bf84'],AURORA:['#2d5d7a','#b3eced'],NECROPOLIS:['#2f1119','#ff7e90']}[s.map];
     rect(floorCol[0],x,floor,w,12);rect(floorCol[1],x,floor,w,3);
     g.restore();
   }

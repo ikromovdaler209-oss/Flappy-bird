@@ -97,7 +97,8 @@
     {id:'ECLIPSE_REALM',name:'ECLIPSE SANCTUARY',price:775,rarity:'LEGENDARY'},
     {id:'PRISM',name:'PRISM CATHEDRAL',price:825,rarity:'LEGENDARY'},
     {id:'CLOCKWORK',name:'CLOCKWORK NEXUS',price:875,rarity:'LEGENDARY'},
-    {id:'AURORA',name:'AURORA CROWN',price:950,rarity:'LEGENDARY'}
+    {id:'AURORA',name:'AURORA CROWN',price:950,rarity:'LEGENDARY'},
+    {id:'NECROPOLIS',name:'CRIMSON NECROPOLIS',price:1100,rarity:'LEGENDARY'}
   ];
   const TRAILS = [
     {id:'FIRE',name:'FIRE',price:150,rarity:'RARE',colors:['#ffba35','#ff5127','#ffe279']},
@@ -189,7 +190,7 @@
   };
 
   // ---------- Maps ----------
-  const MAP_KEYS = ['CITY', 'MOUNTAINS', 'VOLCANO', 'SAKURA', 'NEON', 'OCEAN', 'VOLCANO_PLUS', 'COSMIC', 'FOREST', 'CRYSTAL', 'DESERT', 'CELESTIAL', 'CYBERPUNK', 'MYSTIC', 'SHATTERED', 'TEMPEST', 'ECLIPSE_REALM', 'PRISM', 'CLOCKWORK', 'AURORA'];
+  const MAP_KEYS = ['CITY', 'MOUNTAINS', 'VOLCANO', 'SAKURA', 'NEON', 'OCEAN', 'VOLCANO_PLUS', 'COSMIC', 'FOREST', 'CRYSTAL', 'DESERT', 'CELESTIAL', 'CYBERPUNK', 'MYSTIC', 'SHATTERED', 'TEMPEST', 'ECLIPSE_REALM', 'PRISM', 'CLOCKWORK', 'AURORA', 'NECROPOLIS'];
   const MAPS = {
     CITY: { pipes: [GREEN, PINK] },
     MOUNTAINS: { pipes: [{ main: '#8fd3ff', light: '#e6f8ff', dark: '#4a90c2' }, { main: '#b9a0ff', light: '#e6dcff', dark: '#6d4fc0' }] },
@@ -210,7 +211,8 @@
     ECLIPSE_REALM: { pipes: [{main:'#292238',light:'#ffa45a',dark:'#120d20'},{main:'#723041',light:'#ffca85',dark:'#331626'}] },
     PRISM: { pipes: [{main:'#658cba',light:'#c9ffff',dark:'#304a93'},{main:'#9c6bd2',light:'#ffe7ff',dark:'#513d9e'}] },
     CLOCKWORK: { pipes: [{main:'#8e6541',light:'#ffe0a0',dark:'#403327'},{main:'#356c70',light:'#baffed',dark:'#20444c'}] },
-    AURORA: { pipes: [{main:'#40788c',light:'#d1ffff',dark:'#24466c'},{main:'#4c649c',light:'#d9dcff',dark:'#232e62'}] }
+    AURORA: { pipes: [{main:'#40788c',light:'#d1ffff',dark:'#24466c'},{main:'#4c649c',light:'#d9dcff',dark:'#232e62'}] },
+    NECROPOLIS: { pipes: [{main:'#221322',light:'#6f3b48',dark:'#09050b'},{main:'#3d0f1c',light:'#d14d62',dark:'#19060a'}] }
   };
   if (!MAPS[cfg.map]) cfg.map = 'CITY';
   cfg.fps = String(cfg.fps);
@@ -478,11 +480,11 @@
   for (const lang of LANGS) Object.assign(I18N[lang], COLLECTION_TEXT[lang], ITEM_TEXT[lang]);
   // High Fly elite worlds: localized names everywhere (menu, store, inventory, previews).
   const ELITE_MAP_TEXT = {
-    EN:{MAP_CELESTIAL:'CELESTIAL ISLANDS',MAP_CYBERPUNK:'CYBERPUNK DISTRICT',MAP_MYSTIC:'MYSTIC FOREST',MAP_SHATTERED:'SHATTERED MOON',MAP_TEMPEST:'TEMPEST CITADEL',MAP_ECLIPSE_REALM:'ECLIPSE SANCTUARY',MAP_PRISM:'PRISM CATHEDRAL',MAP_CLOCKWORK:'CLOCKWORK NEXUS',MAP_AURORA:'AURORA CROWN'},
-    RU:{MAP_CELESTIAL:'НЕБЕСНЫЕ ОСТРОВА',MAP_CYBERPUNK:'КИБЕРПАНК-КВАРТАЛ',MAP_MYSTIC:'МИСТИЧЕСКИЙ ЛЕС',MAP_SHATTERED:'РАСКОЛОТАЯ ЛУНА',MAP_TEMPEST:'ЦИТАДЕЛЬ БУРИ',MAP_ECLIPSE_REALM:'СВЯТИЛИЩЕ ЗАТМЕНИЯ',MAP_PRISM:'ПРИЗМАТИЧЕСКИЙ СОБОР',MAP_CLOCKWORK:'МЕХАНИЧЕСКИЙ НЕКСУС',MAP_AURORA:'КОРОНА СИЯНИЯ'},
-    ZH:{MAP_CELESTIAL:'天空群岛',MAP_CYBERPUNK:'赛博朋克街区',MAP_MYSTIC:'神秘森林',MAP_SHATTERED:'破碎之月',MAP_TEMPEST:'风暴堡垒',MAP_ECLIPSE_REALM:'日蚀圣殿',MAP_PRISM:'棱镜圣堂',MAP_CLOCKWORK:'发条枢纽',MAP_AURORA:'极光之冠'},
-    ES:{MAP_CELESTIAL:'ISLAS CELESTIALES',MAP_CYBERPUNK:'DISTRITO CIBERPUNK',MAP_MYSTIC:'BOSQUE MÍSTICO',MAP_SHATTERED:'LUNA FRACTURADA',MAP_TEMPEST:'CIUDADELA DE TORMENTA',MAP_ECLIPSE_REALM:'SANTUARIO DEL ECLIPSE',MAP_PRISM:'CATEDRAL PRISMÁTICA',MAP_CLOCKWORK:'NEXO MECÁNICO',MAP_AURORA:'CORONA AURORA'},
-    PT:{MAP_CELESTIAL:'ILHAS CELESTIAIS',MAP_CYBERPUNK:'DISTRITO CYBERPUNK',MAP_MYSTIC:'FLORESTA MÍSTICA',MAP_SHATTERED:'LUA ESTILHAÇADA',MAP_TEMPEST:'CIDADELA DA TEMPESTADE',MAP_ECLIPSE_REALM:'SANTUÁRIO DO ECLIPSE',MAP_PRISM:'CATEDRAL PRISMÁTICA',MAP_CLOCKWORK:'NEXO MECÂNICO',MAP_AURORA:'COROA AURORA'}
+    EN:{MAP_CELESTIAL:'CELESTIAL ISLANDS',MAP_CYBERPUNK:'CYBERPUNK DISTRICT',MAP_MYSTIC:'MYSTIC FOREST',MAP_SHATTERED:'SHATTERED MOON',MAP_TEMPEST:'TEMPEST CITADEL',MAP_ECLIPSE_REALM:'ECLIPSE SANCTUARY',MAP_PRISM:'PRISM CATHEDRAL',MAP_CLOCKWORK:'CLOCKWORK NEXUS',MAP_AURORA:'AURORA CROWN',MAP_NECROPOLIS:'CRIMSON NECROPOLIS'},
+    RU:{MAP_CELESTIAL:'НЕБЕСНЫЕ ОСТРОВА',MAP_CYBERPUNK:'КИБЕРПАНК-КВАРТАЛ',MAP_MYSTIC:'МИСТИЧЕСКИЙ ЛЕС',MAP_SHATTERED:'РАСКОЛОТАЯ ЛУНА',MAP_TEMPEST:'ЦИТАДЕЛЬ БУРИ',MAP_ECLIPSE_REALM:'СВЯТИЛИЩЕ ЗАТМЕНИЯ',MAP_PRISM:'ПРИЗМАТИЧЕСКИЙ СОБОР',MAP_CLOCKWORK:'МЕХАНИЧЕСКИЙ НЕКСУС',MAP_AURORA:'КОРОНА СИЯНИЯ',MAP_NECROPOLIS:'БАГРОВЫЙ НЕКРОПОЛИС'},
+    ZH:{MAP_CELESTIAL:'天空群岛',MAP_CYBERPUNK:'赛博朋克街区',MAP_MYSTIC:'神秘森林',MAP_SHATTERED:'破碎之月',MAP_TEMPEST:'风暴堡垒',MAP_ECLIPSE_REALM:'日蚀圣殿',MAP_PRISM:'棱镜圣堂',MAP_CLOCKWORK:'发条枢纽',MAP_AURORA:'极光之冠',MAP_NECROPOLIS:'猩红死城'},
+    ES:{MAP_CELESTIAL:'ISLAS CELESTIALES',MAP_CYBERPUNK:'DISTRITO CIBERPUNK',MAP_MYSTIC:'BOSQUE MÍSTICO',MAP_SHATTERED:'LUNA FRACTURADA',MAP_TEMPEST:'CIUDADELA DE TORMENTA',MAP_ECLIPSE_REALM:'SANTUARIO DEL ECLIPSE',MAP_PRISM:'CATEDRAL PRISMÁTICA',MAP_CLOCKWORK:'NEXO MECÁNICO',MAP_AURORA:'CORONA AURORA',MAP_NECROPOLIS:'NECRÓPOLIS CARMESÍ'},
+    PT:{MAP_CELESTIAL:'ILHAS CELESTIAIS',MAP_CYBERPUNK:'DISTRITO CYBERPUNK',MAP_MYSTIC:'FLORESTA MÍSTICA',MAP_SHATTERED:'LUA ESTILHAÇADA',MAP_TEMPEST:'CIDADELA DA TEMPESTADE',MAP_ECLIPSE_REALM:'SANTUÁRIO DO ECLIPSE',MAP_PRISM:'CATEDRAL PRISMÁTICA',MAP_CLOCKWORK:'NEXO MECÂNICO',MAP_AURORA:'COROA AURORA',MAP_NECROPOLIS:'NECRÓPOLE CARMESIM'}
   };
   for (const lang of LANGS) Object.assign(I18N[lang], ELITE_MAP_TEXT[lang]);
   const SKIN_TEXT = {
@@ -1737,11 +1739,12 @@ if (!initialized) {
     ECLIPSE_REALM:['#080917','#46243c','#241c31','#2e1d30','#ffb266'],
     PRISM:['#121c4f','#638bd4','#34487c','#365f97','#bafaff'],
     CLOCKWORK:['#211b2d','#8a654f','#4c3942','#60452e','#e6b977'],
-    AURORA:['#071a39','#33698c','#21466b','#264b6c','#a7ffea']
+    AURORA:['#071a39','#33698c','#21466b','#264b6c','#a7ffea'],
+    NECROPOLIS:['#07060d','#3f0f1f','#1d0c12','#2a0f16','#ff6d7f']
   };
   const RICH = { FOREST: 1, CRYSTAL: 1, DESERT: 1, CELESTIAL: 1, CYBERPUNK: 1, MYSTIC: 1, SHATTERED: 1, TEMPEST: 1, ECLIPSE_REALM: 1, PRISM: 1, CLOCKWORK: 1, AURORA: 1 };
   const ELITE_MAPS = new Set(['CELESTIAL','CYBERPUNK','MYSTIC','SHATTERED']);
-  const MYTHIC_MAPS = new Set(['TEMPEST','ECLIPSE_REALM','PRISM','CLOCKWORK','AURORA']);
+  const MYTHIC_MAPS = new Set(['TEMPEST','ECLIPSE_REALM','PRISM','CLOCKWORK','AURORA','NECROPOLIS']);
   const wr = (v, m) => ((v % m) + m) % m;
   function depthLayer(c,x,w,fl,h,far){   // soft far silhouette that gives premium maps one extra depth plane
     const k=Math.max(.45,Math.min(1,h/150));ctx.globalAlpha=.5;ctx.fillStyle=c[2];
@@ -1924,15 +1927,16 @@ if (!initialized) {
       if(((t>>4)&3)===0){rc('#fff',x+16,top-CAP-13,2,2);rc('#fff',x+16,bot+CAP+11,2,2);}
     }else if(MYTHIC_MAPS.has(m)){
       // Mythic cap engravings stay within solid pipe geometry; the flight gap is unchanged.
-      const light={TEMPEST:'#b6e9ff',ECLIPSE_REALM:'#ffc07e',PRISM:'#d5ffff',CLOCKWORK:'#ffdf90',AURORA:'#bbffe7'}[m];
-      const dark={TEMPEST:'#355d92',ECLIPSE_REALM:'#a54742',PRISM:'#8f9eff',CLOCKWORK:'#ae8648',AURORA:'#62bdc1'}[m];
+      const light={TEMPEST:'#b6e9ff',ECLIPSE_REALM:'#ffc07e',PRISM:'#d5ffff',CLOCKWORK:'#ffdf90',AURORA:'#bbffe7',NECROPOLIS:'#ffd0d0'}[m];
+      const dark={TEMPEST:'#355d92',ECLIPSE_REALM:'#a54742',PRISM:'#8f9eff',CLOCKWORK:'#ae8648',AURORA:'#62bdc1',NECROPOLIS:'#6b2131'}[m];
       for(const yy of [top-CAP+4,bot+4]){
         rc(dark,x+2,yy,PW-4,3);rc(light,x+10,yy+1,PW-20,1);
         if(m==='TEMPEST'){rc('#e1f6ff',x+22,yy+5,8,2);rc(light,x+26,yy+7,3,4);}
         else if(m==='ECLIPSE_REALM'){rc('#22182b',x+22,yy+3,9,9);rc(light,x+21,yy+3,1,9);rc(light,x+30,yy+3,1,9);}
         else if(m==='PRISM'){rc('#c4fbff',x+21,yy+3,10,3);rc('#e7c6ff',x+24,yy+6,4,5);}
         else if(m==='CLOCKWORK'){rc('#ffe4a5',x+23,yy+3,6,6);rc('#392b31',x+25,yy+5,2,2);}
-        else {rc('#a7fff6',x+22,yy+4,8,2);rc('#ffffff',x+25,yy+6,2,3);}
+        else if(m==='AURORA'){rc('#a7fff6',x+22,yy+4,8,2);rc('#ffffff',x+25,yy+6,2,3);}
+        else{rc('#f0e6e6',x+21,yy+3,10,2);rc('#f0e6e6',x+20,yy+5,2,4);rc('#f0e6e6',x+30,yy+5,2,4);rc('#f0e6e6',x+23,yy+8,6,2);rc('#1a1014',x+23,yy+5,2,2);rc('#1a1014',x+28,yy+5,2,2);} 
       }
       for(let yy=top-CAP-10;yy>10;yy-=26){rc(dark,x+10,yy,PW-20,2);rc(light,x+24,yy+3,3,7);}
       for(let yy=bot+CAP+10;yy<GROUND-10;yy+=26){rc(dark,x+10,yy,PW-20,2);rc(light,x+24,yy+3,3,7);}
@@ -1954,7 +1958,7 @@ if (!initialized) {
       rc('#ffe3a8',x-2,top-CAP+3,PW+4,1);
     }
   }
-  const HAZE={CITY:'#d4638f',MOUNTAINS:'#8fb8ff',VOLCANO:'#ff5a1f',SAKURA:'#ffb5d8',NEON:'#b04bff',OCEAN:'#2bd0d8',VOLCANO_PLUS:'#ff6a2a',COSMIC:'#a67bff',FOREST:'#7affc0',CRYSTAL:'#58e6e0',DESERT:'#ffb25a',CELESTIAL:'#f5dfb4',CYBERPUNK:'#71baff',MYSTIC:'#7bfbd5',SHATTERED:'#da9df9',TEMPEST:'#a3d8fa',ECLIPSE_REALM:'#d97358',PRISM:'#c4dbff',CLOCKWORK:'#f1c287',AURORA:'#92e9e1'};
+  const HAZE={CITY:'#d4638f',MOUNTAINS:'#8fb8ff',VOLCANO:'#ff5a1f',SAKURA:'#ffb5d8',NEON:'#b04bff',OCEAN:'#2bd0d8',VOLCANO_PLUS:'#ff6a2a',COSMIC:'#a67bff',FOREST:'#7affc0',CRYSTAL:'#58e6e0',DESERT:'#ffb25a',CELESTIAL:'#f5dfb4',CYBERPUNK:'#71baff',MYSTIC:'#7bfbd5',SHATTERED:'#da9df9',TEMPEST:'#a3d8fa',ECLIPSE_REALM:'#d97358',PRISM:'#c4dbff',CLOCKWORK:'#f1c287',AURORA:'#92e9e1',NECROPOLIS:'#ff6f7f'};
   let hzK='',hzG=null,vgG=null;
   function drawAtmos(){   // horizon haze + soft top vignette on every map; stronger on premium maps. Skipped by REDUCE EFFECTS.
     if(cfg.cb==='HIGH CONTRAST'||cfg.fx)return;
@@ -1964,7 +1968,7 @@ if (!initialized) {
       vgG=ctx.createLinearGradient(0,0,0,70);vgG.addColorStop(0,'rgba(5,4,25,.26)');vgG.addColorStop(1,'rgba(5,4,25,0)');}
     ctx.fillStyle=hzG;ctx.fillRect(0,GROUND-70,W,70);ctx.fillStyle=vgG;ctx.fillRect(0,0,W,70);
   }
-  const NEW_ITEMS=new Set(['MAPS:CELESTIAL','MAPS:CYBERPUNK','MAPS:MYSTIC','MAPS:SHATTERED','MAPS:TEMPEST','MAPS:ECLIPSE_REALM','MAPS:PRISM','MAPS:CLOCKWORK','MAPS:AURORA','MAPS:FOREST','MAPS:CRYSTAL','MAPS:DESERT','TRAILS:FROST','TRAILS:STARDUST','TRAILS:SHADOW','TRAILS:AURORA','TRAILS:HEART','TRAILS:INKFLOW','TRAILS:BUBBLE','TRAILS:SONIC','TRAILS:PHOENIX','TRAILS:LUNAR','TRAILS:OMEN']);
+  const NEW_ITEMS=new Set(['MAPS:CELESTIAL','MAPS:CYBERPUNK','MAPS:MYSTIC','MAPS:SHATTERED','MAPS:TEMPEST','MAPS:ECLIPSE_REALM','MAPS:PRISM','MAPS:CLOCKWORK','MAPS:AURORA','MAPS:NECROPOLIS','MAPS:FOREST','MAPS:CRYSTAL','MAPS:DESERT','TRAILS:FROST','TRAILS:STARDUST','TRAILS:SHADOW','TRAILS:AURORA','TRAILS:HEART','TRAILS:INKFLOW','TRAILS:BUBBLE','TRAILS:SONIC','TRAILS:PHOENIX','TRAILS:LUNAR','TRAILS:OMEN']);
   const isNew=i=>i.kind==='BIRDS'?NEW_SKIN.has(i.name):NEW_ITEMS.has(i.kind+':'+i.id);
   function premiumArt(key,x,y,w,h,staticCard=false){
     if(MYTHIC_MAPS.has(key)){
@@ -2745,7 +2749,7 @@ function toggleFS() {
       }
       for(let i=0;i<10;i++){const sx=x+((i*47)%(w+12));const sy=y+10+((i*23)%(Math.max(10,h-30)));ctx.fillStyle='#ffe6a8';ctx.fillRect(sx-2,sy,5,1);ctx.fillRect(sx,sy-2,1,5);}
     }else if(MYTHIC_MAPS.has(key)){
-      const accent={TEMPEST:'#c8eeff',ECLIPSE_REALM:'#ffd39b',PRISM:'#e0ffff',CLOCKWORK:'#fce1a8',AURORA:'#b8fff1'}[key];
+      const accent={TEMPEST:'#c8eeff',ECLIPSE_REALM:'#ffd39b',PRISM:'#e0ffff',CLOCKWORK:'#fce1a8',AURORA:'#b8fff1',NECROPOLIS:'#ffbcc4'}[key];
       for(let i=0;i<Math.ceil(w/30);i++){const px=x+8+i*30,yy=floor-10-(i%4)*2;ctx.fillStyle=accent;ctx.fillRect(px,yy,3,3);if(i%3===0)ctx.fillRect(px-3,yy+2,9,1);}
     }else if(ELITE_MAPS.has(key)){
       // Identifying foreground details for the large static item preview.
