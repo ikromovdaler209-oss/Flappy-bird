@@ -25,3 +25,181 @@ button {touch-action:manipulation}
 @media(prefers-reduced-motion:reduce) {
   button {transition:none!important;animation:none!important}
 }
+
+/* High Fly release UI polish: one shared design language for DOM overlays.
+   Cosmetic-only CSS; no room/auth/save handlers or data attributes are changed. */
+:root {
+  --hf-ink: #281e2a;
+  --hf-paper: #fff8e7;
+  --hf-paper-deep: #f7e6cb;
+  --hf-accent: #ffd23f;
+  --hf-accent-hot: #ffb867;
+  --hf-outline: #342539;
+  --hf-line: #d8bd94;
+  --hf-focus: #ff73b0;
+  --hf-surface: #fffdfa;
+}
+#authPanel,#syncPanel,#statsPanel,#logoutPanel,#fbfPanel,#fbPrivacyPanel,#fbLbPanel,#fbLbsPanel,#fbMpPanel {
+  background: radial-gradient(ellipse at 50% 28%,rgba(34,47,86,.89),rgba(6,8,25,.96) 75%);
+}
+#authBox,#syncBox,.fbDialog,#fbfBox,#fbPrivacyBox,#fbLbBox,#fbLbsBox,#fbMpBox {
+  position:relative;
+  color:var(--hf-ink);
+  background:linear-gradient(155deg,#fffdf5,var(--hf-paper) 56%,#f8ecd9);
+  border:3px solid var(--hf-outline);
+  border-radius:14px;
+  box-shadow:0 0 0 1px #e0b97c inset,6px 7px 0 var(--hf-accent-hot),0 22px 62px #0306178f;
+  scrollbar-color:#b7a17a transparent;
+  scrollbar-width:thin;
+}
+#authBox::before,#syncBox::before,.fbDialog::before,#fbfBox::before,#fbPrivacyBox::before,#fbLbBox::before,#fbLbsBox::before,#fbMpBox::before {
+  content:"";position:absolute;left:0;right:0;top:0;height:5px;
+  background:linear-gradient(90deg,var(--hf-accent) 0 43%,#ff8e9a 43% 68%,#83d9dc 68%);
+  border-radius:10px 10px 0 0;pointer-events:none;
+}
+#authBox h2,#syncBox h2,.fbDialog h2,#fbfBox h2,#fbPrivacyBox h2,#fbLbBox h2,#fbLbsBox h2,#fbMpBox h2 {
+  font-size:clamp(19px,2.9vw,25px);
+  letter-spacing:.35px;
+  line-height:1.2;
+  padding-bottom:9px;
+  border-bottom:1px solid var(--hf-line);
+  text-wrap:balance;
+}
+#fbfBox h3,#fbMpBox h3,.mpStatsTitle {
+  margin:16px 0 9px;
+  padding-left:9px;
+  border-left:3px solid #e3ad4d;
+  color:#594027;
+  letter-spacing:.2px;
+}
+#authBox input,#fbfBox input,#fbMpBox input,#fbMpBox select {
+  background:var(--hf-surface);
+  border-color:#a58b72;
+  color:var(--hf-ink);
+  box-shadow:0 2px 0 #d8c0a2;
+  min-height:42px;
+}
+#authBox button,#syncBox button,.fbDialog button,#fbfBox button,#fbPrivacyBox button,#fbLbBox button,#fbLbsBox button,#fbMpBox button {
+  transition:background-color .15s ease,box-shadow .15s ease,transform .15s ease,border-color .15s ease;
+  -webkit-tap-highlight-color:transparent;
+}
+@media(hover:hover) and (pointer:fine) {
+  #authBox button:hover:not(:disabled),#syncBox button:hover:not(:disabled),.fbDialog button:hover:not(:disabled),
+  #fbfBox button:hover:not(:disabled),#fbPrivacyBox button:hover:not(:disabled),#fbLbBox button:hover:not(:disabled),
+  #fbLbsBox button:hover:not(:disabled),#fbMpBox button:hover:not(:disabled) {
+    background-color:#ffe48a;
+    border-color:#6f4a2c;
+    transform:translateY(-1px);
+    filter:none;
+  }
+}
+#authBox button:active:not(:disabled),#syncBox button:active:not(:disabled),.fbDialog button:active:not(:disabled),
+#fbfBox button:active:not(:disabled),#fbPrivacyBox button:active:not(:disabled),#fbLbBox button:active:not(:disabled),
+#fbLbsBox button:active:not(:disabled),#fbMpBox button:active:not(:disabled) {
+  transform:translate(1px,1px);
+  box-shadow:0 1px 0 var(--hf-outline);
+}
+#authBox :is(button,input):focus-visible,#syncBox button:focus-visible,.fbDialog button:focus-visible,
+#fbfBox :is(button,input):focus-visible,#fbPrivacyBox button:focus-visible,#fbLbBox button:focus-visible,
+#fbLbsBox button:focus-visible,#fbMpBox :is(button,input,select):focus-visible {
+  outline:3px solid var(--hf-focus);outline-offset:3px;
+}
+#authBox button:disabled,#syncBox button:disabled,.fbDialog button:disabled,#fbfBox button:disabled,
+#fbPrivacyBox button:disabled,#fbLbBox button:disabled,#fbLbsBox button:disabled,#fbMpBox button:disabled {
+  opacity:.55;cursor:not-allowed;filter:saturate(.5);
+}
+#accountDetails .detail {
+  padding:10px 9px;
+  background:rgba(255,255,255,.65);
+  border:1px solid #ebd5b7;
+  border-radius:7px;
+  align-items:baseline;
+  min-width:0;
+}
+#accountDetails .detail span:last-child {min-width:0;font-weight:bold;overflow-wrap:anywhere;}
+#accountDetails .detail span:first-child{flex:0 0 auto;max-width:48%;}
+.fbStats{gap:10px}
+.fbStat,#fbfProfileStats .fbfStat {
+  background:var(--hf-surface);
+  border:1px solid var(--hf-line);
+  border-radius:9px;
+  padding:13px;
+  box-shadow:0 2px 0 #ead5b4;
+}
+.fbStat strong,#fbfProfileStats .fbfStat strong {font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+#fbfProfileHeader {background:linear-gradient(130deg,#fffdf8,#ffefd1);border-color:#d2af7d;box-shadow:0 2px 0 #efd9b6}
+#fbfBox .fbfItem,#fbMpBox .mpCard,#fbLbBox .lbEntry,#fbLbsBox .lbEntry {
+  background:var(--hf-surface);
+  border:1px solid #d5ba96;
+  box-shadow:0 2px 0 #eddcc5;
+  border-radius:9px;
+}
+#fbfBox .fbfItem strong,#fbMpBox .mpIdentity strong {line-height:1.3}
+#fbfBox .fbfChip,#fbMpBox .mpFlag {border:1px solid #cfc5bd;line-height:1.3}
+#fbfBox .fbfTabs button[aria-selected="true"],
+#fbLbBox button[aria-pressed="true"],#fbLbsBox button[aria-pressed="true"],
+#fbPrivacyModes button[aria-pressed="true"] {
+  background:#ffd56b;
+  border-color:#926123;
+  box-shadow:inset 0 -3px 0 #ec9b45,2px 2px 0 var(--hf-outline);
+}
+#fbfBox .fbfTabs button,#fbLbBox .lbModes button,#fbLbBox .lbScopes button,#fbLbsBox .lbScopes button {
+  min-height:41px;
+}
+#fbMpBox .mpField label {font-weight:bold;letter-spacing:.25px;color:#665039;}
+#fbMpBox .mpNotice,#fbfBox .fbfNotice {
+  border-left:4px solid #e7ab39;
+  box-shadow:0 2px 0 #e9d5b3;
+  line-height:1.48;
+}
+#fbMpBox .mpNotice.error,#fbfBox .fbfNotice.err{border-left-color:#d45a59}
+#fbMpBox .mpFlag.ready,#fbMpReady[aria-pressed="true"] {
+  background:#c5efd4;
+  border-color:#277554;
+  color:#185c3a;
+}
+#fbMpBox #fbMpStart:not(:disabled),#fbMpBox #fbMpCreateRoom:not(:disabled) {
+  background:#ffd23f;
+  box-shadow:inset 0 -3px 0 #e5a32d,2px 2px 0 var(--hf-outline);
+}
+#fbMpBox #fbMpLeave {background:#ffdad1;border-color:#994b45;}
+#fbMpRaceFinalInner {
+  background:linear-gradient(140deg,#fffdf5,#f7ead5);
+  border-color:#eeb447;
+  box-shadow:7px 8px 0 #070b22,0 20px 70px #030411a3;
+}
+.mpRaceResult.mpResultMe,.mpRaceResult.mpRaceTop {
+  border-color:#c5994c;
+  box-shadow:inset 4px 0 0 #e4ae45;
+}
+#fbMpInviteToasts {
+  width:min(310px,calc(100vw - 24px));
+  max-height:calc(100dvh - 68px);
+  overflow-y:auto;
+}
+.mpInviteToast {box-shadow:0 5px 0 #0c1029,0 16px 40px #0008;}
+.mpInviteToast>strong {letter-spacing:.4px}
+/* Allow long translated leaderboards buttons and player IDs to wrap rather than collide. */
+#fbLbBox .lbModes button,#fbLbsBox .lbScopes button,#fbMpBox button,#fbfBox button {
+  overflow-wrap:anywhere;
+}
+#fbLbBox .lbRow,#fbLbsBox .lbRow,#fbMpBox .mpRow{min-width:0}
+@media(max-width:380px){
+  #fbLbBox .lbModes {grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+  #fbLbBox .lbModes button {font-size:10px;padding:9px 3px}
+  #fbfBox .fbfTabs button {font-size:10px}
+  #accountDetails .detail {gap:8px}
+  #fbfProfileStats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-height:490px) and (orientation:landscape){
+  #authBox,#syncBox,.fbDialog,#fbfBox,#fbPrivacyBox,#fbLbBox,#fbLbsBox,#fbMpBox {box-shadow:3px 3px 0 var(--hf-accent-hot)}
+  #authBox h2,#syncBox h2,.fbDialog h2,#fbfBox h2,#fbPrivacyBox h2,#fbLbBox h2,#fbLbsBox h2,#fbMpBox h2 {font-size:18px;margin-bottom:6px;padding-bottom:5px}
+  #fbfBox h3,#fbMpBox h3{margin:9px 0 5px}
+  #fbMpBox .mpField{margin:5px 0}
+  #fbMpBox .mpDivider{margin:9px 0}
+  #fbMpBox .mpScroll{max-height:36dvh}
+}
+@media(prefers-reduced-motion:reduce){
+  #authBox button,#syncBox button,.fbDialog button,#fbfBox button,#fbPrivacyBox button,
+  #fbLbBox button,#fbLbsBox button,#fbMpBox button {transition:none!important;transform:none!important}
+}

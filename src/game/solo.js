@@ -2299,12 +2299,19 @@ if (!initialized) {
 
   let profileStatsPage = 0;
   function drawProfile() {
-    ctx.fillStyle = 'rgba(15,12,41,0.88)'; ctx.fillRect(0, 0, W, H);
-    title(tr('PROFILE'), W / 2, 32, L ? 28 : 24, '#ffd23f', 'center');
-    drawAvatar(20, 58, 88, profile.av);
-    txtFit(profile.nick, 122, 80, 16, 178, '#fff', 'left');
-    txt(tr('PLAYER_ID'), 122, 102, 10, '#f3e3c7', 'left', false);
-    txt(profile.id, 122, 120, 13, '#ffd23f', 'left');
+    ctx.fillStyle = 'rgba(15,12,41,0.9)'; ctx.fillRect(0, 0, W, H);
+    const contentW=L?Math.min(W-40,860):W-40;
+    const left=(W-contentW)/2;
+    const colW=L?Math.min(390,(contentW-22)/2):contentW;
+    const top=L?Math.max(58,Math.round((H-520)/2)):58+Math.max(0,H-480)*.12;
+    const titleY=L?Math.max(32,top-26):32;
+    title(tr('PROFILE'), W/2, titleY, L?28:24, '#ffd23f', 'center');
+    const avatarSize=L?88:Math.min(88,Math.max(68,W*.26));
+    drawAvatar(left,top,avatarSize,profile.av);
+    const infoX=left+avatarSize+14;
+    txtFit(profile.nick,infoX,top+23,16,colW-avatarSize-20,'#fff','left');
+    txt(tr('PLAYER_ID'),infoX,top+45,10,'#f3e3c7','left',false);
+    txtFit(profile.id,infoX,top+62,13,colW-avatarSize-20,'#ffd23f','left');
     const got = ACH.filter(a => save.ach[a.id]).length;
     const at = key => window.flyingBirdAuthText?.(key) || key;
     const mp = window.flyingBirdMpStats;
@@ -2316,33 +2323,42 @@ if (!initialized) {
        [at('ST_BALANCE'),wallet.coins||0],[at('ST_ACH'),got+'/'+ACH.length]],
       mp?.ownFields?.() || []
     ];
-    const stats = pages[profileStatsPage];
-    const sx=20, sw=L?280:W-40;
-    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(sx,150,sw,110);
-    btn(sx+3,153,28,22,'‹',()=>{profileStatsPage=(profileStatsPage+2)%3;},{size:14});
-    btn(sx+sw-31,153,28,22,'›',()=>{profileStatsPage=(profileStatsPage+1)%3;},{size:14});
+    const stats=pages[profileStatsPage];
+    const sx=left,sy=top+avatarSize+12,sw=colW;
+    const sh=L?Math.min(210,Math.max(110,H*.19)):Math.min(166,Math.max(110,H*.22));
+    ctx.fillStyle='#101e37';ctx.fillRect(sx,sy,sw,sh);
+    ctx.fillStyle='#607ba1';ctx.fillRect(sx,sy,sw,2);
+    ctx.fillStyle='rgba(255,255,255,.05)';ctx.fillRect(sx+3,sy+3,sw-6,28);
+    btn(sx+4,sy+4,30,24,'‹',()=>{profileStatsPage=(profileStatsPage+2)%3;},{size:14});
+    btn(sx+sw-34,sy+4,30,24,'›',()=>{profileStatsPage=(profileStatsPage+1)%3;},{size:14});
     const heading=profileStatsPage===2?(mp?.title?.()||tr('MULTIPLAYER')):at('STATS_TITLE');
-    txtFit(heading+' '+(profileStatsPage+1)+'/3',sx+sw/2,165,9,sw-72,'#ffd23f','center');
+    txtFit(heading+' '+(profileStatsPage+1)+'/3',sx+sw/2,sy+16,10,sw-82,'#ffda77','center');
+    const rowGap=Math.min(23,Math.max(13,(sh-41)/Math.max(6,stats.length)));
     stats.forEach(([label,value],i)=>{
-      txtFit(label,sx+9,184+i*13,9,sw-88,'#f3e3c7','left');
-      txtFit(String(value),sx+sw-9,184+i*13,10,76,'#fff','right');
+      const yy=sy+38+i*rowGap;
+      if(i%2===0){ctx.fillStyle='rgba(255,255,255,.035)';ctx.fillRect(sx+5,yy-6,sw-10,rowGap);}
+      txtFit(String(label),sx+11,yy,10,sw-104,'#d6e3f6','left',false);
+      txtFit(String(value),sx+sw-10,yy,11,80,'#fff','right',false);
     });
-    if (!stats.length) txtFit(mp?.selfNote?.()||at('SIGNIN_PROMPT'),sx+sw/2,205,10,sw-16,'#f3e3c7','center');
-    const bw = L ? Math.min(290,(W-350)) : Math.min(280,W-40), bx = L ? W-bw-20 : (W-bw)/2, by = L ? 62 : 272, st = L ? 44 : 32, h = L ? 34 : 28;
-    btn(bx, by, bw, h, tr('EDIT_NICK'), editNick, { size: 13 });
-    btn(bx, by + st, bw, h, tr('AVATAR'), d => {
-      let i = profile.av.skin;
-      do { i = (i + d + SKINS.length) % SKINS.length; } while (!skinOK(i));
-      profile.av.skin = i; saveProfile();
-    }, { value: itemName({kind:'BIRDS',name:SKINS[profile.av.skin].name}), adj: true, size: 13 });
-    btn(bx, by + st * 2, bw, h, tr('AVATAR_BG'), d => { profile.av.bg = (profile.av.bg + d + AV_BG.length) % AV_BG.length; saveProfile(); },
-      { value: (profile.av.bg + 1) + '/' + AV_BG.length, adj: true, size: 13 });
-    btn(bx, by + st * 3, bw, h, tr('COPY_ID'), copyId, { size: 13 });
-    btn(bx, by + st * 4, bw, h, tr('PROFILE_PRIVACY'), () => window.flyingBirdOpenPrivacy?.(), { size: 12 });
-    btn(bx, by + st * 5, bw, h, tr('BACK'), back, { size: 13 });
-    if (editing) {
-      ctx.fillStyle = 'rgba(15,12,41,0.8)'; ctx.fillRect(0, 0, W, H);
-      txt(tr('NICKNAME_PH'), W / 2, H / 2 - 36, 12);
+    if(!stats.length)txtFit(mp?.selfNote?.()||at('SIGNIN_PROMPT'),sx+sw/2,sy+sh/2+12,10,sw-18,'#d6e3f6','center');
+    const bx=L?left+contentW-colW:left;
+    const by=L?top+4:sy+sh+12;
+    const step=L?Math.min(58,Math.max(43,H*.075)):Math.min(46,Math.max(31,(H-by-37)/6));
+    const bh=L?Math.min(46,step-7):Math.min(40,step-4);
+    btn(bx,by,colW,bh,tr('EDIT_NICK'),editNick,{size:13});
+    btn(bx,by+step,colW,bh,tr('AVATAR'),d=>{
+      let i=profile.av.skin;
+      do {i=(i+d+SKINS.length)%SKINS.length;} while(!skinOK(i));
+      profile.av.skin=i;saveProfile();
+    },{value:itemName({kind:'BIRDS',name:SKINS[profile.av.skin].name}),adj:true,size:13});
+    btn(bx,by+step*2,colW,bh,tr('AVATAR_BG'),d=>{profile.av.bg=(profile.av.bg+d+AV_BG.length)%AV_BG.length;saveProfile();},
+      {value:(profile.av.bg+1)+'/'+AV_BG.length,adj:true,size:13});
+    btn(bx,by+step*3,colW,bh,tr('COPY_ID'),copyId,{size:13});
+    btn(bx,by+step*4,colW,bh,tr('PROFILE_PRIVACY'),()=>window.flyingBirdOpenPrivacy?.(),{size:12,secondary:true});
+    btn(bx,by+step*5,colW,bh,tr('BACK'),back,{size:13,secondary:true});
+    if(editing){
+      ctx.fillStyle='rgba(15,12,41,.8)';ctx.fillRect(0,0,W,H);
+      txt(tr('NICKNAME_PH'),W/2,H/2-36,12);
     }
   }
 
@@ -2417,19 +2433,22 @@ if (!initialized) {
     const push=pressedHot(x,y,w,h)&&!reduceUiMotion()?1:0;
     const lift=reduceUiMotion()?0:hover*1.6;
     const dy=push*1.5-lift;
-    ctx.fillStyle='rgba(4,8,24,.52)';ctx.fillRect(x-2,y+3,w+5,h+3);
+    const base=o.danger?'#ffe0d7':o.secondary?'#e8eef9':'#fff4d6';
+    const selected=o.danger?'#ffbdab':'#ffd23f';
+    ctx.fillStyle='rgba(3,7,24,.58)';ctx.fillRect(x-2,y+3,w+5,h+3);
     ctx.fillStyle=hover>.02?'#ffbf63':BROWN;ctx.fillRect(x-2,y-2+dy,w+4,h+4);
-    ctx.fillStyle=on?'#ffd23f':hover>.01?'#fff9e4':'#fff4d6';ctx.fillRect(x,y+dy,w,h);
-    ctx.fillStyle=on?'#ff9f1c':'#ffd8a8';ctx.fillRect(x,y+h-3+dy,w,3);
+    ctx.fillStyle=on?selected:hover>.01?'#fffdf4':base;ctx.fillRect(x,y+dy,w,h);
+    ctx.fillStyle=o.danger?'#df765f':on?'#ff9f1c':'#e8b47c';ctx.fillRect(x,y+h-3+dy,w,3);
+    ctx.fillStyle=on?'#e59a1e':'rgba(56,72,106,.45)';ctx.fillRect(x+3,y+4+dy,3,Math.max(0,h-10));
     if(hover>.02){
-      ctx.fillStyle='rgba(255,255,255,'+(.2+hover*.35)+')';
-      ctx.fillRect(x+3,y+2+dy,Math.max(0,w-6),2);
+      ctx.fillStyle='rgba(255,255,255,'+(.16+hover*.34)+')';
+      ctx.fillRect(x+8,y+2+dy,Math.max(0,w-12),2);
     }
     if(o.value!==undefined){
       const value=(on?'< ':'')+o.value+(on?' >':'');
       ctx.font='bold '+fs+'px "Courier New", monospace';
       const vw=Math.min(w*.46,Math.max(49,ctx.measureText(value).width+5));
-      txtFit(String(label),x+9,y+dy+h/2,fs,w-vw-19,BROWN,'left',false);
+      txtFit(String(label),x+11,y+dy+h/2,fs,w-vw-21,BROWN,'left',false);
       txtFit(String(value),x+w-9,y+dy+h/2,fs,vw,BROWN,'right',false);
     }else txtFit(String(label),x+w/2,y+dy+h/2,fs,w-16,BROWN,'center',false);
   }
@@ -2451,14 +2470,16 @@ if (!initialized) {
   function tile(x,y,w,h,active=false){
     const hover=hoverLevel(x,y,w,h,'card');
     const pressed=pressedHot(x,y,w,h)&&!reduceUiMotion();
-    const glow=active?'#ffda78':hover>.02?'#89dfff':'#627496';
-    ctx.fillStyle='rgba(5,9,28,.65)';ctx.fillRect(x+3,y+4,w,h);
-    ctx.fillStyle=glow;ctx.fillRect(x-1,y-1,w+2,h+2);
-    ctx.fillStyle=pressed?'#273c5a':'#182440';ctx.fillRect(x+1,y+1,w-2,h-2);
+    const edge=active?'#ffe284':hover>.02?'#9ddaff':'#5b7496';
+    ctx.fillStyle='rgba(2,5,20,.75)';ctx.fillRect(x+3,y+4,w,h);
+    ctx.fillStyle=edge;ctx.fillRect(x-1,y-1,w+2,h+2);
+    ctx.fillStyle=pressed?'#233957':'#182a49';ctx.fillRect(x+1,y+1,w-2,h-2);
+    ctx.fillStyle='rgba(255,255,255,.07)';ctx.fillRect(x+3,y+3,w-6,3);
+    ctx.fillStyle=active?'#ffd23f':'#728bae';ctx.fillRect(x+4,y+4,2,Math.max(0,h-8));
+    ctx.fillStyle='rgba(6,12,32,.35)';ctx.fillRect(x+6,y+h-7,Math.max(0,w-12),3);
     if(hover>.04){
       ctx.fillStyle='rgba(190,240,255,'+(hover*.35)+')';
-      ctx.fillRect(x+2,y+2,Math.max(0,w-4),2);
-      ctx.fillRect(x+2,y+2,2,Math.max(0,h-4));
+      ctx.fillRect(x+3,y+3,Math.max(0,w-6),2);
     }
   }
 
@@ -2559,11 +2580,11 @@ function toggleFS() {
 }
   function drawMenu() {
     if (L) {
-      title('FLYING', W / 2 - 8, 70, 40, '#ffd23f', 'right');
-      title('BIRD', W / 2 + 8, 70, 40, '#ff6b9d', 'left');
+      title('HIGH', W / 2 - 8, 70, 40, '#ffd23f', 'right');
+      title('FLY', W / 2 + 8, 70, 40, '#ff6b9d', 'left');
     } else {
-      title('FLYING', W / 2, 105, 48, '#ffd23f', 'center');
-      title('BIRD', W / 2, 155, 48, '#ff6b9d', 'center');
+      title('HIGH', W / 2, 105, 48, '#ffd23f', 'center');
+      title('FLY', W / 2, 155, 48, '#ff6b9d', 'center');
     }
     drawAvatar(8, 8, 22, profile.av);
     txtFit(profile.nick, 36, 19, 11, 140, '#fff', 'left');
@@ -2890,7 +2911,7 @@ function toggleFS() {
     cosmeticLabel(tr(kind)+(previewItem.skin?.bundleTrail?' + STARDUST':''),W/2,74,10,W-45,'#a9bbd6');
     const x=18,y=91,w=W-36,backY=H-38,actionY=backY-41;
     const detailsY=actionY-39;
-    const h=Math.max(40,Math.min(L?145:300,detailsY-y-10));
+    const h=Math.max(40,Math.min(L?Math.max(145,Math.min(300,H*.37)):Math.max(300,H*.72),detailsY-y-10));
     tile(x,y,w,h,true);
     if(previewItem.kind==='MAPS')detailedMapPreview(previewItem.id,x+4,y+4,w-8,h-8);
     else if(previewItem.kind==='BIRDS')drawBirdPreviewScene(previewItem.skin,x+4,y+4,w-8,h-8,cfg.trail||'NONE');
@@ -2924,8 +2945,8 @@ function toggleFS() {
     const rows = [
       [tr('LANGUAGE'), LANG_NAMES[cfg.lang], d => { cfg.lang = cyc(LANGS, cfg.lang, d); }],
       [tr('THEME'), displayValue(cfg.theme), d => { cfg.theme = cyc(['NIGHT', 'DAY', 'AUTO'], cfg.theme, d); }],
-      [tr('MUSIC'), bars(cfg.music), d => { cfg.music = wrap(11, cfg.music, d); }],
-      [tr('SOUND_FX'), bars(cfg.sfx), d => { cfg.sfx = wrap(11, cfg.sfx, d); tone(500, 700, 0.08); }],
+      [tr('MUSIC'), cfg.music*10+'%', d => { cfg.music = wrap(11, cfg.music, d); }],
+      [tr('SOUND_FX'), cfg.sfx*10+'%', d => { cfg.sfx = wrap(11, cfg.sfx, d); tone(500, 700, 0.08); }],
       [tr('COLOR_MODE'), displayValue(cfg.cb), d => { cfg.cb = cyc(Object.keys(PIPES), cfg.cb, d); }],
       [tr('REDUCE_EFFECTS'), onoff(cfg.fx), () => { cfg.fx = !cfg.fx; }],
       [tr('PARTICLE_QUALITY'), displayValue(cfg.particleQuality), d => { cfg.particleQuality = cyc(['AUTO','HIGH','LOW','OFF'], cfg.particleQuality, d); }],
@@ -2944,46 +2965,86 @@ function toggleFS() {
   toggleFS
 ]
     );
-    const total = rows.length + 2, cols = L ? 2 : 1, per = Math.ceil(total / cols);
-    const bw = L ? 300 : Math.min(W - 40, 400), gx = 20, bx0 = Math.round((W - (cols * bw + (cols - 1) * gx)) / 2);
-    const rh = Math.min(32, Math.floor((H - 100) / per)), h = rh - 3, fs = L ? 11 : 12;
-    const pos = i => ({ x: bx0 + Math.floor(i / per) * (bw + gx), y: 58 + (i % per) * rh });
-    rows.forEach((r, i) => { const q = pos(i); btn(q.x, q.y, bw, h, r[0], d => { r[2](d); saveCfg(); }, { value: String(r[1]), adj: true, size: fs }); });
-    let q = pos(rows.length);
-    btn(q.x, q.y, bw, h, resetArmed ? tr('PRESS_RESET') : tr('RESET_PROGRESS'), () => {
-      if (!resetArmed) { resetArmed = true; return; }
-      Object.assign(save, { best: { EASY: 0, NORMAL: 0, HARD: 0, EXTREME: 0 }, games: 0, flaps: 0, pipes: 0, earnedCoins: 0, ach: {} });
-      cfg.skin = 0; profile.av.skin = 0; wallet.coins = 0; wallet.owned = []; wallet.maps=[];wallet.trails=[];cfg.map='CITY';cfg.trail='NONE';saveProfile(); saveWallet(); saveGame(); saveCfg(); resetArmed = false;
-    }, { id: 'reset', size: fs });
-    q = pos(rows.length + 1);
-    btn(q.x, q.y, bw, h, tr('BACK'), back, { size: fs });
+    const total=rows.length+2,cols=L?2:1,per=Math.ceil(total/cols);
+    const gutter=L?Math.min(30,W*.045):0;
+    const maxWidth=L?Math.min(880,W-44):Math.min(W-40,420);
+    const bw=L?(maxWidth-gutter)/2:maxWidth;
+    const bx0=(W-maxWidth)/2;
+    const gap=L?Math.min(12,Math.max(4,H*.014)):H>610?7:3;
+    const maxRh=L?Math.min(54,Math.max(30,H*.09)):Math.min(44,Math.max(29,H*.067));
+    const topClear=L?Math.max(64,Math.min(120,H*.13)):Math.max(58,Math.min(86,H*.11));
+    const bottomClear=L?Math.max(44,Math.min(88,H*.09)):48;
+    const rh=Math.max(24,Math.min(maxRh,Math.floor((H-topClear-bottomClear-gap*(per-1))/per)));
+    const blockH=per*rh+(per-1)*gap;
+    const y0=Math.max(topClear,Math.floor((H-blockH)/2));
+    const h=rh;
+    const fs=L?Math.min(14,Math.max(11,W/105)):Math.min(13,Math.max(11,W/27));
+    const pos=i=>({x:bx0+Math.floor(i/per)*(bw+gutter),y:y0+(i%per)*(rh+gap)});
+    rows.forEach((r,i)=>{
+      const q=pos(i);
+      btn(q.x,q.y,bw,h,r[0],d=>{r[2](d);saveCfg();},{value:String(r[1]),adj:true,size:fs});
+      // Color-coded category rails clarify related options without adding translation strings.
+      const stripeColor=i<2?'#69b9e4':i<4?'#ecad60':i<9?'#a68cf5':'#81c8ad';
+      ctx.fillStyle=stripeColor;ctx.fillRect(q.x+3,q.y+5,3,Math.max(0,h-10));
+    });
+    let q=pos(rows.length);
+    btn(q.x,q.y,bw,h,resetArmed?tr('PRESS_RESET'):tr('RESET_PROGRESS'),()=>{
+      if(!resetArmed){resetArmed=true;return;}
+      Object.assign(save,{best:{EASY:0,NORMAL:0,HARD:0,EXTREME:0},games:0,flaps:0,pipes:0,earnedCoins:0,ach:{}});
+      cfg.skin=0;profile.av.skin=0;wallet.coins=0;wallet.owned=[];wallet.maps=[];wallet.trails=[];cfg.map='CITY';cfg.trail='NONE';saveProfile();saveWallet();saveGame();saveCfg();resetArmed=false;
+    },{id:'reset',size:fs,danger:true});
+    q=pos(rows.length+1);
+    btn(q.x,q.y,bw,h,tr('BACK'),back,{size:fs,secondary:true});
     const lk = SKINS.find(k => k.need > maxBest());
     if (lk) txt(tr('SKIN_UNLOCK') + ' ' + lk.need, W / 2, H - 14, 9, '#f3e3c7', 'center', false);
   }
 
   function drawAch() {
-    ctx.fillStyle = 'rgba(15,12,41,0.88)'; ctx.fillRect(0, 0, W, H);
-    const got = ACH.filter(a => save.ach[a.id]).length;
-    title(tr('ACHIEVEMENTS'), W / 2, 30, 24, '#ffd23f', 'center');
-    txt(got + '/' + ACH.length + '   ' + tr('GAMES') + ' ' + save.games + '   ' + tr('FLAPS') + ' ' + save.flaps, W / 2, 56, 11, '#f3e3c7', 'center', false);
-    const cols = L ? 2 : 1, cw = L ? 300 : W - 40, rh = L ? 44 : 34, per = Math.ceil(ACH.length / cols);
-    const achKeys = {
-      first:['FIRST_FLIGHT','FIRST_FLIGHT_DESC'], s5:['ROOKIE','ROOKIE_DESC'],
-      s15:['PRO','PRO_DESC'], s30:['MASTER','MASTER_DESC'], s50:['LEGEND','LEGEND_DESC'],
-      pink:['PINK_PASSER','PINK_PASSER_DESC'], reg:['REGULAR','REGULAR_DESC'],
-      flap:['FLAP_HAPPY','FLAP_HAPPY_DESC'], owl:['NIGHT_OWL','NIGHT_OWL_DESC'],
+    ctx.fillStyle='rgba(15,12,41,.92)';ctx.fillRect(0,0,W,H);
+    const got=ACH.filter(a=>save.ach[a.id]).length;
+    const wide=L,cols=wide?2:1,per=Math.ceil(ACH.length/cols);
+    const maxContent=wide?Math.min(W-40,900):W-40;
+    const gapX=wide?18:0;
+    const cw=(maxContent-gapX*(cols-1))/cols;
+    const left=(W-maxContent)/2;
+    const gap=wide?7:5;
+    // Reserve the back button's entire hitbox, plus a visible gap, even on 320px screens.
+    const rh=Math.min(wide?64:54,Math.max(29,Math.floor((H-122-(per-1)*gap)/per)));
+    const blockH=per*rh+(per-1)*gap;
+    const startY=Math.max(73,Math.floor((H-blockH)/2)-8);
+    title(tr('ACHIEVEMENTS'),W/2,wide?Math.max(30,startY-42):30,wide?24:22,'#ffd23f','center');
+    txtFit(got+'/'+ACH.length+'   '+tr('GAMES')+' '+save.games+'   '+tr('FLAPS')+' '+save.flaps,W/2,wide?Math.max(54,startY-17):55,10,W-36,'#e2e9f6','center',false);
+    const achKeys={
+      first:['FIRST_FLIGHT','FIRST_FLIGHT_DESC'],s5:['ROOKIE','ROOKIE_DESC'],
+      s15:['PRO','PRO_DESC'],s30:['MASTER','MASTER_DESC'],s50:['LEGEND','LEGEND_DESC'],
+      pink:['PINK_PASSER','PINK_PASSER_DESC'],reg:['REGULAR','REGULAR_DESC'],
+      flap:['FLAP_HAPPY','FLAP_HAPPY_DESC'],owl:['NIGHT_OWL','NIGHT_OWL_DESC'],
       early:['EARLY_BIRD','EARLY_BIRD_DESC']
     };
-    ACH.forEach((a, i) => {
-      const c = Math.floor(i / per), r = i % per, ok = save.ach[a.id];
-      const x = L ? (c ? W / 2 + 10 : W / 2 - cw - 10) : 20, y = 70 + r * rh;
-      const keys = achKeys[a.id];
-      ctx.fillStyle = ok ? '#fff4d6' : '#2b2250'; ctx.fillRect(x, y, cw, rh - 4);
-      ctx.fillStyle = ok ? '#ffd23f' : '#463a7a'; ctx.fillRect(x, y, 6, rh - 4);
-      txt((ok ? '* ' : '? ') + tr(keys[0]), x + 14, y + 11, 12, ok ? BROWN : '#9d93c9', 'left', false);
-      txt(tr(keys[1]), x + 14, y + rh - 14, 10, ok ? '#6b4a1a' : '#7a70a8', 'left', false);
+    const best=maxBest();
+    const measures={first:[save.games||0,1],s5:[best,5],s15:[best,15],s30:[best,30],s50:[best,50],reg:[save.games||0,25],flap:[save.flaps||0,1000]};
+    ACH.forEach((a,i)=>{
+      const c=Math.floor(i/per),r=i%per,ok=!!save.ach[a.id];
+      const x=left+c*(cw+gapX),y=startY+r*(rh+gap),ch=rh;
+      ctx.fillStyle='#080e21';ctx.fillRect(x+2,y+3,cw,ch);
+      ctx.fillStyle=ok?'#fff0cf':'#22314f';ctx.fillRect(x,y,cw,ch);
+      ctx.fillStyle=ok?'#ffd23f':'#61769b';ctx.fillRect(x,y,5,ch);
+      ctx.fillStyle=ok?'#8f6322':'#344b70';ctx.fillRect(x+5,y,cw-5,2);
+      const iconW=25;
+      ctx.fillStyle=ok?'#ffd23f':'#344768';ctx.fillRect(x+11,y+8,iconW,iconW);
+      txt(ok?'✓':'•',x+11+iconW/2,y+8+iconW/2,16,ok?BROWN:'#bfcee4','center',false);
+      const textX=x+44;
+      txtFit(tr(achKeys[a.id][0]),textX,y+15,wide?13:12,cw-51,ok?BROWN:'#f3f5fc','left',false);
+      txtFit(tr(achKeys[a.id][1]),textX,y+rh-15,wide?10:9,cw-52,ok?'#6b4a1a':'#becce0','left',false);
+      const measure=measures[a.id];
+      if(measure){
+        const progress=Math.max(0,Math.min(1,measure[0]/measure[1]));
+        const pw=Math.max(0,cw-50);
+        ctx.fillStyle=ok?'#d8b98b':'#172743';ctx.fillRect(textX,y+rh-5,pw,2);
+        ctx.fillStyle=ok?'#9f6a18':'#9bd2ff';ctx.fillRect(textX,y+rh-5,pw*progress,2);
+      }
     });
-    btn(W / 2 - 60, L ? H - 40 : 70 + ACH.length * rh + 8, 120, 28, tr('BACK'), back);
+    btn(W/2-70,H-39,140,28,tr('BACK'),back,{size:12,secondary:true});
   }
 
   function drawUI() {
