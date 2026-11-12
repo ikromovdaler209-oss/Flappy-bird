@@ -4,7 +4,7 @@
 (() => {
   const mod=(v,n)=>((v%n)+n)%n;
   const noise=n=>{n=(n^0x51f2a3)>>>0;n=Math.imul(n^(n>>>16),0x7feb352d);n=Math.imul(n^(n>>>15),0x846ca68b);return ((n^(n>>>16))>>>0)/4294967296};
-  const supported=new Set(['CITY','MOUNTAINS','VOLCANO','SAKURA','NEON','OCEAN','VOLCANO_PLUS','COSMIC','FOREST','CRYSTAL','DESERT']);
+  const supported=new Set(['CITY','MOUNTAINS','VOLCANO','SAKURA','NEON','OCEAN','VOLCANO_PLUS','COSMIC','FOREST','CRYSTAL','DESERT','CELESTIAL','CYBERPUNK','MYSTIC','SHATTERED']);
   function draw(g,s){
     if(!supported.has(s.map)||s.highContrast)return;
     const {map,w,ground:h}=s,q=Math.max(0,Math.min(3,s.quality|0)),t=s.reducedMotion?0:Math.max(0,s.tick||0),d=Number(s.distance)||0,day=s.day;
@@ -68,6 +68,46 @@
         for(let k=0;k<3;k++){const xx=x+25+k*14,hh=22+n*25+k*8;poly(k%2?'#6474b1':'#438ea8',[xx,y,xx-5,y-hh+8,xx+1,y-hh,xx+8,y-hh+9,xx+10,y]);line('#b9e1df',xx+1,y-hh+3,xx+3,y-6)}
         for(let k=0;k<4;k++)rect('#38517d',x+105+k*11,h-5-k%2*4,7,2);
       });
+    }else if(map==='CELESTIAL'){
+      tiles(286,.14,(x,i,n)=>{
+        const y=h-36-n*18;
+        poly('#8c8eb5',[x,y,x+58,y-6,x+96,y+3,x+70,y+21,x+35,y+33]);
+        rect('#c0d9d9',x+12,y-8,67,6);rect('#eee9e2',x+34,y-27,24,19);
+        poly('#fff5d8',[x+29,y-27,x+46,y-42,x+64,y-27]);
+        rect('#f9dca5',x+44,y-19,5,11);
+        rect('rgba(155,243,255,.5)',x+71,y+3,7,23);
+        line('#f2dfb6',x+111,y+6,x+175,y-9,2);
+      });
+    }else if(map==='CYBERPUNK'){
+      tiles(244,.20,(x,i,n)=>{
+        const y=h-100-n*28;
+        rect('#13244a',x,y,62,h-y);rect('#304379',x-2,y-3,65,4);
+        rect(i%2?'#ff61b9':'#63faff',x+9,y+17,42,24);
+        rect('#172445',x+13,y+21,34,16);
+        for(let j=0;j<4;j++)rect('#93a4e7',x+17+j*7,y+26,3,2);
+        rect('#61f0eb',x+60,y+44,55,2);rect('#42578d',x+88,y+46,4,27);
+      });
+      if(q>1){rect('rgba(97,235,251,.08)',0,h*.72,w,5);}
+    }else if(map==='MYSTIC'){
+      tiles(218,.17,(x,i,n)=>{
+        const y=h-29;
+        rect('#234c4c',x+13,h-90,10,90);
+        line('#2c665c',x+16,h-70,x-18,h-96,4);
+        line('#2e7668',x+17,h-74,x+67,h-104,4);
+        for(let j=0;j<3;j++)poly(j%2?'#4a9d87':'#2c8177',[x+j*22,y-15,x+8+j*22,y-34,x+29+j*22,y-16]);
+        rect('#dfdde6',x+105,y-9,5,11);
+        poly('#a1f1df',[x+89,y-10,x+95,y-23,x+107,y-29,x+119,y-15,x+123,y-10]);
+        rect('#fff8db',x+100,y-19,3,3);
+      });
+    }else if(map==='SHATTERED'){
+      tiles(264,.11,(x,i,n)=>{
+        const y=h*.3+n*h*.18;
+        poly('#514b77',[x+15,y+8,x+36,y-8,x+65,y+1,x+67,y+24,x+33,y+31]);
+        poly('#9e89ba',[x+36,y-8,x+65,y+1,x+46,y+11]);
+        line('#dd9fff',x+31,y+3,x+52,y+20,2);
+        poly('#292d51',[x+130,h,x+146,h-57,x+156,h-72,x+180,h-36,x+192,h]);
+        line('#b078df',x+156,h-68,x+161,h-12,2);
+      });
     }else if(map==='DESERT'){
       tiles(280,.19,(x,i,n)=>{const y=h-54;rect('#865739',x,y,40,54);rect('#ae7948',x-3,y-6,46,7);rect('#cc9b61',x,y-6,40,2);rect('#613b33',x+11,y+18,17,36);rect('#79492f',x+14,y+13,11,5);rect('#b3834f',x+3,y+8,3,37);
         const cx=x+112;rect('#6c7545',cx,h-32,6,32);rect('#6c7545',cx-10,h-23,13,5);rect('#6c7545',cx-10,h-31,4,12);rect('#6c7545',cx+4,h-17,12,5);rect('#6c7545',cx+12,h-25,4,13);rect('#9b9b55',cx+1,h-29,2,24);
@@ -77,7 +117,7 @@
     // Bounded deterministic ambience. OFF really draws zero particles, in both modes.
     const count=q?Math.min(60,Math.ceil(w/640*12*q)):0;
     for(let i=0;i<count;i++){
-      const n=noise(i+100),speed=.12+n*.22,up=['OCEAN','VOLCANO','VOLCANO_PLUS','COSMIC','FOREST','CRYSTAL'].includes(map);
+      const n=noise(i+100),speed=.12+n*.22,up=['OCEAN','VOLCANO','VOLCANO_PLUS','COSMIC','FOREST','CRYSTAL','MYSTIC','SHATTERED','CELESTIAL'].includes(map);
       const px=mod(n*(w+24)-d*.045+t*(map==='DESERT'?-.6:.035)+Math.sin(t*.012+i)*5,w+24)-12;
       const py=mod(noise(i+900)*h+t*speed*(up?-1:1),h);
       g.globalAlpha=.28+n*.32;
@@ -88,6 +128,10 @@
       else if(map==='NEON'){rect('#77a3ce',px,py,1,5);}
       else if(map==='FOREST'){rect('#cde8a1',px,py,2,2);if(q>1){g.globalAlpha=.06;rect('#cde8a1',px-2,py-2,6,6)}}
       else if(map==='CRYSTAL'||map==='COSMIC'){rect('#c8d8f1',px,py,1,3);rect('#c8d8f1',px-1,py+1,3,1);}
+      else if(map==='CELESTIAL'){rect('#fff5ce',px,py,2,1);if(q>1)rect('#f1d39f',px+2,py+1,1,1);}
+      else if(map==='CYBERPUNK'){rect(i%2?'#81e5ff':'#f291c9',px,py,1,5);}
+      else if(map==='MYSTIC'){rect(i%2?'#a6ffe8':'#e8bdff',px,py,2,2);if(q>1){g.globalAlpha=.10;rect('#8bffe2',px-2,py-2,6,6);}}
+      else if(map==='SHATTERED'){rect(i%3?'#c3a4ff':'#f8c4ae',px,py,2,2);if(i%4===0)rect('#f1e1ff',px-2,py,6,1);}
       else if(map==='DESERT'){rect('#ebc384',px,py,3,1);}
       else{rect(day?'#dbe0d1':'#d7c8a3',px,py,1,1);}
     }
