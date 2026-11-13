@@ -3,7 +3,8 @@
   const presets=Object.freeze({
     LOW:Object.freeze({particles:1,dpr:1,resolution:.75,maxPixels:900000}),
     MEDIUM:Object.freeze({particles:2,dpr:1.5,resolution:1,maxPixels:2100000}),
-    HIGH:Object.freeze({particles:3,dpr:2,resolution:1,maxPixels:4200000})
+    HIGH:Object.freeze({particles:3,dpr:2,resolution:1,maxPixels:4200000}),
+    ULTRA:Object.freeze({particles:3,dpr:2.5,resolution:1,maxPixels:6400000})
   });
   function normalize(cfg){
     if(!presets[cfg.graphicsQuality])cfg.graphicsQuality=cfg.particleQuality==='HIGH'?'HIGH':cfg.particleQuality==='LOW'||cfg.particleQuality==='OFF'?'LOW':'MEDIUM';

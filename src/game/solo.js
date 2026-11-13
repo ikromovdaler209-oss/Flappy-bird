@@ -539,11 +539,11 @@
   for (const lang of LANGS) Object.assign(I18N[lang], qualityText[lang]);
   // Settings labels are complete across all five supported languages.
   const SETTINGS_POLISH_TEXT = {
-    EN:{GRAPHICS_QUALITY:'GRAPHICS QUALITY',SCREEN_SHAKE:'SCREEN SHAKE',UI_SCALE:'UI SCALE',MEDIUM:'MEDIUM',SMALL:'SMALL',LARGE:'LARGE'},
-    RU:{GRAPHICS_QUALITY:'КАЧЕСТВО ГРАФИКИ',SCREEN_SHAKE:'ТРЯСКА ЭКРАНА',UI_SCALE:'МАСШТАБ ИНТЕРФЕЙСА',MEDIUM:'СРЕДНЕЕ',SMALL:'МАЛЫЙ',LARGE:'БОЛЬШОЙ'},
-    ZH:{GRAPHICS_QUALITY:'画质',SCREEN_SHAKE:'屏幕震动',UI_SCALE:'界面缩放',MEDIUM:'中',SMALL:'小',LARGE:'大'},
-    ES:{GRAPHICS_QUALITY:'CALIDAD GRÁFICA',SCREEN_SHAKE:'TEMBLOR DE PANTALLA',UI_SCALE:'ESCALA DE INTERFAZ',MEDIUM:'MEDIA',SMALL:'PEQUEÑA',LARGE:'GRANDE'},
-    PT:{GRAPHICS_QUALITY:'QUALIDADE GRÁFICA',SCREEN_SHAKE:'TREMOR DE TELA',UI_SCALE:'ESCALA DA INTERFACE',MEDIUM:'MÉDIA',SMALL:'PEQUENA',LARGE:'GRANDE'}
+    EN:{GRAPHICS_QUALITY:'GRAPHICS QUALITY',SCREEN_SHAKE:'SCREEN SHAKE',UI_SCALE:'UI SCALE',MEDIUM:'MEDIUM',SMALL:'SMALL',LARGE:'LARGE',ULTRA:'ULTRA'},
+    RU:{GRAPHICS_QUALITY:'КАЧЕСТВО ГРАФИКИ',SCREEN_SHAKE:'ТРЯСКА ЭКРАНА',UI_SCALE:'МАСШТАБ ИНТЕРФЕЙСА',MEDIUM:'СРЕДНЕЕ',SMALL:'МАЛЫЙ',LARGE:'БОЛЬШОЙ',ULTRA:'УЛЬТРА'},
+    ZH:{GRAPHICS_QUALITY:'画质',SCREEN_SHAKE:'屏幕震动',UI_SCALE:'界面缩放',MEDIUM:'中',SMALL:'小',LARGE:'大',ULTRA:'超高'},
+    ES:{GRAPHICS_QUALITY:'CALIDAD GRÁFICA',SCREEN_SHAKE:'TEMBLOR DE PANTALLA',UI_SCALE:'ESCALA DE INTERFAZ',MEDIUM:'MEDIA',SMALL:'PEQUEÑA',LARGE:'GRANDE',ULTRA:'ULTRA'},
+    PT:{GRAPHICS_QUALITY:'QUALIDADE GRÁFICA',SCREEN_SHAKE:'TREMOR DE TELA',UI_SCALE:'ESCALA DA INTERFACE',MEDIUM:'MÉDIA',SMALL:'PEQUENA',LARGE:'GRANDE',ULTRA:'ULTRA'}
   };
   for (const lang of LANGS) Object.assign(I18N[lang], SETTINGS_POLISH_TEXT[lang]);
   const EXTREME_TEXT = {
@@ -578,7 +578,7 @@
     EASY:tr('EASY'), NORMAL:tr('NORMAL'), HARD:tr('HARD'), EXTREME:tr('EXTREME'),
     CLASSIC:tr('CLASSIC'), RED:tr('RED'), BLUE:tr('BLUE'), GHOST:tr('GHOST'), ROOKIE:tr('ROOKIE'), PRO:tr('PRO'), MASTER:tr('MASTER'), LEGEND:tr('LEGEND'),
     OFF:tr('NONE'), 'RED-GREEN':tr('RED_GREEN'), 'BLUE-YELLOW':tr('BLUE_YELLOW'),
-    'HIGH CONTRAST':tr('HIGH_CONTRAST'), HIGH:tr('HIGH'), LOW:tr('LOW'), MEDIUM:tr('MEDIUM'), SMALL:tr('SMALL'), LARGE:tr('LARGE'), ON:tr('ON')
+    'HIGH CONTRAST':tr('HIGH_CONTRAST'), ULTRA:tr('ULTRA'), HIGH:tr('HIGH'), LOW:tr('LOW'), MEDIUM:tr('MEDIUM'), SMALL:tr('SMALL'), LARGE:tr('LARGE'), ON:tr('ON')
   }[value] || value);
 
   const mapOK = id => !!MAPS[id] && (!SHOP_MAPS.some(m => m.id === id) || wallet.maps.includes(id));
@@ -710,7 +710,7 @@ if (!initialized) {
     if (cfg.fx || cfg.particleQuality === 'OFF') return 0;
     // Graphics Quality controls both the render budget and particle density.
     if (cfg.graphicsQuality === 'LOW') return 1;
-    if (cfg.graphicsQuality === 'HIGH' && !particleReducedMotion.matches) return 3;
+    if ((cfg.graphicsQuality === 'HIGH' || cfg.graphicsQuality === 'ULTRA') && !particleReducedMotion.matches) return 3;
     return coarsePointer.matches || particleReducedMotion.matches ? 1 : 2;
   }
   function burst(x, y, n, spd, life, cols = ['#fff']) {
@@ -2349,6 +2349,9 @@ if (!initialized) {
     window.flyingBirdMapArt?.(ctx,{map:cfg.map,w:W,ground:GROUND,tick:ticks,distance:bgX,
       quality:particleLevel(),day:themeName()==='DAY',highContrast:cfg.cb==='HIGH CONTRAST',
       reducedMotion:cfg.fx||particleReducedMotion.matches});
+    window.flyingBirdUltraArt?.(ctx,{map:cfg.map,w:W,ground:GROUND,tick:ticks,distance:bgX,
+      quality:cfg.graphicsQuality,highContrast:cfg.cb==='HIGH CONTRAST',
+      effects:!cfg.fx,reducedMotion:particleReducedMotion.matches});
   }
 
   function tri(cx, base, hgt, col) {   // stepped pixel triangle
@@ -2392,6 +2395,10 @@ if (!initialized) {
     const detailScale=Math.max(.01,(h-12)/312);
     ctx.save();ctx.translate(x,y);ctx.scale(detailScale,detailScale);
     window.flyingBirdMapArt?.(ctx,{map:key,w:w/detailScale,ground:312,tick:0,distance:0,quality:0,day:false,reducedMotion:true});
+    ctx.restore();
+    ctx.save();ctx.translate(x,y);
+    window.flyingBirdUltraArt?.(ctx,{map:key,w,ground:h-12,quality:cfg.graphicsQuality,
+      staticCard:true,effects:!cfg.fx,highContrast:cfg.cb==='HIGH CONTRAST'});
     ctx.restore();
     if (drawActors) {
       // One fixed pipe pair and one animated bird per compact card.
@@ -3125,7 +3132,7 @@ function toggleFS() {
       [tr('MUSIC'), cfg.music*10+'%', d => { cfg.music = wrap(11,cfg.music,d); }],
       [tr('SOUND_FX'), cfg.sfx*10+'%', d => { cfg.sfx = wrap(11,cfg.sfx,d); tone(500,700,.08); }],
       [tr('GRAPHICS_QUALITY'), displayValue(cfg.graphicsQuality), d => {
-        cfg.graphicsQuality=cyc(['LOW','MEDIUM','HIGH'],cfg.graphicsQuality,d);
+        cfg.graphicsQuality=cyc(['LOW','MEDIUM','HIGH','ULTRA'],cfg.graphicsQuality,d);
         cfg.particleQuality='AUTO'; // Replaces the old, separate particle-quality control.
         queueFit();
       }],
