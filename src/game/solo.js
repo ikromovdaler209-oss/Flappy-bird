@@ -1806,20 +1806,21 @@ if (!initialized) {
     ctx.globalAlpha=1;
   }
 
+  // One pose drives both the bird and the attached trail; accessibility freezes both.
+  function previewBirdPose(cx,cy,k,o={}){
+    const phase=uiMotionTime()*.065+(o.phase??0);
+    return {x:cx+(o.drift??0)*Math.sin(phase*.55),
+      y:cy+(o.bob??1)*Math.sin(phase)*Math.max(1.4,k*2.2),
+      rot:(o.rotBase??-.08)+Math.sin(phase*.7)*(.045+(o.rotAmp??0)),
+      wing:Math.round(Math.sin(phase*1.8)*3),phase};
+  }
   function animatedBirdIcon(sk,cx,cy,k,o={}){
-    const phase=ticks*.12+(o.phase||0);
-    const bob=(o.bob||1)*Math.sin(phase)*Math.max(1.4,k*2.2);
-    const drift=(o.drift||0)*Math.sin(phase*.55);
-    const rot=(o.rotBase??-.12)+Math.sin(phase*.7)*(.07+(o.rotAmp||0));
-    const wing=Math.round(Math.sin(phase*1.8)*3);
-    const bx=cx+drift,by=cy+bob;
-    if(o.trailId&&o.trailId!=='NONE')drawPreviewTrail(o.trailId,bx-k*10,by+k*2,phase,k);
-    ctx.save();
-    ctx.translate(bx,by);
-    ctx.rotate(rot);
-    ctx.scale(k,k);
-    birdShapes(sk, wing);
-    ctx.restore();
+    const pose=o.pose||previewBirdPose(cx,cy,k,o);
+    if(o.trailId&&o.trailId!=='NONE')drawPreviewTrail(o.trailId,pose.x-k*10,pose.y+k*2,pose.phase,k);
+    ctx.save();ctx.translate(pose.x,pose.y);ctx.rotate(pose.rot);ctx.scale(k,k);
+    const savedTicks=ticks;
+    try { ticks=uiMotionTime();birdShapes(sk,pose.wing); }
+    finally { ticks=savedTicks;ctx.restore(); }
   }
 
   function drawPreviewPipePair(pal,x,y,w,h,center,gap,pipeX,pipeW=22){
@@ -1842,36 +1843,21 @@ if (!initialized) {
   }
 
   function drawBirdPreviewScene(sk,x,y,w,h,trailId='NONE'){
-    trailId=sk.bundleTrail||trailId;
-    ctx.save();
-    ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();
+    // A skin is the subject: no oversized pipes or foreground covering its silhouette.
+    ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();
     const g=ctx.createLinearGradient(0,y,0,y+h);
-    g.addColorStop(0,'#22376f');g.addColorStop(.6,'#4c73b3');g.addColorStop(1,'#8cc9ff');
+    g.addColorStop(0,'#142442');g.addColorStop(1,'#304d74');
     ctx.fillStyle=g;ctx.fillRect(x,y,w,h);
-    const floor=y+h-11;
-    for(let i=0;i<3;i++){
-      const cx=x+w*(.18+i*.34); // Static scenery; only the bird animates.
-      ctx.fillStyle='rgba(255,255,255,.24)';ctx.fillRect(cx,floor-34-i*8,30+i*10,10);
-      ctx.fillRect(cx+8,floor-42-i*8,18+i*6,8);
-    }
-    ctx.fillStyle='#43639b';
-    for(let i=0;i<Math.ceil(w/18)+1;i++){
-      const hx=x+i*18;
-      const hh=16+(i%3)*6;
-      ctx.fillRect(hx,floor-hh,14,hh);
-      if(i%2===0){ctx.fillStyle='rgba(255,237,153,.6)';ctx.fillRect(hx+4,floor-hh+4,2,3);ctx.fillStyle='#43639b';}
-    }
-    ctx.fillStyle='#8ddc66';ctx.fillRect(x,floor,w,11);
-    ctx.fillStyle='#54b247';ctx.fillRect(x,floor+4,w,7);
-    ctx.fillStyle=INK;ctx.fillRect(x,floor-2,w,2);
-    const pal=MAPS[cfg.map]?.pipes?.[0]||GREEN;
-    const center=y+h*.48;
-    const big=h>90,gap=Math.max(40,Math.min(big?96:72,h*(big?.62:.42)));
-    const pipeX=x+w*.73;
-    drawPreviewPipePair(pal,x,y,w,h,center,gap,pipeX,Math.max(18,Math.min(28,w*.09)));
-    const birdX=x+w*.34+Math.sin(ticks*.08)*Math.min(10,w*.03);
-    const birdY=center+Math.cos(ticks*.1)*Math.min(6,h*.035);
-    animatedBirdIcon(sk,birdX,birdY,(big?Math.min(2.3,Math.max(1.55,h/58)):Math.min(1.55,Math.max(.9,h/48))),{trailId,drift:3,phase:w*.01});
+    const glow=ctx.createRadialGradient(x+w*.5,y+h*.48,0,x+w*.5,y+h*.48,Math.max(w,h)*.55);
+    glow.addColorStop(0,'rgba(143,196,255,.20)');glow.addColorStop(1,'rgba(143,196,255,0)');
+    ctx.fillStyle=glow;ctx.fillRect(x,y,w,h);
+    const ribbons=sk.art==='zxcgoul';
+    const k=Math.min(h>90?3.2:1.5,w/(ribbons?100:72),h/(ribbons?76:48));
+    const bundled=sk.bundleTrail||'NONE';
+    const cx=x+w*(ribbons?.57:bundled==='NONE'?.5:.62),cy=y+h*.51;
+    const pose=previewBirdPose(cx,cy,k);
+    if(bundled!=='NONE')drawFittedPreviewTrail(bundled,pose,k,x+8,h,false);
+    animatedBirdIcon(sk,cx,cy,k,{pose});
     ctx.restore();
   }
 
@@ -2390,20 +2376,22 @@ if (!initialized) {
         }
         ctx.fillStyle = '#7ed957';
       } else if (key === 'MOUNTAINS') {
-        for (let i = 0; i < 3; i++) { const cx = x + w * (0.2 + i * 0.3) + 0; const hh = 34 + (i % 2) * 14; tri(cx, gy, hh, '#1d2c5e'); tri(cx, gy - hh + 12, 12, '#fff'); }
+        for (let i = 0; i < 3; i++) { const cx = x + w * (0.2 + i * 0.3) + 0; const hh = Math.min(34 + (i % 2) * 14,h*.7); tri(cx, gy, hh, '#1d2c5e'); tri(cx, gy - hh + hh*.25, hh*.25, '#fff'); }
         ctx.fillStyle = '#f4fbff';
         for(let i=0;i<7;i++){ctx.fillRect(x+((i*19)%(w+8)),y+8+(i*13%(Math.max(10,h-28))),2,2);}
       } else {
         const cx = x + w * 0.5;
-        tri(cx, gy, 50, '#2b1214'); ctx.fillStyle = '#ff7b2e'; ctx.fillRect(cx - 7, gy - 50, 14, 3); ctx.fillRect(cx - 2, gy - 47, 2, 22);
+        const peak=Math.min(50,h*.72); tri(cx, gy, peak, '#2b1214'); ctx.fillStyle = '#ff7b2e'; ctx.fillRect(cx - peak*.14, gy - peak, peak*.28, 3); ctx.fillRect(cx - 2, gy - peak+3, 2, peak*.44);
         ctx.fillStyle = '#241519';
         for(let i=0;i<6;i++){ctx.fillStyle=i%2?'#ffb135':'#ff7b2e';ctx.fillRect(x+((i*23)%(w+18)+w+18)%(w+18),y+10+((i*17)%(Math.max(12,h-24))),2,3);}
       }
       ctx.fillRect(x, gy, w, 12);
       if (key === 'VOLCANO') { ctx.fillStyle = '#ff7b2e'; ctx.fillRect(x, gy, w, 2); }
     }
-    ctx.save();ctx.translate(x,y);ctx.scale(w/640,(h-12)/312);
-    window.flyingBirdMapArt?.(ctx,{map:key,w:640,ground:312,tick:0,distance:0,quality:0,day:false,reducedMotion:true});
+    // Preserve proportions of foreground details on both tall and wide cards.
+    const detailScale=Math.max(.01,(h-12)/312);
+    ctx.save();ctx.translate(x,y);ctx.scale(detailScale,detailScale);
+    window.flyingBirdMapArt?.(ctx,{map:key,w:w/detailScale,ground:312,tick:0,distance:0,quality:0,day:false,reducedMotion:true});
     ctx.restore();
     if (drawActors) {
       // One fixed pipe pair and one animated bird per compact card.
@@ -2833,39 +2821,27 @@ function toggleFS() {
   }
   // The same flight path is reused in a small card and a large item preview.
   // Only its visual size changes; equipped effects and ownership are unchanged.
-  function drawTrailPreviewScene(id,x,y,w,h,large=false){
-    ctx.save();
-    ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();
+  function drawFittedPreviewTrail(id,pose,k,left,h,large){
     const t=TRAILS.find(t=>t.id===id);
-    const colors=t?t.colors:['#91a8d0','#d7e8ff','#91a8d0'];
-    const g=ctx.createLinearGradient(0,y,0,y+h);
-    g.addColorStop(0,'#101e42');g.addColorStop(.64,'#24477e');g.addColorStop(1,'#24375e');
-    ctx.fillStyle=g;ctx.fillRect(x,y,w,h);
-    const now=uiMotionTime(),phase=now*.105;
-    // Faint parallax stars and air-current streaks keep a blank trail readable.
-    for(let i=0;i<13;i++){
-      const sx=x+((i*47-now*.18)%(w+25)+w+25)%(w+25);
-      const sy=y+6+(i*23)%Math.max(8,h-15);
-      ctx.fillStyle=i%3===0?'rgba(255,245,197,.47)':'rgba(193,229,255,.26)';
-      ctx.fillRect(sx,sy,i%3===0?2:1,1);
-    }
-    const by=y+h*.49+Math.sin(phase)*Math.min(h*.045,7);
-    const bx=x+w*.77+Math.cos(phase*.57)*Math.min(w*.018,6);
-    if(t){
-      const step=Math.max(3.5,Math.min(11,w*.032));
+    if(!t||id==='NONE')return;
+    const colors=t.colors,now=uiMotionTime(),phase=pose.phase;
+    const tailX=pose.x-15*k*Math.cos(pose.rot)-2*k*Math.sin(pose.rot);
+    const tailY=pose.y-15*k*Math.sin(pose.rot)+2*k*Math.cos(pose.rot);
+    const step=Math.max(0,(tailX-left-6)/22);
+    ctx.save();
       for(let i=0;i<23;i++){
-        const px=bx-15-i*step;
-        const py=by+Math.sin(phase-i*.54)*(Math.min(10,h*.09))+(i%3-1)*1.3;
+        const px=tailX-i*step;
+        const py=tailY+(Math.sin(phase-i*.36)-Math.sin(phase))*Math.min(6,h*.055)*(i/22);
         const sz=Math.max(1.5,(large?5:3.8)-i*.115);
-        const alpha=Math.max(.12,.94-i*.035);
+        const alpha=Math.pow(1-i/23,1.4)*.9;
         if(id==='LIGHTNING'&&i<20){
           ctx.strokeStyle=colors[i%colors.length];ctx.globalAlpha=alpha*.78;
           ctx.lineWidth=Math.max(1.4,sz*.72);
           ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px-step*.7,py+(i%2?8:-8));ctx.stroke();
         }else if(NEWTR[id]){
           if(id==='CONSTELLATION'&&i>0){
-            const qx=bx-15-(i-1)*step;
-            const qy=by+Math.sin(phase-(i-1)*.54)*Math.min(10,h*.09)+((i-1)%3-1)*1.3;
+            const qx=tailX-(i-1)*step;
+            const qy=tailY+(Math.sin(phase-(i-1)*.36)-Math.sin(phase))*Math.min(6,h*.055)*((i-1)/22);
             ctx.strokeStyle='#9cb8ff';ctx.lineWidth=large?1.3:.9;ctx.globalAlpha=alpha*.34;
             ctx.beginPath();ctx.moveTo(qx,qy);ctx.lineTo(px,py);ctx.stroke();ctx.globalAlpha=1;
           }
@@ -2888,10 +2864,27 @@ function toggleFS() {
           ctx.fillStyle='#fff1ae';ctx.fillRect(px-2,py-5,2,4);
         }
       }
+    ctx.restore();
+  }
+
+  function drawTrailPreviewScene(id,x,y,w,h,large=false){
+    ctx.save();
+    ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();
+    const g=ctx.createLinearGradient(0,y,0,y+h);
+    g.addColorStop(0,'#101e42');g.addColorStop(.64,'#24477e');g.addColorStop(1,'#24375e');
+    ctx.fillStyle=g;ctx.fillRect(x,y,w,h);
+    const now=uiMotionTime();
+    // Faint parallax stars and air-current streaks keep a blank trail readable.
+    for(let i=0;i<13;i++){
+      const sx=x+((i*47-now*.18)%(w+25)+w+25)%(w+25);
+      const sy=y+6+(i*23)%Math.max(8,h-15);
+      ctx.fillStyle=i%3===0?'rgba(255,245,197,.47)':'rgba(193,229,255,.26)';
+      ctx.fillRect(sx,sy,i%3===0?2:1,1);
     }
-    ctx.globalAlpha=1;
-    const k=large?Math.min(2,Math.max(1.25,h/110)):Math.min(.98,Math.max(.55,h/67));
-    animatedBirdIcon(equippedPreviewSkin(),bx,by,k,{phase:1.7,drift:2,rotBase:-.09});
+    const k=Math.min(large?2.4:1.05,w/85,h/48);
+    const pose=previewBirdPose(x+w*.77,y+h*.49,k,{phase:1.7});
+    drawFittedPreviewTrail(id,pose,k,x+10,h,large);
+    animatedBirdIcon(equippedPreviewSkin(),pose.x,pose.y,k,{pose});
     if(large){
       // Subtle frame corners help the player read the larger active-effect preview.
       ctx.fillStyle='rgba(219,241,255,.37)';
@@ -2974,7 +2967,7 @@ function toggleFS() {
     const center=y+h*.49;
     const pipeX=x+w*.7;
     drawPreviewPipePair(pal,x,y,w,h,center,gap,pipeX,Math.max(17,Math.min(34,w*.095)));
-    animatedBirdIcon(equippedPreviewSkin(),x+w*.29+Math.sin(ticks*.07)*Math.min(12,w*.03),center+Math.sin(ticks*.09)*Math.min(6,h*.035),Math.min(1.08,Math.max(.58,h/150)),{trailId:cfg.trail,drift:4,phase:h*.01});
+    animatedBirdIcon(equippedPreviewSkin(),x+w*.29,center,Math.min(1.08,w/170,h/95),{phase:1});
     ctx.restore();
   }
   function itemArt(item,x,y,w,h){
@@ -3001,7 +2994,7 @@ function toggleFS() {
       else if(glow>.02){ctx.fillStyle='rgba(186,229,255,'+(glow*.55)+')';ctx.fillRect(x+2,tabY+2,tw-4,2);}
       txtFit(tr(t==='MAPS'?'MAPS_TAB':t),x+tw/2,tabY+14,11,tw-8,chosen?BROWN:'#e9efff','center',false);
     });
-    const items=catalog(tab,inventory),cols=L?3:2,per=L?(coarsePointer.matches?3:6):(H>=630?6:4),pages=Math.max(1,Math.ceil(items.length/per));
+    const items=catalog(tab,inventory),cols=L?3:2,per=L?3:(H>=630?6:4),pages=Math.max(1,Math.ceil(items.length/per));
     const pg=Math.max(0,Math.min(page,pages-1));
     if(inventory)inventoryPage=pg;else shopPage=pg;
     const shown=items.slice(pg*per,(pg+1)*per);
@@ -3092,9 +3085,10 @@ function toggleFS() {
     cosmeticLabel(name,W/2,56,16,W-35,'#fff');
     const kind=previewItem.kind==='MAPS'?'MAP_TYPE':previewItem.kind==='BIRDS'?'BIRD_TYPE':'TRAIL_TYPE';
     cosmeticLabel(tr(kind)+(previewItem.rarity==='SPECIAL'?' · '+specialName():'')+(previewItem.skin?.bundleTrail?' + STARDUST':''),W/2,74,10,W-45,'#a9bbd6');
-    const x=18,y=91,w=W-36,backY=H-38,actionY=backY-41;
+    const y=91,backY=H-38,actionY=backY-41;
     const detailsY=actionY-39;
-    const h=Math.max(40,Math.min(L?Math.max(145,Math.min(300,H*.37)):Math.max(300,H*.72),detailsY-y-10));
+    const h=Math.max(40,Math.min((W-36)/1.65,detailsY-y-10));
+    const w=Math.min(W-36,h*1.9),x=(W-w)/2;
     tile(x,y,w,h,true);
     if(previewItem.kind==='MAPS')detailedMapPreview(previewItem.id,x+4,y+4,w-8,h-8);
     else if(previewItem.kind==='BIRDS')drawBirdPreviewScene(previewItem.skin,x+4,y+4,w-8,h-8,cfg.trail||'NONE');
