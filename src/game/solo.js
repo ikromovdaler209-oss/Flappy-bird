@@ -19,6 +19,21 @@
   };
   const cfg = store.get('flyingBirdCfg', { theme: 'NIGHT', music: 4, sfx: 7, cb: 'OFF', fx: false, diff: 'NORMAL', skin: 0, muted: false, lang: 'EN', map: 'CITY', fps: 'MAX', showFps: false });
   if (!['EN', 'ZH', 'RU', 'ES', 'PT'].includes(cfg.lang)) cfg.lang = 'EN';
+  // Keep legacy cosmetic preferences; new settings live in the same cfg object.
+  window.HighFlyGraphics?.normalize(cfg);
+  if (!['SMALL','NORMAL','LARGE'].includes(cfg.uiScale)) cfg.uiScale='NORMAL';
+  cfg.screenShake=cfg.screenShake!==false;
+  window.flyingBirdGraphicsQuality=()=>cfg.graphicsQuality;
+  const UI_SCALES=Object.freeze({SMALL:.90,NORMAL:1,LARGE:1.10});
+  const uiScaleFactor=()=>UI_SCALES[cfg.uiScale]||1;
+  // Apply the same preference to bounded HTML dialogs (friends, auth, MP lobby).
+  // CSS zoom scales their own DOM hit targets; the game world is unaffected.
+  const syncUiScaleCss=()=>{
+    const zoom=uiScaleFactor();
+    document.documentElement.style.setProperty('--hf-ui-scale',String(zoom));
+    document.documentElement.style.setProperty('--hf-ui-max-size',(100/zoom).toFixed(3)+'%');
+  };
+  syncUiScaleCss();
   const save = store.get('flyingBirdSave', { best: { EASY: 0, NORMAL: 0, HARD: 0, EXTREME: 0 }, games: 0, flaps: 0, pipes: 0, earnedCoins: 0, ach: {} });
   // Older saves have only three difficulty records; initialize EXTREME safely.
   save.best = Object.assign({EASY:0,NORMAL:0,HARD:0,EXTREME:0}, save.best || {});
@@ -158,6 +173,10 @@
       cfg.fps = String(cfg.fps);
       if (cfg.fps !== 'MAX' && !/^\d{2,3}$/.test(cfg.fps)) cfg.fps = 'MAX';
       if (!['AUTO','HIGH','LOW','OFF'].includes(cfg.particleQuality)) cfg.particleQuality = 'AUTO';
+      window.HighFlyGraphics?.normalize(cfg);
+      if (!['SMALL','NORMAL','LARGE'].includes(cfg.uiScale)) cfg.uiScale='NORMAL';
+      cfg.screenShake=cfg.screenShake!==false;
+      syncUiScaleCss();
     }
     if (data.save && typeof data.save === 'object') {
       const x = data.save;
@@ -518,6 +537,15 @@
     ZH:{HIGH:'高',LOW:'低'},ES:{HIGH:'ALTA',LOW:'BAJA'},PT:{HIGH:'ALTA',LOW:'BAIXA'}
   };
   for (const lang of LANGS) Object.assign(I18N[lang], qualityText[lang]);
+  // Settings labels are complete across all five supported languages.
+  const SETTINGS_POLISH_TEXT = {
+    EN:{GRAPHICS_QUALITY:'GRAPHICS QUALITY',SCREEN_SHAKE:'SCREEN SHAKE',UI_SCALE:'UI SCALE',MEDIUM:'MEDIUM',SMALL:'SMALL',LARGE:'LARGE'},
+    RU:{GRAPHICS_QUALITY:'КАЧЕСТВО ГРАФИКИ',SCREEN_SHAKE:'ТРЯСКА ЭКРАНА',UI_SCALE:'МАСШТАБ ИНТЕРФЕЙСА',MEDIUM:'СРЕДНЕЕ',SMALL:'МАЛЫЙ',LARGE:'БОЛЬШОЙ'},
+    ZH:{GRAPHICS_QUALITY:'画质',SCREEN_SHAKE:'屏幕震动',UI_SCALE:'界面缩放',MEDIUM:'中',SMALL:'小',LARGE:'大'},
+    ES:{GRAPHICS_QUALITY:'CALIDAD GRÁFICA',SCREEN_SHAKE:'TEMBLOR DE PANTALLA',UI_SCALE:'ESCALA DE INTERFAZ',MEDIUM:'MEDIA',SMALL:'PEQUEÑA',LARGE:'GRANDE'},
+    PT:{GRAPHICS_QUALITY:'QUALIDADE GRÁFICA',SCREEN_SHAKE:'TREMOR DE TELA',UI_SCALE:'ESCALA DA INTERFACE',MEDIUM:'MÉDIA',SMALL:'PEQUENA',LARGE:'GRANDE'}
+  };
+  for (const lang of LANGS) Object.assign(I18N[lang], SETTINGS_POLISH_TEXT[lang]);
   const EXTREME_TEXT = {
     EN:{EXTREME:'EXTREME',EXTREME_LEVEL:'EXTREME LEVEL'},
     RU:{EXTREME:'ЭКСТРИМ',EXTREME_LEVEL:'УРОВЕНЬ ЭКСТРИМА'},
@@ -550,7 +578,7 @@
     EASY:tr('EASY'), NORMAL:tr('NORMAL'), HARD:tr('HARD'), EXTREME:tr('EXTREME'),
     CLASSIC:tr('CLASSIC'), RED:tr('RED'), BLUE:tr('BLUE'), GHOST:tr('GHOST'), ROOKIE:tr('ROOKIE'), PRO:tr('PRO'), MASTER:tr('MASTER'), LEGEND:tr('LEGEND'),
     OFF:tr('NONE'), 'RED-GREEN':tr('RED_GREEN'), 'BLUE-YELLOW':tr('BLUE_YELLOW'),
-    'HIGH CONTRAST':tr('HIGH_CONTRAST'), HIGH:tr('HIGH'), LOW:tr('LOW'), ON:tr('ON')
+    'HIGH CONTRAST':tr('HIGH_CONTRAST'), HIGH:tr('HIGH'), LOW:tr('LOW'), MEDIUM:tr('MEDIUM'), SMALL:tr('SMALL'), LARGE:tr('LARGE'), ON:tr('ON')
   }[value] || value);
 
   const mapOK = id => !!MAPS[id] && (!SHOP_MAPS.some(m => m.id === id) || wallet.maps.includes(id));
@@ -680,8 +708,9 @@ if (!initialized) {
   const particleReducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   function particleLevel() {
     if (cfg.fx || cfg.particleQuality === 'OFF') return 0;
-    if (cfg.particleQuality === 'LOW') return 1;
-    if (cfg.particleQuality === 'HIGH') return 3;
+    // Graphics Quality controls both the render budget and particle density.
+    if (cfg.graphicsQuality === 'LOW') return 1;
+    if (cfg.graphicsQuality === 'HIGH' && !particleReducedMotion.matches) return 3;
     return coarsePointer.matches || particleReducedMotion.matches ? 1 : 2;
   }
   function burst(x, y, n, spd, life, cols = ['#fff']) {
@@ -751,7 +780,7 @@ if (!initialized) {
   function die(onGround) {
     if (state === 'DEAD' || state === 'GAMEOVER') return;
     tone(240, 50, 0.35, 'sawtooth', 0.1);
-    if (!cfg.fx) { shake = 12; flash = 0.8; }
+    if (!cfg.fx) { if (cfg.screenShake) shake = 12; flash = 0.8; }
     burst(bird.x + bird.w / 2, bird.y + bird.h / 2, cfg.fx ? 6 : 24, 4, 40, ['#ffd23f', '#ff9f1c', '#ff6b35', '#fff']);
     save.games++;
     if (score > save.best[cfg.diff]) { save.best[cfg.diff] = score; newBest = true; }
@@ -870,7 +899,7 @@ if (!initialized) {
       if (bird.y + bird.h >= GROUND) {
         bird.y = GROUND - bird.h;
         state = 'GAMEOVER'; overAt = performance.now();
-        shake = 5; tone(120, 40, 0.15, 'triangle', 0.08);
+        if (cfg.screenShake && !cfg.fx) shake = 5; tone(120, 40, 0.15, 'triangle', 0.08);
       }
     }
 
@@ -2517,16 +2546,18 @@ if (!initialized) {
   const reduceUiMotion=()=>cfg.fx||!!reducedMotionQuery?.matches;
   const uiMotionTime=()=>reduceUiMotion()?0:ticks;
   let uiHoverPoint=null,uiPressPoint=null,uiLastScreen=screen,uiTransition=null;
+  // Applied only while drawing Canvas UI. World coordinates and physics never scale.
+  let uiRenderScale=1,uiOffsetX=0,uiOffsetY=0;
   const uiHoverLevels=new Map();
   function pointerHot(x,y,w,h){
     const p=uiHoverPoint;
     return !!p&&(!p.touch||performance.now()-p.at<210)&&
-      p.x>=x&&p.x<=x+w&&p.y>=y&&p.y<=y+h;
+      (p.x-uiOffsetX)/uiRenderScale>=x&&(p.x-uiOffsetX)/uiRenderScale<=x+w&&(p.y-uiOffsetY)/uiRenderScale>=y&&(p.y-uiOffsetY)/uiRenderScale<=y+h;
   }
   function pressedHot(x,y,w,h){
     const p=uiPressPoint;
     return !!p&&performance.now()-p.at<200&&
-      p.x>=x&&p.x<=x+w&&p.y>=y&&p.y<=y+h;
+      (p.x-uiOffsetX)/uiRenderScale>=x&&(p.x-uiOffsetX)/uiRenderScale<=x+w&&(p.y-uiOffsetY)/uiRenderScale>=y&&(p.y-uiOffsetY)/uiRenderScale<=y+h;
   }
   function hoverLevel(x,y,w,h,kind){
     const key=screen+'|'+kind+'|'+Math.round(x)+'|'+Math.round(y);
@@ -2577,7 +2608,7 @@ if (!initialized) {
 
   function btn(x, y, w, h, label, fn, o = {}) {
     const i=btns.length,on=i===focus,fs=o.size||14;
-    btns.push({x,y,w,h,fn,adj:o.adj,id:o.id});
+    btns.push({x:x*uiRenderScale+uiOffsetX,y:y*uiRenderScale+uiOffsetY,w:w*uiRenderScale,h:h*uiRenderScale,fn,adj:o.adj,id:o.id});
     const hover=hoverLevel(x,y,w,h,'button');
     const push=pressedHot(x,y,w,h)&&!reduceUiMotion()?1:0;
     const lift=reduceUiMotion()?0:hover*1.6;
@@ -3096,27 +3127,26 @@ function toggleFS() {
     const wrap = (n, v, d) => (v + d + n) % n, onoff = v => (v ? tr('ON') : tr('OFF'));
     const rows = [
       [tr('LANGUAGE'), LANG_NAMES[cfg.lang], d => { cfg.lang = cyc(LANGS, cfg.lang, d); }],
-      [tr('THEME'), displayValue(cfg.theme), d => { cfg.theme = cyc(['NIGHT', 'DAY', 'AUTO'], cfg.theme, d); }],
-      [tr('MUSIC'), cfg.music*10+'%', d => { cfg.music = wrap(11, cfg.music, d); }],
-      [tr('SOUND_FX'), cfg.sfx*10+'%', d => { cfg.sfx = wrap(11, cfg.sfx, d); tone(500, 700, 0.08); }],
-      [tr('COLOR_MODE'), displayValue(cfg.cb), d => { cfg.cb = cyc(Object.keys(PIPES), cfg.cb, d); }],
-      [tr('REDUCE_EFFECTS'), onoff(cfg.fx), () => { cfg.fx = !cfg.fx; }],
-      [tr('PARTICLE_QUALITY'), displayValue(cfg.particleQuality), d => { cfg.particleQuality = cyc(['AUTO','HIGH','LOW','OFF'], cfg.particleQuality, d); }],
-      [tr('FPS_LIMIT'), cfg.fps === 'MAX' ? tr('MAX') + ' (' + displayHz() + ')' : cfg.fps, d => { const o = fpsOptions(); cfg.fps = cyc(o, o.includes(cfg.fps) ? cfg.fps : 'MAX', d); }],
-      [tr('SHOW_FPS'), onoff(cfg.showFps), () => { cfg.showFps = !cfg.showFps; }]
+      [tr('THEME'), displayValue(cfg.theme), d => { cfg.theme = cyc(['NIGHT','DAY','AUTO'],cfg.theme,d); }],
+      [tr('MUSIC'), cfg.music*10+'%', d => { cfg.music = wrap(11,cfg.music,d); }],
+      [tr('SOUND_FX'), cfg.sfx*10+'%', d => { cfg.sfx = wrap(11,cfg.sfx,d); tone(500,700,.08); }],
+      [tr('GRAPHICS_QUALITY'), displayValue(cfg.graphicsQuality), d => {
+        cfg.graphicsQuality=cyc(['LOW','MEDIUM','HIGH'],cfg.graphicsQuality,d);
+        cfg.particleQuality='AUTO'; // Replaces the old, separate particle-quality control.
+        queueFit();
+      }],
+      [tr('REDUCE_EFFECTS'), onoff(cfg.fx), () => {cfg.fx=!cfg.fx;}],
+      [tr('SCREEN_SHAKE'), onoff(cfg.screenShake), () => {cfg.screenShake=!cfg.screenShake;if(!cfg.screenShake)shake=0;}],
+      [tr('UI_SCALE'), displayValue(cfg.uiScale), d => {
+        cfg.uiScale=cyc(['SMALL','NORMAL','LARGE'],cfg.uiScale,d);
+        syncUiScaleCss();
+        uiHitboxesStale=true;
+        uiHoverLevels.clear();
+      }],
+      [tr('FPS_LIMIT'), cfg.fps==='MAX'?tr('MAX')+' ('+displayHz()+')':cfg.fps, d => {const o=fpsOptions();cfg.fps=cyc(o,o.includes(cfg.fps)?cfg.fps:'MAX',d);}],
+      [tr('SHOW_FPS'), onoff(cfg.showFps), () => {cfg.showFps=!cfg.showFps;}],
+      [tr('FULLSCREEN'), onoff(fullscreenNow()||navigator.standalone||window.matchMedia('(display-mode: standalone)').matches), toggleFS]
     ];
-    rows.push(
-      [tr('BIRD_SKIN'), itemName({kind:'BIRDS',name:SKINS[cfg.skin].name}), d => { let i = cfg.skin; do { i = wrap(SKINS.length, i, d); } while (!skinOK(i)); cfg.skin = i; }],
-      [
-  tr('FULLSCREEN'),
-  onoff(
-    fullscreenNow() ||
-    navigator.standalone ||
-    window.matchMedia('(display-mode: standalone)').matches
-  ),
-  toggleFS
-]
-    );
     const total=rows.length+2,cols=L?2:1,per=Math.ceil(total/cols);
     const gutter=L?Math.min(30,W*.045):0;
     const maxWidth=L?Math.min(880,W-44):Math.min(W-40,420);
@@ -3136,7 +3166,7 @@ function toggleFS() {
       const q=pos(i);
       btn(q.x,q.y,bw,h,r[0],d=>{r[2](d);saveCfg();},{value:String(r[1]),adj:true,size:fs});
       // Color-coded category rails clarify related options without adding translation strings.
-      const stripeColor=i<2?'#69b9e4':i<4?'#ecad60':i<9?'#a68cf5':'#81c8ad';
+      const stripeColor=i<2?'#69b9e4':i<4?'#ecad60':i<8?'#a68cf5':'#81c8ad';
       ctx.fillStyle=stripeColor;ctx.fillRect(q.x+3,q.y+5,3,Math.max(0,h-10));
     });
     let q=pos(rows.length);
@@ -3147,8 +3177,6 @@ function toggleFS() {
     },{id:'reset',size:fs,danger:true});
     q=pos(rows.length+1);
     btn(q.x,q.y,bw,h,tr('BACK'),back,{size:fs,secondary:true});
-    const lk = SKINS.find(k => k.need > maxBest());
-    if (lk) txt(tr('SKIN_UNLOCK') + ' ' + lk.need, W / 2, H - 14, 9, '#f3e3c7', 'center', false);
   }
 
   function drawAch() {
@@ -3296,7 +3324,7 @@ function toggleFS() {
     if (window.flyingBirdMpRaceActive) return; // Multiplayer renderer owns the visible scene.
     beginScreenTransition();
     ctx.save();
-    if (shake > 0.3) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+    if (cfg.screenShake && shake > 0.3) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
     drawBackground();
     drawMapDetail();
     drawAtmos();
@@ -3312,7 +3340,25 @@ function toggleFS() {
     drawBird();
     ctx.restore();
     if (flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + flash + ')'; ctx.fillRect(0, 0, W, H); }
-    drawUI();
+    // Only Canvas UI is scaled: gameplay/world, collision boxes and MP remain fixed.
+    // Virtual dimensions let every screen reflow within the same physical canvas.
+    const worldW=W,worldH=H,zoom=screen?uiScaleFactor():1;
+    ctx.save();
+    try {
+      uiRenderScale=zoom;
+      if(zoom<1){
+        // Small: shrink the established layout around its centre, preserving
+        // all original card positions and never exposing extra page columns.
+        uiOffsetX=worldW*(1-zoom)/2;uiOffsetY=worldH*(1-zoom)/2;
+        ctx.translate(uiOffsetX,uiOffsetY);ctx.scale(zoom,zoom);
+      }else if(zoom>1){
+        // Large: reflow into a smaller virtual viewport so panels stay on-screen.
+        ctx.scale(zoom,zoom);W=worldW/zoom;H=worldH/zoom;
+      }
+      drawUI();
+    } finally {
+      ctx.restore();W=worldW;H=worldH;uiRenderScale=1;uiOffsetX=0;uiOffsetY=0;
+    }
     drawScreenTransition();
     drawClickPulse();
   }
@@ -3441,8 +3487,9 @@ function toggleFS() {
     layout(land, width, height);
   }
 
-  const r = Math.min(Math.max(1, scale * Math.min(devicePixelRatio || 1, 2)),
-    Math.sqrt(4200000 / (W * H)));
+  // Rendering resolution follows Graphics Quality, but CSS geometry stays identical.
+  const r = window.HighFlyGraphics?.density(cfg.graphicsQuality,scale,devicePixelRatio||1,W,H)
+    ?? Math.min(Math.max(1,scale),Math.sqrt(4200000/(W*H)));
 
   const backingW = Math.round(W * r), backingH = Math.round(H * r);
   if (canvas.width !== backingW || canvas.height !== backingH) {

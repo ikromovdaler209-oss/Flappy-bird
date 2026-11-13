@@ -203,3 +203,13 @@ button {touch-action:manipulation}
   #authBox button,#syncBox button,.fbDialog button,#fbfBox button,#fbPrivacyBox button,
   #fbLbBox button,#fbLbsBox button,#fbMpBox button {transition:none!important;transform:none!important}
 }
+
+
+/* UI Scale: retain each dialog's scrollable layout, resizing the DOM controls and
+   constraining the outer boxes so Large still fits small phones and landscape. */
+:root {--hf-ui-scale:1;--hf-ui-max-size:100%}
+#authBox,#syncBox,.fbDialog,#fbfBox,#fbPrivacyBox,#fbLbBox,#fbLbsBox,#fbMpBox {
+  zoom:var(--hf-ui-scale);
+  max-width:var(--hf-ui-max-size);
+  max-height:var(--hf-ui-max-size);
+}
