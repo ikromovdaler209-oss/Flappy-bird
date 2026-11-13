@@ -1905,10 +1905,18 @@ if (!initialized) {
     glow.addColorStop(0,'rgba(143,196,255,.20)');glow.addColorStop(1,'rgba(143,196,255,0)');
     ctx.fillStyle=glow;ctx.fillRect(x,y,w,h);
     const ribbons=sk.art==='zxcgoul';
-    const k=Math.min(h>90?3.2:1.5,w/(ribbons?100:72),h/(ribbons?76:48));
+    const elite=!!(sk&&['AURUM','ABYSS','ECLIPSE','EMERALD KING','PLATINUM'].includes(sk.name));
+    const compact=W<=430||H<=620;
     const bundled=sk.bundleTrail||'NONE';
-    const cx=x+w*(ribbons?.57:bundled==='NONE'?.5:.62),cy=y+h*.51;
-    const pose=previewBirdPose(cx,cy,k);
+    // Elite birds and the Tokyo-Ghoul-inspired special skin need slightly smaller,
+    // more centered preview framing on phones so their wing/tail silhouettes stay visible.
+    const k=Math.min(
+      elite?(compact?1.18:2.45):h>90?3.2:1.5,
+      w/(ribbons?100:elite?86:72),
+      h/(ribbons?76:elite?58:48)
+    );
+    const cx=x+w*(ribbons?.57:elite?(bundled==='NONE'?.53:.58):bundled==='NONE'?.5:.62),cy=y+h*(elite?.53:.51);
+    const pose=previewBirdPose(cx,cy,k,{bob:elite?.82:1,rotAmp:elite?.01:0});
     if(bundled!=='NONE')drawFittedPreviewTrail(bundled,pose,k,x+8,h,false);
     animatedBirdIcon(sk,cx,cy,k,{pose});
     ctx.restore();
@@ -3141,29 +3149,38 @@ function toggleFS() {
   function drawPreview(){
     if(!previewItem){screen=previewReturn||'SHOP';return;}
     ctx.fillStyle='rgba(11,17,39,.97)';ctx.fillRect(0,0,W,H);
-    titleFitted(tr('PREVIEW_ITEM'),27,L?22:20);
+    const compact=W<=430||H<=620;
+    titleFitted(tr('PREVIEW_ITEM'),compact?24:27,L?22:20);
     const name=itemName(previewItem);
-    cosmeticLabel(name,W/2,56,16,W-35,'#fff');
+    cosmeticLabel(name,W/2,compact?52:56,compact?14:16,W-30,'#fff');
     const kind=previewItem.kind==='MAPS'?'MAP_TYPE':previewItem.kind==='BIRDS'?'BIRD_TYPE':'TRAIL_TYPE';
-    cosmeticLabel(tr(kind)+(previewItem.rarity==='SPECIAL'?' · '+specialName():'')+(previewItem.skin?.bundleTrail?' + STARDUST':''),W/2,74,10,W-45,'#a9bbd6');
-    const y=91,backY=H-38,actionY=backY-41;
-    const detailsY=actionY-39;
-    const h=Math.max(40,Math.min((W-36)/1.65,detailsY-y-10));
-    const w=Math.min(W-36,h*1.9),x=(W-w)/2;
-    tile(x,y,w,h,true);
-    if(previewItem.kind==='MAPS')detailedMapPreview(previewItem.id,x+4,y+4,w-8,h-8);
-    else if(previewItem.kind==='BIRDS')drawBirdPreviewScene(previewItem.skin,x+4,y+4,w-8,h-8,cfg.trail||'NONE');
-    else if(previewItem.kind==='TRAILS')drawTrailPreviewScene(previewItem.id,x+4,y+4,w-8,h-8,true);
-    else itemArt(previewItem,x+4,y+4,w-8,h-8);
-    stripe(x+1,y+1,w-2,'#ffd23f');
+    cosmeticLabel(tr(kind)+(previewItem.rarity==='SPECIAL'?' · '+specialName():'')+(previewItem.skin?.bundleTrail?' + STARDUST':''),W/2,compact?69:74,10,W-34,'#a9bbd6');
+    const topY=compact?84:91;
+    const backH=compact?26:27, actionH=compact?28:29;
+    const backY=H-(compact?34:38), actionY=backY-(compact?36:41);
+    const detailsY=actionY-(compact?34:39);
+    const cardAspect=previewItem.kind==='MAPS'?1.78:1.62;
+    const maxH=Math.max(58,detailsY-topY-10);
+    const cardH=Math.max(compact?74:92,Math.min((W-28)/cardAspect,maxH));
+    const cardW=Math.min(W-(compact?28:36),cardH*cardAspect), cardX=(W-cardW)/2;
+    tile(cardX,topY,cardW,cardH,true);
+    if(previewItem.kind==='MAPS')detailedMapPreview(previewItem.id,cardX+4,topY+4,cardW-8,cardH-8);
+    else if(previewItem.kind==='BIRDS')drawBirdPreviewScene(previewItem.skin,cardX+4,topY+4,cardW-8,cardH-8,cfg.trail||'NONE');
+    else if(previewItem.kind==='TRAILS')drawTrailPreviewScene(previewItem.id,cardX+4,topY+4,cardW-8,cardH-8,true);
+    else itemArt(previewItem,cardX+4,topY+4,cardW-8,cardH-8);
+    stripe(cardX+1,topY+1,cardW-2,'#ffd23f');
     const owned=itemOwned(previewItem),equipped=itemEquipped(previewItem);
     const status=equipped?tr('ACTIVE'):owned?tr('IN_COLLECTION'):tr('COST')+': '+previewItem.price;
-    tag(status,W/2-Math.min(144,(W-35)/2),detailsY,Math.min(288,W-35),24,owned,11);
-    btn(W/2-100,actionY,200,29,equipped?tr('EQUIPPED'):owned?tr('EQUIP'):tr('BUY')+'  ● '+previewItem.price,()=>{
+    const statusW=Math.min(compact?254:288,W-32);
+    tag(status,W/2-statusW/2,detailsY,statusW,compact?22:24,owned,compact?10:11);
+    const actionW=Math.min(200,W-56);
+    btn(W/2-actionW/2,actionY,actionW,actionH,equipped?tr('EQUIPPED'):owned?tr('EQUIP'):tr('BUY')+'  ● '+previewItem.price,()=>{
       if(owned)equipItem(previewItem);else buyItem(previewItem);
-    },{size:12});
-    btn(W/2-65,backY,130,27,tr('BACK'),()=>{screen=previewReturn;focus=0;},{size:11});
+    },{size:compact?11:12});
+    const backW=Math.min(130,W-110);
+    btn(W/2-backW/2,backY,backW,backH,tr('BACK'),()=>{screen=previewReturn;focus=0;},{size:11});
   }
+
 
   let previewReturn='SHOP';
 
