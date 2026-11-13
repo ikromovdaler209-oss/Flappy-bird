@@ -1911,12 +1911,12 @@ if (!initialized) {
     // Elite birds and the Tokyo-Ghoul-inspired special skin need slightly smaller,
     // more centered preview framing on phones so their wing/tail silhouettes stay visible.
     const k=Math.min(
-      elite?(compact?1.18:2.45):h>90?3.2:1.5,
-      w/(ribbons?100:elite?86:72),
-      h/(ribbons?76:elite?58:48)
+      elite?(compact?1.34:2.82):h>90?3.2:1.5,
+      w/(ribbons?100:elite?78:72),
+      h/(ribbons?76:elite?52:48)
     );
-    const cx=x+w*(ribbons?.57:elite?(bundled==='NONE'?.53:.58):bundled==='NONE'?.5:.62),cy=y+h*(elite?.53:.51);
-    const pose=previewBirdPose(cx,cy,k,{bob:elite?.82:1,rotAmp:elite?.01:0});
+    const cx=x+w*(ribbons?.57:elite?(bundled==='NONE'?.515:.555):bundled==='NONE'?.5:.62),cy=y+h*(elite?.525:.51);
+    const pose=previewBirdPose(cx,cy,k,{bob:elite?.84:1,rotAmp:elite?.012:0});
     if(bundled!=='NONE')drawFittedPreviewTrail(bundled,pose,k,x+8,h,false);
     animatedBirdIcon(sk,cx,cy,k,{pose});
     ctx.restore();

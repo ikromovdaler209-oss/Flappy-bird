@@ -48,8 +48,8 @@
     };
 
     g.save();
-    // Slight downscale keeps special silhouettes inside small shop/mobile cards.
-    g.scale(.76, .76);
+    // Keep elite birds close to the size of base skins while still fitting mobile cards.
+    g.scale(.88, .88);
     try {
       switch (name) {
         case 'AURUM': {
