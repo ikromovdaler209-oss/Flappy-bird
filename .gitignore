@@ -14,3 +14,7 @@ coverage/
 .env
 .env.*
 !.env.example
+
+# Archive metadata
+__MACOSX/
+._*

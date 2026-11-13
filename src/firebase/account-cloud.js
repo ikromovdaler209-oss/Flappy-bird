@@ -265,7 +265,7 @@
         [t('ST_HARD'),v.best?.HARD||0],[t('ST_EXTREME'),v.best?.EXTREME||0],[t('ST_GAMES'),v.games||0],
         [t('ST_PIPES'),v.pipes||0],[t('ST_FLAPS'),v.flaps||0],
         [t('ST_EARNED'),v.earnedCoins ?? '—'],[t('ST_BALANCE'),w.coins||0],
-        [t('ST_ACH'),Object.values(v.ach||{}).filter(Boolean).length+'/10']
+        [t('ST_ACH'),Object.values(v.ach||{}).filter(Boolean).length+'/'+(window.HighFlyAchievements?.total||40)]
       ];
       el('statsGrid').replaceChildren(...rows.map(([label,value]) => {
         const item=document.createElement('div');item.className='fbStat';

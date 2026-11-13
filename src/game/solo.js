@@ -197,6 +197,7 @@
     if (!mapOK(cfg.map)) cfg.map = 'CITY';
     if (!wallet.trails.includes(cfg.trail)) cfg.trail = 'NONE';
     store.set('flyingBirdCfg',cfg); store.set('flyingBirdSave',save); store.set('flyingBirdWallet',wallet);
+    checkExpandedAchievements(false);
     initWeather();
   });
   const ACH = [
@@ -211,6 +212,24 @@
     { id: 'owl',   name: 'NIGHT OWL',    desc: 'Score 10 at night' },
     { id: 'early', name: 'EARLY BIRD',   desc: 'Score 10 by day' }
   ];
+  ACH.push(...window.HighFlyAchievements.items);
+  let achievementPage = 0;
+  function expandedAchievementText(item) {
+    return item.text[cfg.lang] || item.text.EN;
+  }
+  function checkExpandedAchievements(notify = true) {
+    let changed = false, announced = 0;
+    for (const item of window.HighFlyAchievements.items) {
+      if (save.ach[item.id] || window.HighFlyAchievements.progress(item,save,wallet) < item.goal) continue;
+      save.ach[item.id] = 1;
+      changed = true;
+      if (notify && announced < 3) {
+        toasts.push({text:expandedAchievementText(item)[0],t:180});
+        announced++;
+      }
+    }
+    if (changed) saveGame();
+  }
   const PIPES = {   // [static pipe, moving pipe]: color-blind modes keep the two clearly different
     'OFF': [GREEN, PINK],
     'RED-GREEN': [{ main: '#3a86ff', light: '#a9d0ff', dark: '#1b4fa8' }, { main: '#ff9f1c', light: '#ffd699', dark: '#b35f00' }],
@@ -787,6 +806,7 @@ if (!initialized) {
     unlock('first');
     if (save.games >= 25) unlock('reg');
     if (save.flaps >= 1000) unlock('flap');
+    checkExpandedAchievements();
     saveGame();
     focus = 0;
     if (onGround) { state = 'GAMEOVER'; overAt = performance.now(); }
@@ -1247,19 +1267,7 @@ if (!initialized) {
         rc(BROWN,-12,-4+wy,14,10); rc('#1b8a62',-11,-3+wy,12,8); rc('#2fbf8a',-11,-3+wy,12,2);
         rc('#ffd05a',-9,wy,2,2); rc('#ffd05a',-5,wy,2,2); rc('#9af0cf',-7,2+wy,2,2); rc('#ffd05a',-3,2+wy,2,2); rc('#ffd05a',-2,7,11,1); }
     },
-    'AURUM': {
-      beak() { rc(BROWN,9,-4,12,10); rc('#8f5b0e',10,-3,10,4); rc('#e0a516',10,-3,10,2); rc('#ffca45',10,-3,10,1); rc('#9c5e08',10,1,9,4); rc('#fff0a6',17,-2,2,2); },
-      pre() {
-        rc(BROWN,-24,-5,14,11); rc('#8f5b0e',-23,-4,12,9); rc('#e0a516',-23,-4,12,2); rc('#ffe27a',-22,-1,9,1); rc('#fff0b8',-22,2,7,1); rc('#573406',-22,5,8,1);
-        rc('#e0a516',-26,-2,3,3); rc('#fff0b8',-25,-1,1,1); rc('#ffe27a',-26,3,3,2); rc('#fff0b8',-25,4,1,1);
-      },
-      post(wy) { const s = (ticks >> 3) & 1;
-        rc(BROWN,-9,-18,15,5); rc('#8f5b0e',-8,-17,13,3); rc('#e0a516',-8,-17,13,1); rc('#ffe27a',-6,-21,3,4); rc('#fff0b8',-5,-20,1,1); rc('#ffe27a',-1,-22,3,5); rc('#fff0b8',0,-21,1,1); rc('#ffe27a',4,-21,3,4); rc('#fff0b8',5,-20,1,1);
-        rc(BROWN,1,-11,9,7); rc('#8f5b0e',2,-10,7,5); rc('#e0a516',2,-10,7,1); rc('#fff0b8',4,-8,3,1); rc('#ffe27a',3,-6,5,1);
-        rc(BROWN,-15,-6+wy,17,13); rc('#8f5b0e',-14,-5+wy,15,11); rc('#e0a516',-14,-5+wy,15,2); rc('#ffe27a',-12,-2+wy,11,1); rc('#fff0b8',-10,0+wy,2,2); rc('#fff0b8',-5+s,2+wy,2,2); rc('#fff0b8',-1,4+wy,2,1); rc('#573406',-14,5+wy,15,1);
-        rc('#e0a516',-18,1+wy,3,3); rc('#fff0b8',-17,2+wy,1,1); rc('#e0a516',-13,7,11,1); rc('#ffe27a',-12,6,8,1);
-      }
-    },
+
     'OBSIDIAN': {
       beak() { rc(BROWN,9,-4,12,10); rc('#2c2237',10,-3,10,4); rc('#5a4f6b',10,-3,10,1); rc('#17141f',10,1,9,4); rc('#d11f3f',17,-1,2,2); },
       pre() {
@@ -1273,54 +1281,10 @@ if (!initialized) {
         rc(BROWN,2,-8,8,4); rc('#17141f',3,-7,6,2); rc('#d11f3f',4,-7,4,1); rc('#d11f3f',8,-6,1,1); rc('#3a2f46',3,-5,6,1); rc('#d11f3f',-18,3+wy,3,2);
       }
     },
-    'ABYSS': {
-      beak() { rc(BROWN,9,-4,11,10); rc('#0a3578',10,-3,9,4); rc('#1a6fd6',10,-3,9,2); rc('#3fe0ff',10,-3,9,1); rc('#0a3578',10,1,8,4); rc('#bfe9ff',16,-2,2,2); },
-      pre() {
-        rc(BROWN,-24,-5,14,11); rc('#0a3578',-23,-4,12,9); rc('#1a6fd6',-23,-4,12,2); rc('#3fe0ff',-22,-1,8,1); rc('#3fe0ff',-22,2,6,1); rc('#0e2a52',-22,5,8,1);
-        rc('#3fe0ff',-26,-1,3,3); rc('#bfe9ff',-25,0,1,1); rc('#3fe0ff',-24,5,2,2);
-      },
-      post(wy) { const g = (ticks >> 3) & 1;
-        rc('#3fe0ff',-7,-19,3,7); rc('#0e2a52',-6,-18,1,6); rc('#3fe0ff',-2,-21,2,9); rc('#bfe9ff',-2,-21,2,1); rc('#3fe0ff',2,-19,3,7); rc('#bfe9ff',3,-18,1,1);
-        rc(BROWN,1,-11,10,7); rc('#0a3578',2,-10,8,5); rc('#1a6fd6',2,-10,8,1); rc('#3fe0ff',3,-8,5,1); rc('#bfe9ff',7,-7,1,1); rc('#1a6fd6',4,-6,4,1);
-        rc(BROWN,-15,-6+wy,17,13); rc('#0a3578',-14,-5+wy,15,11); rc('#1a6fd6',-14,-5+wy,15,2); rc('#3fe0ff',-14,-2+wy,11,1); rc('#3fe0ff',-11+g,1+wy,2,2); rc('#bfe9ff',-7,0+wy,2,2); rc('#3fe0ff',-3,2+wy,2,2); rc('#0e2a52',-14,5+wy,15,1);
-        rc(BROWN,2,-9,8,8); rc('#0a3578',3,-8,6,6); rc('#3fe0ff',4,-7,4,1); rc('#bfe9ff',7,-6,1,1); rc('#3fe0ff',-18,1+wy,3,4); rc('#1a6fd6',-19,3+wy,2,3);
-      }
-    },
-    'ECLIPSE': {
-      beak() { rc(BROWN,9,-4,12,10); rc('#4b2a6b',10,-3,10,4); rc('#ff7a18',10,-3,10,2); rc('#ffb347',10,-3,10,1); rc('#a63d00',10,1,9,4); rc('#ffcf73',18,-2,1,2); },
-      pre() {
-        rc(BROWN,-24,-5,14,11); rc('#4b2a6b',-23,-4,12,9); rc('#ff7a18',-23,-4,12,2); rc('#ffb347',-22,-1,9,1); rc('#241038',-22,5,8,1); rc('#ff7a18',-26,0,3,3); rc('#ffcf73',-25,1,1,1);
-      },
-      post(wy) { const a = (ticks >> 3) & 1;
-        rc(BROWN,-11,-18,19,5); rc('#241038',-10,-17,17,3); rc('#ff7a18',-9,-17,15,1); rc('#ffb347',-4,-22,5,6); rc('#ffcf73',-3,-21,3,4); rc('#4b2a6b',-2,-20,2,2); rc('#ff7a18',5,-19,2,2); rc('#ff7a18',-8,-19,2,2);
-        rc(BROWN,1,-11,10,7); rc('#4b2a6b',2,-10,8,5); rc('#ff7a18',2,-10,8,1); rc('#ffb347',4,-8,4,1); rc('#a63d00',3,-6,5,1);
-        rc(BROWN,-15,-6+wy,17,13); rc('#4b2a6b',-14,-5+wy,15,11); rc('#ff7a18',-14,-5+wy,15,2); rc('#ffb347',-12,-2+wy,11,1); rc('#ffcf73',-9+a,1+wy,2,2); rc('#ff7a18',-5,2+wy,2,2); rc('#a63d00',-14,5+wy,15,1); rc('#ff7a18',-18,0+wy,3,3); rc('#ffb347',-17,1+wy,1,1);
-      }
-    },
-    'EMERALD KING': {
-      beak() { rc(BROWN,9,-4,12,10); rc('#8a6a0a',10,-3,10,4); rc('#e8b923',10,-3,10,2); rc('#fff0a6',10,-3,10,1); rc('#8a6a0a',10,1,9,4); rc('#3fe0a0',17,-2,2,2); },
-      pre() {
-        rc(BROWN,-24,-5,14,11); rc('#0c4a34',-23,-4,12,9); rc('#1b8a62',-23,-4,12,2); rc('#3fe0a0',-22,-1,9,1); rc('#8a6a0a',-22,5,8,1); rc('#3fe0a0',-25,3,3,2); rc('#e8b923',-26,-1,3,3);
-      },
-      post(wy) { const s = (ticks >> 4) & 1;
-        rc(BROWN,-9,-19,15,5); rc('#8a6a0a',-8,-18,13,3); rc('#e8b923',-8,-18,13,1); rc('#e8b923',-7,-22,3,4); rc('#3fe0a0',-6,-21,1,2); rc('#e8b923',-2,-23,3,5); rc('#3fe0a0',-1,-22,1,2); rc('#e8b923',3,-22,3,4); rc('#3fe0a0',4,-21,1,2);
-        rc(BROWN,1,-11,9,7); rc('#0c4a34',2,-10,7,5); rc('#3fe0a0',2,-10,7,1); rc('#e8b923',3,-8,5,1); rc('#c9f5de',5,-7,2,1); rc('#1b8a62',3,-6,5,1);
-        rc(BROWN,-15,-6+wy,17,13); rc('#1b8a62',-14,-5+wy,15,11); rc('#3fe0a0',-14,-5+wy,15,2); rc('#c9f5de',-12,-2+wy,10,1); rc('#e8b923',-12,0+wy,2,2); rc('#e8b923',-8,1+wy,2,2); rc('#3fe0a0',-4+s,2+wy,2,2); rc('#0c4a34',-14,5+wy,15,1); rc('#e8b923',-18,2+wy,3,2); rc('#e8b923',-13,7,11,1);
-      }
-    },
-    'PLATINUM': {
-      beak() { rc(BROWN,9,-4,12,10); rc('#6d7888',10,-3,10,4); rc('#aab4c4',10,-3,10,2); rc('#f2f6fc',10,-3,10,1); rc('#24348a',10,1,9,4); rc('#f2f6fc',17,-2,2,2); },
-      pre() {
-        rc(BROWN,-24,-5,14,11); rc('#6d7888',-23,-4,12,9); rc('#aab4c4',-23,-4,12,2); rc('#f2f6fc',-22,-1,9,1); rc('#3f5bd0',-22,2,7,1); rc('#24348a',-22,5,8,1);
-        rc('#d8e0ec',-26,-1,3,3); rc('#f2f6fc',-25,0,1,1); rc('#3f5bd0',-25,4,2,2);
-      },
-      post(wy) { const b = (ticks >> 3) & 1;
-        rc(BROWN,-10,-18,16,5); rc('#6d7888',-9,-17,14,3); rc('#aab4c4',-9,-17,14,1); rc('#f2f6fc',-5,-21,6,4); rc('#3f5bd0',-2,-22,1,5); rc('#d8e0ec',2,-20,2,2);
-        rc(BROWN,1,-11,10,7); rc('#aab4c4',2,-10,8,5); rc('#f2f6fc',2,-10,8,1); rc('#3f5bd0',5,-9,2,5); rc('#24348a',3,-6,6,1); rc('#d8e0ec',3,-8,2,1);
-        rc(BROWN,-15,-6+wy,17,13); rc('#6d7888',-14,-5+wy,15,11); rc('#aab4c4',-14,-5+wy,15,2); rc('#f2f6fc',-12,-2+wy,10,1); rc('#3f5bd0',-10+b,1+wy,2,2); rc('#3f5bd0',-5,2+wy,2,2); rc('#24348a',-14,5+wy,15,1); rc('#d8e0ec',-8,0+wy,2,2); rc('#f2f6fc',-18,1+wy,3,3);
-        rc(BROWN,2,-9,8,8); rc('#aab4c4',3,-8,6,6); rc('#f2f6fc',3,-8,6,2); rc('#3f5bd0',5,-7,2,5); rc('#24348a',3,-2,6,1);
-      }
-    }
+
+
+
+
   };
   // Three high-resolution Canvas frames, shared by gameplay, ghosts, avatars and shop.
   // Artwork has a stable key: renaming the visible skin no longer changes its drawing.
@@ -1532,6 +1496,7 @@ if (!initialized) {
   }
 
   function birdShapes(sk, wy) {
+    if (window.flyingBirdEliteArt?.(ctx,sk.name,wy)) return;
     if (sk.art === 'zxcgoul') { drawZxcGoul(wy); return; }
     if (sk.art === 'lorean') { drawLorean(wy); return; }
     const S = SPEC[sk.name];
@@ -2774,7 +2739,7 @@ function toggleFS() {
     btn(menuX(1), menuY(1), bw, menuBh, tr('PROFILE'), () => { screen = 'PROFILE'; profileStatsPage = 0; window.flyingBirdMpStats?.refreshSelf?.(); focus = 0; });
     btn(menuX(2), menuY(2), bw, menuBh, ({EN:'FRIENDS',RU:'ДРУЗЬЯ',ZH:'好友',ES:'AMIGOS',PT:'AMIGOS'})[cfg.lang]||'FRIENDS', () => window.flyingBirdOpenFriends?.());
     btn(menuX(3), menuY(3), bw, menuBh, ({EN:'MULTIPLAYER',RU:'МУЛЬТИПЛЕЕР',ZH:'多人游戏',ES:'MULTIJUGADOR',PT:'MULTIJOGADOR'})[cfg.lang]||'MULTIPLAYER', () => window.flyingBirdOpenMultiplayer?.(), {size: 12});
-    btn(menuX(4), menuY(4), bw, menuBh, tr('ACHIEVEMENTS') + ' ' + got + '/' + ACH.length, () => { screen = 'ACH'; focus = 0; }, { size: 12 });
+    btn(menuX(4), menuY(4), bw, menuBh, tr('ACHIEVEMENTS') + ' ' + got + '/' + ACH.length, () => { checkExpandedAchievements(false); achievementPage=0; screen = 'ACH'; focus = 0; }, { size: 12 });
     btn(menuX(5), menuY(5), bw, menuBh, tr('SHOP'), () => { screen = 'SHOP'; focus = 0; });
     btn(menuX(6), menuY(6), bw, menuBh, tr('INVENTORY'), () => { screen = 'INVENTORY'; focus = 0; });
     btn(menuX(7), menuY(7), bw, menuBh, tr('SETTINGS'), () => { settingsFrom = 'MENU'; screen = 'SETTINGS'; focus = 0; });
@@ -2823,6 +2788,7 @@ function toggleFS() {
     if(item.kind==='BIRDS'){wallet.owned.push(item.id);const bundle=SKINS[item.id]?.bundleTrail;if(bundle&&!wallet.trails.includes(bundle))wallet.trails.push(bundle);}
     else if(item.kind==='MAPS')wallet.maps.push(item.id);
     else wallet.trails.push(item.id);
+    checkExpandedAchievements();
     saveWallet();shopAnim=35;tone(660,1320,.2,'triangle',.08);
     toasts.push({text:tr('BUY_SUCCESS')+' '+itemName(item),plain:true,t:90});
   }
@@ -3183,18 +3149,16 @@ function toggleFS() {
   function drawAch() {
     ctx.fillStyle='rgba(15,12,41,.92)';ctx.fillRect(0,0,W,H);
     const got=ACH.filter(a=>save.ach[a.id]).length;
-    const wide=L,cols=wide?2:1,per=Math.ceil(ACH.length/cols);
-    const maxContent=wide?Math.min(W-40,900):W-40;
-    const gapX=wide?18:0;
-    const cw=(maxContent-gapX*(cols-1))/cols;
-    const left=(W-maxContent)/2;
-    const gap=wide?7:5;
-    // Reserve the back button's entire hitbox, plus a visible gap, even on 320px screens.
-    const rh=Math.min(wide?64:54,Math.max(29,Math.floor((H-122-(per-1)*gap)/per)));
-    const blockH=per*rh+(per-1)*gap;
-    const startY=Math.max(73,Math.floor((H-blockH)/2)-8);
-    title(tr('ACHIEVEMENTS'),W/2,wide?Math.max(30,startY-42):30,wide?24:22,'#ffd23f','center');
-    txtFit(got+'/'+ACH.length+'   '+tr('GAMES')+' '+save.games+'   '+tr('FLAPS')+' '+save.flaps,W/2,wide?Math.max(54,startY-17):55,10,W-36,'#e2e9f6','center',false);
+    const wide=L,cols=wide?2:1;
+    const per=Math.max(2,Math.floor((H-145)/66));
+    const pageSize=per*cols,pages=Math.ceil(ACH.length/pageSize);
+    achievementPage=Math.max(0,Math.min(pages-1,achievementPage));
+    const shown=ACH.slice(achievementPage*pageSize,(achievementPage+1)*pageSize);
+    const maxContent=Math.min(W-28,900),gapX=wide?14:0;
+    const cw=(maxContent-gapX*(cols-1))/cols,left=(W-maxContent)/2;
+    const gap=6,rh=60,startY=74;
+    title(tr('ACHIEVEMENTS'),W/2,29,wide?24:22,'#ffd23f','center');
+    txtFit(got+'/'+ACH.length,W/2,53,11,W-36,'#e2e9f6','center',false);
     const achKeys={
       first:['FIRST_FLIGHT','FIRST_FLIGHT_DESC'],s5:['ROOKIE','ROOKIE_DESC'],
       s15:['PRO','PRO_DESC'],s30:['MASTER','MASTER_DESC'],s50:['LEGEND','LEGEND_DESC'],
@@ -3204,7 +3168,7 @@ function toggleFS() {
     };
     const best=maxBest();
     const measures={first:[save.games||0,1],s5:[best,5],s15:[best,15],s30:[best,30],s50:[best,50],reg:[save.games||0,25],flap:[save.flaps||0,1000]};
-    ACH.forEach((a,i)=>{
+    shown.forEach((a,i)=>{
       const c=Math.floor(i/per),r=i%per,ok=!!save.ach[a.id];
       const x=left+c*(cw+gapX),y=startY+r*(rh+gap),ch=rh;
       ctx.fillStyle='#080e21';ctx.fillRect(x+2,y+3,cw,ch);
@@ -3215,16 +3179,20 @@ function toggleFS() {
       ctx.fillStyle=ok?'#ffd23f':'#344768';ctx.fillRect(x+11,y+8,iconW,iconW);
       txt(ok?'✓':'•',x+11+iconW/2,y+8+iconW/2,16,ok?BROWN:'#bfcee4','center',false);
       const textX=x+44;
-      txtFit(tr(achKeys[a.id][0]),textX,y+15,wide?13:12,cw-51,ok?BROWN:'#f3f5fc','left',false);
-      txtFit(tr(achKeys[a.id][1]),textX,y+rh-15,wide?10:9,cw-52,ok?'#6b4a1a':'#becce0','left',false);
-      const measure=measures[a.id];
+      txtFit(a.text?expandedAchievementText(a)[0]:tr(achKeys[a.id][0]),textX,y+15,wide?13:12,cw-51,ok?BROWN:'#f3f5fc','left',false);
+      txtFit(a.text?expandedAchievementText(a)[1]:tr(achKeys[a.id][1]),textX,y+rh-15,wide?10:9,cw-52,ok?'#6b4a1a':'#becce0','left',false);
+      const measure=a.goal?[window.HighFlyAchievements.progress(a,save,wallet),a.goal]:measures[a.id];
       if(measure){
+        txtFit(Math.min(measure[0],measure[1])+' / '+measure[1],textX,y+30,9,cw-52,ok?'#6b4a1a':'#9bd2ff','left',false);
         const progress=Math.max(0,Math.min(1,measure[0]/measure[1]));
         const pw=Math.max(0,cw-50);
         ctx.fillStyle=ok?'#d8b98b':'#172743';ctx.fillRect(textX,y+rh-5,pw,2);
         ctx.fillStyle=ok?'#9f6a18':'#9bd2ff';ctx.fillRect(textX,y+rh-5,pw*progress,2);
       }
     });
+    btn(14,H-75,65,26,'◀',()=>{achievementPage=(achievementPage+pages-1)%pages;focus=0;},{size:11});
+    txt((achievementPage+1)+' / '+pages,W/2,H-62,11,'#e2e9f6','center',false);
+    btn(W-79,H-75,65,26,'▶',()=>{achievementPage=(achievementPage+1)%pages;focus=0;},{size:11});
     btn(W/2-70,H-39,140,28,tr('BACK'),back,{size:12,secondary:true});
   }
 
@@ -3756,5 +3724,6 @@ fit();
     finally {ctx=keep.ctx;W=keep.W;H=keep.H;GROUND=keep.GROUND;L=keep.L;ticks=keep.ticks;bgX=keep.bgX;groundX=keep.groundX;cfg.map=keep.map;}
   };
 
+  checkExpandedAchievements(false);
   loopRaf = requestAnimationFrame(loop);
 })();

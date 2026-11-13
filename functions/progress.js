@@ -14,7 +14,7 @@ export function validateProgress(before,payload,guard,now){
  if(!s||!w||!cfg||Array.isArray(cfg)||typeof cfg!=='object')return fail('shape');
  for(const key of ['games','pipes','flaps','earnedCoins'])if(!int(s[key]))return fail(key);
  if(!s.best||modes.some(m=>!int(s.best[m])))return fail('best');
- if(!s.ach||Object.keys(s.ach).length>20||Object.values(s.ach).some(x=>x!==1&&x!==true))return fail('achievements');
+ if(!s.ach||Object.keys(s.ach).length>40||Object.values(s.ach).some(x=>x!==1&&x!==true))return fail('achievements');
  if(!int(w.coins))return fail('coins');
  for(const key of Object.keys(prices))if(!Array.isArray(w[key])||w[key].length>32||new Set(w[key]).size!==w[key].length||w[key].some(x=>!Object.hasOwn(prices[key],x)))return fail('inventory');
  const old=before||{save:{games:0,pipes:0,flaps:0,earnedCoins:0,best:{}},wallet:{coins:0,owned:[],maps:[],trails:[]}};
