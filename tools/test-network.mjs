@@ -31,32 +31,48 @@ function testStart(count){
 
 // Standalone simulation: 60 FPS bird physics, RTDB-style packet delays,
 // jitter, dropped updates, different numbers of friends, and a v2.5 baseline.
-function simulate(count,seed=21){
+function simulate(count,seed=21,mode='jitter'){
  const rand=rng(seed+count*941),tracks=Array.from({length:count},()=>Array.from({length:count},()=>newGhostTrack()));
- const baseline=Array.from({length:count},()=>Array.from({length:count},()=>({samples:[],display:null})));
+ const baseline=Array.from({length:count},()=>Array.from({length:count},()=>({samples:[],renderY:null})));
  const stats=Array.from({length:count},()=>newNetworkStats());
  const birds=Array.from({length:count},(_,i)=>({y:155+i*4,vy:0,delay:i*3,nextSend:0}));
  const deliveries=[];let sent=0,dropped=0,recv=0;
- const newErrors=[],oldErrors=[];let lastAck=0;
+ const newErrors=[],oldErrors=[],delayedErrors=[],newJerk=[],oldJerk=[];const motion=new Map();let lastAck=0;
  const ticks=660;
  const physicsY=Array.from({length:count},()=>[]);
- function before(x,observedTick){const {samples}=x;if(!samples.length)return null;
-  const target=Math.max(0,observedTick-3);let estimate=samples.at(-1).y;
-  if(target<=samples[0].tick)estimate=samples[0].y;
-  else{
-   let found=false;
-   for(let i=1;i<samples.length;i++){
-    const a=samples[i-1],b=samples[i];if(target<=b.tick){
-     const f=Math.max(0,Math.min(1,(target-a.tick)/Math.max(1,b.tick-a.tick)));
-     estimate=a.y+(b.y-a.y)*f;found=true;break;
+ const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+function before(track, localTick, gravity, minY, maxY) {
+  const samples=track.samples;
+  if(!samples.length)return null;
+  const targetTick=Math.max(0,localTick-2); // ~33ms rendering buffer
+  let estimate=samples[samples.length-1].y;
+  if(targetTick<=samples[0].tick)estimate=samples[0].y;
+  else {
+    let found=false;
+    for(let i=1;i<samples.length;i++){
+      const a=samples[i-1],b=samples[i];
+      if(targetTick<=b.tick){
+        const t=clamp((targetTick-a.tick)/Math.max(1,b.tick-a.tick),0,1);
+        estimate=a.y+(b.y-a.y)*t;
+        found=true;break;
+      }
     }
-   }
-   if(!found){const s=samples.at(-1),dt=Math.max(0,Math.min(16,target-s.tick));estimate=s.y+s.vy*dt+.5*.26*dt*dt}
+    if(!found){
+      const latest=samples[samples.length-1];
+      const dt=clamp(targetTick-latest.tick,0,5); // <=83ms prediction; avoids phantom flaps
+      estimate=latest.y+latest.vy*dt+gravity*dt*(dt+1)/2;
+    }
   }
-  const old=x.display;
-  x.display=old===null?estimate:old+(estimate-old)*(Math.abs(estimate-old)>60?.56:.30);
-  return x.display;
- }
+  estimate=clamp(estimate,minY,maxY);
+  const prev=track.renderY;
+  const diff=prev===null?0:Math.abs(estimate-prev);
+  // Minimize the extra display delay caused by overly conservative smoothing.
+  const gain=diff>55?.82:diff>22?.70:.53;
+  const display=prev===null?estimate:prev+(estimate-prev)*gain;
+  track.renderY=clamp(display,minY,maxY);
+  return track.renderY;
+}
+
  for(let t=0;t<ticks;t++){
   const now=t*MP_TICK_MS;
   for(let i=0;i<count;i++){
@@ -67,12 +83,12 @@ function simulate(count,seed=21){
    physicsY[i][t]=b.y;
    if(now>=b.nextSend){
     sent++;
-    const rtt=75+rand()*130;
+    const rtt=mode==='stable'?100:75+rand()*130;
     noteWriteAck(stats[i],rtt,true,now+rtt);lastAck=now;
     b.nextSend=now+publishInterval(count,stats[i].ackMs);
     for(let j=0;j<count;j++)if(j!==i){
-     if(rand()<.035){dropped++;continue}
-     const oneWay=50+rand()*100+(rand()<.03?100:0);
+     if((mode==='stall'&&t>=240&&t<300)||(mode!=='stable'&&rand()<.035)){dropped++;continue}
+     const oneWay=mode==='stable'?50:50+rand()*100+(rand()<.03?100:0);
      deliveries.push({arrival:now+oneWay,recipient:j,sender:i,p:{tick:t,y:b.y,vy:b.vy,status:'ALIVE'}});
     }
    }
@@ -84,14 +100,26 @@ function simulate(count,seed=21){
    if(acceptGhostPacket(track,e.p,now))recv++;
    const bs=baseline[e.recipient][e.sender];
    if(!bs.samples.length||e.p.tick>bs.samples.at(-1).tick){
-    bs.samples.push(e.p);if(bs.samples.length>6)bs.samples.shift();
+    bs.samples.push(e.p);if(bs.samples.length>5)bs.samples.shift();
    }
   }
   if(t>130){
    for(let j=0;j<count;j++)for(let i=0;i<count;i++)if(i!==j){
     const n=ghostPosition(tracks[j][i],t,.26,0,410);
-    const o=before(baseline[j][i],t);
-    if(n!==null)newErrors.push(Math.abs(n-physicsY[i][t]));
+    const o=before(baseline[j][i],t,.26,0,410);
+    if(n!==null){
+     newErrors.push(Math.abs(n-physicsY[i][t]));
+     const target=tracks[j][i].renderTick;
+     const lo=Math.floor(target),hi=Math.min(t,lo+1);
+     const expected=physicsY[i][lo]+(physicsY[i][hi]-physicsY[i][lo])*(target-lo);
+     delayedErrors.push(Math.abs(n-expected));
+     const key=j+':'+i,prev=motion.get(key);
+     if(prev){
+      const nv=n-prev.n,ov=o-prev.o;
+      if(prev.nv!==undefined){newJerk.push(Math.abs(nv-prev.nv));oldJerk.push(Math.abs(ov-prev.ov));}
+      motion.set(key,{n,o,nv,ov});
+     }else motion.set(key,{n,o});
+    }
     if(o!==null)oldErrors.push(Math.abs(o-physicsY[i][t]));
    }
   }
@@ -101,7 +129,7 @@ function simulate(count,seed=21){
  for(const st of stats){assert.ok(st.ackMs>0);assert.equal(st.failed,0)}
  const avg=v=>v.reduce((a,b)=>a+b,0)/v.length;
  const p95=v=>v.toSorted((a,b)=>a-b)[Math.floor(v.length*.95)];
- const out={clients:count,sendCount:sent,received:recv,dropped,oldMean:avg(oldErrors),newMean:avg(newErrors),old95:p95(oldErrors),new95:p95(newErrors),ackMean:avg(stats.map(x=>x.ackMs))};
+ const out={clients:count,delayedMean:avg(delayedErrors),newJerk:avg(newJerk),oldJerk:avg(oldJerk),sendCount:sent,received:recv,dropped,oldMean:avg(oldErrors),newMean:avg(newErrors),old95:p95(oldErrors),new95:p95(newErrors),ackMean:avg(stats.map(x=>x.ackMs))};
  return out;
 }
 
@@ -127,8 +155,10 @@ assert.ok(rules.includes('#fbMpRaceNetwork'),'network indicator CSS exists');
 
 const runs=[2,3,5,10].map(count=>simulate(count));
 for(const x of runs){
- assert.ok(x.newMean<x.oldMean*1.05,'prediction should not regress compared with v2.5 baseline');
- console.log(`PASS ${x.clients} clients | ACK ${fmt(x.ackMean)}ms | simulated position error v2.5 ${fmt(x.oldMean)}px -> v2.6 ${fmt(x.newMean)}px | P95 ${fmt(x.old95)}px -> ${fmt(x.new95)}px | ${x.sendCount} sends`);
+ assert.ok(x.newJerk<x.oldJerk,'smoother than supplied High-Fly 19 renderer');
+ assert.ok(x.delayedMean<8,'tracks delayed physics trajectory');
+ assert.ok(x.newMean<100,'bounded current-position error despite deliberate playback delay');
+ console.log(`PASS ${x.clients} clients | ACK ${fmt(x.ackMean)}ms | simulated position error High-Fly 19 ${fmt(x.oldMean)}px -> buffered ${fmt(x.newMean)}px | P95 ${fmt(x.old95)}px -> ${fmt(x.new95)}px | ${x.sendCount} sends | velocity-change ${fmt(x.oldJerk)} -> ${fmt(x.newJerk)} | delayed error ${fmt(x.delayedMean)}px`);
 }
 console.log('PASS ready/host/version checks, synchronized start, stale packet rejection, terminal DNF, v2.5 cosmetics regression');
 
@@ -141,3 +171,35 @@ const terminalTrack = newGhostTrack();
 acceptGhostPacket(terminalTrack, {tick:1,y:20,vy:0,status:'DEAD'}, 20);
 assert.equal(acceptGhostPacket(terminalTrack, {tick:2,y:20,vy:0,status:'SURVIVED'}, 30), false);
 console.log('PASS malformed states and terminal status changes rejected');
+
+// Playback time never rewinds as latency changes, and stalled feeds stay bounded.
+const adaptive=newGhostTrack();
+let playback=0;
+for(let tick=0;tick<300;tick++){
+ if(tick%4===0)acceptGhostPacket(adaptive,{tick,y:100+Math.sin(tick/20)*30,vy:0,status:'ALIVE'},tick*MP_TICK_MS);
+ ghostPosition(adaptive,tick+12,.26,0,400);
+ assert.ok(adaptive.renderTick>=playback);
+ assert.ok(adaptive.bufferMs>=60&&adaptive.bufferMs<=250);
+ assert.ok(adaptive.samples.length<=24);
+ playback=adaptive.renderTick;
+}
+for(let tick=400;tick<1000;tick++)assert.ok(Number.isFinite(ghostPosition(adaptive,tick,.26,0,400)));
+acceptGhostPacket(adaptive,{tick:1000,y:200,vy:0,status:'DEAD'},20000);
+assert.equal(ghostPosition(adaptive,1001,.26,0,400),200,'terminal position applied immediately');
+assert.equal(acceptGhostPacket(adaptive,{tick:1002,y:10,vy:0,status:'ALIVE'},20010),false);
+// Rendering at twice the refresh rate has the same smoothing time constant.
+function renderAt(step){
+ const track=newGhostTrack();
+ acceptGhostPacket(track,{tick:0,y:100,vy:0,status:'ALIVE'},0);
+ for(let t=0;t<=30;t+=step)ghostPosition(track,t,.26,0,400);
+ return track.renderY;
+}
+assert.ok(Math.abs(renderAt(1)-renderAt(.5))<1);
+console.log('PASS adaptive bounds, monotonic playback, stalled feed, terminal state and refresh-rate consistency');
+
+for(const mode of ['stable','stall']){
+ const result=simulate(2,21,mode);
+ assert.ok(result.newJerk<result.oldJerk,mode+' smoother than baseline');
+ assert.ok(result.delayedMean<15,mode+' bounded delayed trajectory error');
+ console.log(`PASS ${mode}: velocity-change ${fmt(result.oldJerk)} -> ${fmt(result.newJerk)}, delayed error ${fmt(result.delayedMean)}px`);
+}

@@ -545,7 +545,7 @@ function rememberGhostSamples(data){
 function ghostY(uid,p){
  const track=race?.ghostTracks.get(uid);
  if(!track)return Number(p.y)||0;
- const pos=ghostPosition(track,race.simTick,RACE_GRAVITY,0,race.world.ground-18);
+ const pos=ghostPosition(track,Math.max(0,(serverClock()-race.meta.startAt)/RACE_STEP),RACE_GRAVITY,0,race.world.ground-18);
  return pos===null?(Number(p.y)||0):pos;
 }
 
@@ -634,6 +634,11 @@ const networkBadge=el('span','','mpRaceNetwork');
 networkBadge.id='fbMpRaceNetwork';
 networkBadge.title='RTDB write acknowledgement and remote snapshot interval (not peer-to-peer ping)';
 $('fbMpRaceTop').append(networkBadge);
+const networkDetails=el('details','','mpNetworkDetails');
+const networkSummary=el('summary');
+const networkReport=el('pre');
+networkDetails.append(networkSummary,networkReport);
+$('fbMpRaceTop').after(networkDetails);
 function updateNetworkBadge(){
  if(!race)return;
  const stats=race.net,quality=networkQuality(stats,performance.now());
@@ -645,6 +650,20 @@ function updateNetworkBadge(){
  networkBadge.textContent=(lang()==='RU'?'СЕТЬ ':'NET ')+
    (quality==='offline'?'OFFLINE · ':quality==='stale'?'STALE · ':'')+
    'ACK '+ack+' · '+(lang()==='RU'?'ПАКЕТ ':'SNAP ')+gap;
+ networkSummary.textContent=lang()==='RU'?'Диагностика сети':'Network diagnostics';
+ if(networkDetails.open){
+  const value=n=>Number.isFinite(n)?Math.round(n)+' ms':'—';
+  const rows=[`ACK: ${ack} | Frame: ${value(race.frameMs)} | Peak: ${value(race.framePeakMs)}`,
+   lang()==='RU'?'Игрок: возраст / интервал / колебания / буфер':'Player: age / interval / jitter / buffer'];
+  let number=0;
+  for(const track of race.ghostTracks.values()){
+   const latest=track.samples.at(-1);
+   if(!latest || track.lastStatus!=='ALIVE')continue;
+   rows.push(`#${++number}: ${value(Math.max(0,race.simTick-latest.tick)*1000/60)} / ${value(track.intervalMs)} / ${value(track.jitterMs)} / ${value(track.bufferMs)}`);
+  }
+  networkReport.textContent=rows.join('\n');
+ }
+ race.framePeakMs=0;
 }
 
 const raceSpeedBadge=el('div','','mpRaceSpeed');raceSpeedBadge.id='fbMpRaceSpeed';
@@ -796,6 +815,13 @@ function raceFrame(){
  if(!race)return;
  raceRaf=requestAnimationFrame(raceFrame);
  const r=race,now=serverClock();
+ const frameNow=performance.now();
+ if(r.lastFrameAt !== undefined){
+  const frameMs=frameNow-r.lastFrameAt;
+  r.frameMs=r.frameMs === undefined ? frameMs : r.frameMs*.9+frameMs*.1;
+  r.framePeakMs=Math.max(r.framePeakMs||0,frameMs);
+ }
+ r.lastFrameAt=frameNow;
  // No simulation on a guessed device clock: wait for the RTDB clock snapshot.
  if(!r.finished&&raceClockReady&&now>=r.meta.startAt){
   const target=Math.floor((now-r.meta.startAt)/RACE_STEP);

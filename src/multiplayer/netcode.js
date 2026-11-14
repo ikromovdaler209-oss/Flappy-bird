@@ -35,7 +35,7 @@ export function isFreshPlayerState(previous, next) {
 }
 
 export function newGhostTrack() {
-  return {samples: [],lastStatus: 'ALIVE',lastReceiveMs: null,intervalMs: null,renderY: null,received: 0};
+  return {samples: [],lastStatus: 'ALIVE',lastReceiveMs: null,intervalMs: null,renderY: null,received: 0, jitterMs: 0, ageMs: null, bufferMs: 60, renderTick: null, lastLocalTick: null, ageSampleTick: null};
 }
 
 /** Ignores stale / replayed packets and NEVER lets a terminal bird revive. */
@@ -50,12 +50,15 @@ export function acceptGhostPacket(track, packet, receiveMs) {
   const previousReceive=track.lastReceiveMs;
   if (finite(receiveMs) && finite(previousReceive)) {
     const gap = receiveMs - previousReceive;
-    if (gap >= 0 && gap < 15000) track.intervalMs = track.intervalMs === null ? gap : track.intervalMs * .8 + gap * .2;
+    if (gap >= 0 && gap < 15000) {
+      if(track.intervalMs !== null)track.jitterMs = track.jitterMs * .8 + Math.abs(gap - track.intervalMs) * .2;
+      track.intervalMs = track.intervalMs === null ? gap : track.intervalMs * .8 + gap * .2;
+    }
   }
   if (finite(receiveMs)) track.lastReceiveMs=receiveMs;
   if (previous && packet.tick === previous.tick) samples.pop();
   samples.push({tick:packet.tick,y:packet.y,vy:packet.vy,status});
-  if(samples.length>5)samples.shift();
+  if(samples.length>24)samples.shift();
   track.lastStatus = status;
   track.received++;
   return true;
@@ -65,7 +68,24 @@ export function acceptGhostPacket(track, packet, receiveMs) {
 export function ghostPosition(track, localTick, gravity, minY, maxY) {
   const samples=track.samples;
   if(!samples.length)return null;
-  const targetTick=Math.max(0,localTick-2); // ~33ms rendering buffer
+  const latest = samples[samples.length - 1];
+  const elapsedTicks = track.lastLocalTick === null ? 1 : clamp(localTick - track.lastLocalTick, 0, 6);
+  track.lastLocalTick = localTick;
+  if(track.ageSampleTick !== latest.tick) {
+    const age = Math.max(0, (localTick - latest.tick) * MP_TICK_MS);
+    track.ageMs = track.ageMs === null ? age : track.ageMs * .8 + age * .2;
+    track.ageSampleTick = latest.tick;
+  }
+  const desiredBuffer = clamp((track.ageMs || 0) + (track.intervalMs || 50) + track.jitterMs, 60, 250);
+  const adjustment = desiredBuffer > track.bufferMs ? 1.5 : .35;
+  track.bufferMs += clamp(desiredBuffer - track.bufferMs, -adjustment * elapsedTicks, adjustment * elapsedTicks);
+  // A monotonic playback clock avoids backwards movement when the buffer grows.
+  const targetTick = Math.max(track.renderTick || 0, localTick - track.bufferMs / MP_TICK_MS, 0);
+  track.renderTick = targetTick;
+  if(TERMINAL.has(latest.status)) {
+    track.renderY = clamp(latest.y, minY, maxY);
+    return track.renderY;
+  }
   let estimate=samples[samples.length-1].y;
   if(targetTick<=samples[0].tick)estimate=samples[0].y;
   else {
@@ -88,7 +108,8 @@ export function ghostPosition(track, localTick, gravity, minY, maxY) {
   const prev=track.renderY;
   const diff=prev===null?0:Math.abs(estimate-prev);
   // Minimize the extra display delay caused by overly conservative smoothing.
-  const gain=diff>55?.82:diff>22?.70:.53;
+  const baseGain=diff>55?.65:diff>22?.5:.4;
+  const gain=1-Math.pow(1-baseGain,elapsedTicks);
   const display=prev===null?estimate:prev+(estimate-prev)*gain;
   track.renderY=clamp(display,minY,maxY);
   return track.renderY;
