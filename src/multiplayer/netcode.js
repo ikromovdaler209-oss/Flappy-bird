@@ -23,7 +23,11 @@ export function assessReadyRoom(room, hostUid) {
 
 /** Ignore regressions from a delayed state listener, even before interpolation. */
 export function isFreshPlayerState(previous, next) {
-  if(!next || !finite(next.tick) || next.tick<0)return false;
+  if(!next || !Number.isSafeInteger(next.tick) || next.tick<0)return false;
+  if(next.status !== 'ALIVE' && !TERMINAL.has(next.status))return false;
+  for(const key of ['y','vy','score','elapsedMs']) {
+    if(next[key] !== undefined && !finite(next[key]))return false;
+  }
   if(!previous)return true;
   if(!finite(previous.tick) || next.tick<previous.tick)return false;
   if(TERMINAL.has(previous.status) && next.status!==previous.status)return false;
@@ -36,11 +40,11 @@ export function newGhostTrack() {
 
 /** Ignores stale / replayed packets and NEVER lets a terminal bird revive. */
 export function acceptGhostPacket(track, packet, receiveMs) {
-  if (!packet || !finite(packet.tick) || packet.tick < 0 || !finite(packet.y) || !finite(packet.vy)) return false;
+  if (!packet || !Number.isSafeInteger(packet.tick) || packet.tick < 0 || !finite(packet.y) || !finite(packet.vy)) return false;
   const status = String(packet.status || 'ALIVE');
   if (!['ALIVE',...TERMINAL].includes(status)) return false;
   const samples=track.samples,previous=samples[samples.length-1];
-  if (TERMINAL.has(track.lastStatus) && status === 'ALIVE') return false;
+  if (TERMINAL.has(track.lastStatus) && status !== track.lastStatus) return false;
   if (previous && (packet.tick < previous.tick ||
       (packet.tick === previous.tick && !(status !== 'ALIVE' && track.lastStatus === 'ALIVE')))) return false;
   const previousReceive=track.lastReceiveMs;

@@ -131,3 +131,13 @@ for(const x of runs){
  console.log(`PASS ${x.clients} clients | ACK ${fmt(x.ackMean)}ms | simulated position error v2.5 ${fmt(x.oldMean)}px -> v2.6 ${fmt(x.newMean)}px | P95 ${fmt(x.old95)}px -> ${fmt(x.new95)}px | ${x.sendCount} sends`);
 }
 console.log('PASS ready/host/version checks, synchronized start, stale packet rejection, terminal DNF, v2.5 cosmetics regression');
+
+for (const tick of [NaN, Infinity, -1, 1.5]) {
+ assert.equal(isFreshPlayerState(null, {tick, status:'ALIVE'}), false);
+}
+assert.equal(isFreshPlayerState(null, {tick:1, status:'UNKNOWN'}), false);
+assert.equal(isFreshPlayerState(null, {tick:1, status:'ALIVE', y:Infinity}), false);
+const terminalTrack = newGhostTrack();
+acceptGhostPacket(terminalTrack, {tick:1,y:20,vy:0,status:'DEAD'}, 20);
+assert.equal(acceptGhostPacket(terminalTrack, {tick:2,y:20,vy:0,status:'SURVIVED'}, 30), false);
+console.log('PASS malformed states and terminal status changes rejected');

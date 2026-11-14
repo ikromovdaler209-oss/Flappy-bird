@@ -117,3 +117,91 @@ function createNetwork({send,guardReady=true}={}){
 }
 console.log('PASS failed terminal writes retain disconnect guard, stuck ACK exit is bounded, ordering ALIVE -> DNF');
 console.log('PASS v2.6.1 targeted regression suite (source functions in Node VM, no live Firebase)');
+
+// Exercise the actual publisher with delayed ACKs, a full pipeline and termination.
+{
+ const releases = [];
+ const n = createNetwork({send: data => data.status === 'ALIVE'
+  ? new Promise(resolve => releases.push(resolve)) : Promise.resolve()});
+ const pending = [];
+ for (let tick = 60; tick < 64; tick++) {
+  n.r.me.tick = tick;
+  pending.push(n.ctx.racePublish());
+ }
+ assert.equal(n.writes.length, 3, 'three snapshots may travel before ACK');
+ assert.equal(n.r.publishBusy, true, 'bounded pipeline');
+ releases[1]();
+ await pending[1];
+ n.r.me.tick = 70;
+ pending.push(n.ctx.racePublish());
+ assert.equal(n.writes.at(-1).tick, 70, 'fresh state replaces skipped snapshot');
+ const finish = n.ctx.raceFinish('DEAD');
+ releases[0](); releases[2]();
+ await Promise.all(pending.slice(0, 4));
+ assert.equal(n.writes.filter(p => p.status === 'DEAD').length, 0);
+ releases[3]();
+ await pending[4];
+ assert.equal(await finish, true);
+ assert.equal(n.writes.at(-1).status, 'DEAD');
+ const count = n.writes.length;
+ await n.ctx.racePublish();
+ assert.equal(n.writes.length, count, 'no ALIVE publication after termination');
+ assert.equal(n.r.publishInFlight, 0);
+}
+console.log('PASS bounded snapshot pipeline, fresh state, out-of-order ACK and terminal barrier');
+
+// Virtual-time transport: compare acknowledged serialization with the real pipeline.
+async function measurePublisher(ackMs, serial) {
+ let time = 0;
+ const deliveries = [];
+ const n = createNetwork({send: () => new Promise(resolve => {
+  deliveries.push({at: time + ackMs, resolve});
+ })});
+ let nextSend = 0;
+ for (time = 0; time < 3000; time += 10) {
+  for (const delivery of deliveries.filter(d => d.at <= time)) delivery.resolve();
+  for (let i = deliveries.length - 1; i >= 0; i--) {
+   if (deliveries[i].at <= time) deliveries.splice(i, 1);
+  }
+  // Drain the async publisher and its terminal barrier bookkeeping.
+  for (let i = 0; i < 8; i++) await Promise.resolve();
+  if (time >= nextSend && !n.r.publishBusy && (!serial || !n.r.publishInFlight)) {
+   n.r.me.tick = Math.floor(time * 60 / 1000);
+   void n.ctx.racePublish();
+   nextSend = time + 100;
+  }
+  assert.ok((n.r.publishInFlight || 0) <= 3);
+ }
+ for (const delivery of deliveries) delivery.resolve();
+ await n.r.publishChain;
+ return n.writes.length;
+}
+for (const ack of [80, 250, 500]) {
+ const before = await measurePublisher(ack, true);
+ const after = await measurePublisher(ack, false);
+ assert.ok(after >= before);
+ if (ack > 100) assert.ok(after > before);
+ console.log(`PASS virtual ACK ${ack}ms: ${before} -> ${after} snapshots / 3s, max 3 pending`);
+}
+{
+ const acks = [];
+ const n = createNetwork({send: data => data.status === 'ALIVE'
+  ? new Promise((resolve, reject) => acks.push({resolve, reject})) : Promise.resolve()});
+ const first = n.ctx.racePublish().catch(() => {});
+ const second = n.ctx.racePublish();
+ const finish = n.ctx.raceFinish('DNF');
+ acks[0].reject(Error('temporary failure'));
+ await first;
+ assert.equal(n.writes.filter(p => p.status === 'DNF').length, 0,
+  'one failed write does not release a barrier with another write pending');
+ acks[1].resolve();
+ await second;
+ assert.equal(await finish, true);
+}
+{
+ const n = createNetwork();
+ n.r.net.connected = false;
+ await n.ctx.racePublish();
+ assert.equal(n.writes.length, 0, 'offline position packets do not accumulate');
+}
+console.log('PASS failed ACK barrier and offline snapshot suppression');

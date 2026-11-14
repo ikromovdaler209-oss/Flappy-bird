@@ -483,9 +483,9 @@ function pipesNear(tick,session){
  const first=Math.max(0,Math.floor((travel-world.spawnX-110)/world.spacing)-1);
  const last=Math.max(first+1,Math.ceil((travel+world.w-world.spawnX+100)/world.spacing)+1);
  const result=[];
+ const phaseSpeed=.04+tierForScore(session.meta.diff,scoreForDistance(travel,world))*.0015;
  for(let i=first;i<=last&&i<4000;i++){
   const p=pipeSpec(i,session),x=world.spawnX+i*world.spacing-travel;
-  const phaseSpeed=.04+tierForScore(session.meta.diff,scoreForDistance(travel,world))*.0015;
   const top=p.center-p.gap/2+Math.sin(tick*phaseSpeed+p.phase)*p.amp;
   result.push({...p,x,top});
  }
@@ -701,9 +701,9 @@ function raceUpdateFromServer(snap){raceSnapshot=snap;if(!race)return;rememberGh
    if(living.length===1&&living[0][0]===ownUid()&&race.me.alive)void raceFinish('SURVIVED');
    else if(roundFinished(snap))raceShowEnd();
  }
- raceScoreboard();
+ // The frame loop refreshes standings every 750ms. Avoid rebuilding DOM
+ // for every position packet from every player. Terminal results refresh immediately.
  if(roundFinished(snap)&&!race.finished)raceShowEnd();
- updateSpectator();
 }
 function racesStopOwnLoop(){if(race)race.flapQueued=false}
 function raceShowEnd(){if(!race||race.finished)return;race.finished=true;raceResults()}
@@ -751,8 +751,11 @@ function raceStep(tick){if(!race||!race.me.alive)return;const r=race,m=r.me,w=r.
 }
 async function racePublish(final=false,r=race){
  if(!r||!db)return;
- if(r.publishBusy&&!final)return;
- r.publishBusy=true;
+ // Bound outstanding snapshots while allowing delivery before prior ACKs return.
+ // When full, the next frame samples current state instead of queueing stale data.
+ if(!final && (!r.me.alive || r.net.connected === false || (r.publishInFlight || 0) >= 3)) return;
+ r.publishInFlight = (r.publishInFlight || 0) + 1;
+ r.publishBusy = r.publishInFlight >= 3;
  const state=r.me,uid=ownUid(),code=r.code;
  const data={status:state.status,tick:Math.max(0,Math.floor(state.tick)),y:Math.round(state.y*10)/10,
   vy:Math.round(state.vy*100)/100,score:Math.max(0,Math.floor(state.score)),
@@ -767,9 +770,14 @@ async function racePublish(final=false,r=race){
   }
  };
  // A final terminal update must queue behind the prior acknowledged ALIVE frame.
- const pending=r.publishChain.then(send,send);
- r.publishChain=pending.catch(()=>{});
- try{await pending}finally{r.publishBusy=false}
+ const previous = r.publishChain;
+ const pending = final ? previous.then(send, send) : send();
+ // Keep the barrier waiting for every write even if one fails early.
+ r.publishChain = Promise.allSettled([previous, pending]).then(() => {});
+ try { await pending; } finally {
+  r.publishInFlight--;
+  r.publishBusy = r.publishInFlight >= 3;
+ }
 }
 function raceFrame(){
  if(!race)return;
