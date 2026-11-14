@@ -36,3 +36,22 @@ for(const [id,item] of skins.entries())if(item.price)assert.equal(prices.owned[i
 for(const item of maps)assert.equal(prices.maps[item.id],item.price);
 for(const item of trails)assert.equal(prices.trails[item.id],item.price);
 console.log('PASS server prices equal all shop prices');
+
+// Regression: high-tier pickups grant up to three coins each.
+for (const reward of [1, 2, 3]) {
+ const before = clone(zero);
+ before.save.games = 1;
+ before.save.pipes = 36;
+ before.save.earnedCoins = 36;
+ before.wallet.coins = 36;
+ const after = clone(before);
+ after.save.pipes += 4;
+ after.save.earnedCoins += 4 * reward;
+ after.wallet.coins += 4 * reward;
+ assert.ok(validateProgress(before, after, {at: now, credits: 100}, now).ok);
+ const excessive = clone(after);
+ excessive.save.earnedCoins = before.save.earnedCoins + 16;
+ excessive.wallet.coins = before.wallet.coins + 16;
+ assert.equal(validateProgress(before, excessive, {at: now, credits: 100}, now).reason, 'earned');
+}
+console.log('PASS tiered coin rewards and excessive reward rejection');

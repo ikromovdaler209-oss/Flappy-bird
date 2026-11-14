@@ -1,8 +1,8 @@
 import {initializeTestEnvironment,assertFails,assertSucceeds} from '@firebase/rules-unit-testing';
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
-const rules=readFileSync('firebase-rules/High_Fly_RTDB_v3_FULL.json','utf8');
-const env=await initializeTestEnvironment({projectId:'demo-flying-bird',database:{host:'127.0.0.1',port:9000,rules}});
+const rules=readFileSync(new URL('../database.rules.json', import.meta.url),'utf8');
+const env=await initializeTestEnvironment({projectId:'demo-high-fly',database:{host:'127.0.0.1',port:9000,rules}});
 const ids=['host_player_00001','friend_player_0002','kicked_player_0003'];
 const dbs=ids.map(uid=>env.authenticatedContext(uid).database());
 const code='FBM-ABCD-EFGH',room='multiplayerRooms/'+code;

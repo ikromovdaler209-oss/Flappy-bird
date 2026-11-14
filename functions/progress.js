@@ -26,7 +26,10 @@ export function validateProgress(before,payload,guard,now){
  const earned=s.earnedCoins-(a.earnedCoins||0),pipes=s.pipes-(a.pipes||0),games=s.games-(a.games||0),flaps=s.flaps-(a.flaps||0);
  if(reset)return {ok:true,guard:{at:now,credits}};
  if(earned<0||pipes<0||games<0||flaps<0||earned>credits||pipes>credits||games>credits||flaps>credits*20)return fail('rate');
- if(earned>pipes+games+1)return fail('earned');
+ // A collected coin can award up to three coins at higher difficulty tiers.
+ // The allowance covers a pickup before the next pipe is counted.
+ const maxCoinsPerPickup = 3;
+ if(earned > maxCoinsPerPickup * (pipes + games + 1)) return fail('earned');
  for(const m of modes)if(s.best[m]<(a.best?.[m]||0)||s.best[m]>Math.max(a.best?.[m]||0,s.pipes+1))return fail('best');
  let cost=0;
  for(const key of Object.keys(prices)){

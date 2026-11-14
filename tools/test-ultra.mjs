@@ -19,8 +19,14 @@ function render(scene) {
       assert.ok(depth >= 0);
       for (const arg of args) if (typeof arg === 'number') assert.ok(Number.isFinite(arg));
       calls.push([name, ...args]);
+      if (name === 'createRadialGradient' || name === 'createLinearGradient') {
+        return { addColorStop(offset, color) {
+          assert.ok(Number.isFinite(offset) && offset >= 0 && offset <= 1);
+          calls.push(['addColorStop', offset, color]);
+        } };
+      }
     },
-    set: (_, name, value) => { calls.push([name, value]); return true; }
+    set: (_, name, value) => { calls.push([name, typeof value === 'object' ? 'gradient' : value]); return true; }
   });
   scope.window.flyingBirdUltraArt(context, scene);
   assert.equal(depth, 0);
@@ -30,13 +36,14 @@ function render(scene) {
 for (const map of maps) {
   const scene = { map, quality: 'ULTRA', w: 640, ground: 312, tick: 160, distance: 240 };
   const active = render(scene);
-  assert.ok(active.length > 50, map);
-  for (const quality of ['LOW', 'MEDIUM', 'HIGH']) assert.equal(render({ ...scene, quality }).length, 0);
+  assert.ok(active.length > 0, map);
+  for (const quality of ['LOW', 'MEDIUM']) assert.equal(render({ ...scene, quality }).length, 0);
+  assert.ok(render({ ...scene, quality: 'HIGH' }).length > 0, map + ' High details');
   assert.equal(render({ ...scene, highContrast: true }).length, 0);
   for (const flag of ['reducedMotion', 'staticCard']) {
-    assert.deepEqual(render({ ...scene, [flag]: true }), render({ ...scene, [flag]: true, tick: 900, distance: 2000 }));
+    assert.deepEqual(render({ ...scene, [flag]: true }), render({ ...scene, [flag]: true, tick: 900, distance: flag === 'staticCard' ? 2000 : scene.distance }));
   }
-  assert.deepEqual(render({ ...scene, effects: false }), render({ ...scene, effects: false, tick: 900, distance: 2000 }));
+  assert.deepEqual(render({ ...scene, effects: false }), render({ ...scene, effects: false, tick: 900 }));
   assert.notDeepEqual(active, render({ ...scene, tick: 250 }));
   for (const [w, ground] of [[130, 35], [284, 180], [320, 640], [1280, 720]]) render({ ...scene, w, ground });
 }

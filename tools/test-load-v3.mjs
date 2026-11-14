@@ -2,7 +2,7 @@ import {initializeTestEnvironment} from '@firebase/rules-unit-testing';
 import {readFileSync,writeFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {publishInterval} from '../src/multiplayer/netcode.js';
-const env=await initializeTestEnvironment({projectId:'demo-flying-bird',database:{host:'127.0.0.1',port:9000,rules:readFileSync('firebase-rules/High_Fly_RTDB_v3_FULL.json','utf8')}});
+const env=await initializeTestEnvironment({projectId:'demo-high-fly',database:{host:'127.0.0.1',port:9000,rules:readFileSync(new URL('../database.rules.json', import.meta.url),'utf8')}});
 const clients=[],rooms=[],offs=[],acks=[];let deliveries=0,writes=0;
 try{
  await env.clearDatabase();
