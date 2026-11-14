@@ -602,7 +602,7 @@ function raceDraw(){
   birds.push({x:r.world.bx,y:Math.min(r.world.ground-18,Math.max(0,y)),skin:equipped?.skin??(Number(card?.avatar?.skin)||0),alpha:uid===r.spectatorUid?1:p.status==='ALIVE'?.48:.16,rotation:(Number(p.vy)||0)*.09,trail:equipped?.trail||'NONE',id:uid,active:p.status==='ALIVE'});
  }
  if(r.me.alive)birds.push({x:r.world.bx,y:r.me.y,skin:r.myCosmetics.skin,alpha:r.me.alive?1:.55,rotation:r.me.vy*.09,trail:r.myCosmetics.trail,id:ownUid(),active:r.me.alive});
- const scene={map:r.meta.map,matchId:r.path,world:r.world,tick,distance:distanceAt(tick,courseSpeed(r.meta.diff),r.world,r.meta.diff),pipes:pipesNear(tick,r).map(p=>({x:p.x,top:p.top,gap:p.gap,amp:p.amp})),birds};
+ const scene={map:r.meta.map,matchId:r.path,localPlayerId:ownUid(),world:r.world,tick,distance:distanceAt(tick,courseSpeed(r.meta.diff),r.world,r.meta.diff),pipes:pipesNear(tick,r).map(p=>({x:p.x,top:p.top,gap:p.gap,amp:p.amp})),birds};
  const myself=r.me;
  const art=window.flyingBirdMultiplayerArt?.(scene,g);
  if(!art){
@@ -830,7 +830,7 @@ async function beginRace(payload,code){
   race.cosmetics[ownUid()]=race.myCosmetics;
   raceSnapshot=payload;
   raceUI.hidden=false;modal.hidden=true;window.flyingBirdMpRaceActive=true;
-  raceUpdateFsLabel();$('fbMpRaceFinal').hidden=true;$('fbMpRaceTitle').textContent=RT('title');$('fbMpRaceSub').textContent=RT('instructions');$('fbMpRaceExit').textContent=RT('exit');
+  raceUpdateFsLabel();$('fbMpRaceFinal').hidden=true;$('fbMpRaceTitle').textContent=RT('title');$('fbMpRaceSub').textContent=RT('instructions').replace(/SPACE|ПРОБЕЛ|ESPACIO|ESPAÇO|空格/g,window.flyingBirdKeyLabel?.('flap')||'SPACE');$('fbMpRaceExit').textContent=RT('exit');
   raceSetStatus(RT('loading'));raceFit();
   for(const uid of Object.keys(payload.roster)){void getCard(uid).then(card=>{if(race===session)race.cards.set(uid,card)}).catch(()=>{})}
   rememberGhostSamples(payload);
@@ -949,7 +949,16 @@ async function startSurvivalMatch(){
 
 let raceResizeScheduled=false;function queueRaceFit(){if(raceResizeScheduled)return;raceResizeScheduled=true;requestAnimationFrame(()=>{raceResizeScheduled=false;raceFit()})}window.addEventListener('resize',queueRaceFit);window.addEventListener('orientationchange',queueRaceFit);window.visualViewport?.addEventListener('resize',queueRaceFit);
 raceCanvas.addEventListener('pointerdown',e=>{if(!e.isPrimary||(e.pointerType==='mouse'&&e.button!==0))return;e.preventDefault();raceFlap()});
-window.addEventListener('keydown',e=>{if(race&&!raceUI.hidden){if(e.target.closest?.('button,input,select,textarea'))return;if(['Space','ArrowUp','KeyW','Enter','Escape'].includes(e.code)){e.preventDefault();e.stopImmediatePropagation()}if(['Space','ArrowUp','KeyW','Enter'].includes(e.code))raceFlap();else if(e.code==='Escape')raceExitPrompt()}},true);
+window.addEventListener('keydown',e=>{
+ if(!race||raceUI.hidden||e.target.closest?.('button,input,select,textarea,[contenteditable="true"]'))return;
+ if(e.ctrlKey||e.metaKey||e.altKey)return;
+ const action=window.flyingBirdInputAction?.(e.code);
+ if(!action)return;
+ e.preventDefault();e.stopImmediatePropagation();if(e.repeat)return;
+ if(action==='flap')raceFlap();
+ else if(action==='pause')raceExitPrompt(); // A network match cannot be paused locally.
+ else window.flyingBirdUtilityAction?.(action);
+},true);
 async function raceToggleFullscreen(){
  try{
   if(document.fullscreenElement || document.webkitFullscreenElement){

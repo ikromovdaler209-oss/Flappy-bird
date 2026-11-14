@@ -21,6 +21,7 @@
   if (!['EN', 'ZH', 'RU', 'ES', 'PT'].includes(cfg.lang)) cfg.lang = 'EN';
   // Keep legacy cosmetic preferences; new settings live in the same cfg object.
   window.HighFlyGraphics?.normalize(cfg);
+  window.HighFlyPreferences.normalize(cfg);
   if (!['SMALL','NORMAL','LARGE'].includes(cfg.uiScale)) cfg.uiScale='NORMAL';
   cfg.screenShake=cfg.screenShake!==false;
   window.flyingBirdGraphicsQuality=()=>cfg.graphicsQuality;
@@ -38,6 +39,9 @@
   // Older saves have only three difficulty records; initialize EXTREME safely.
   save.best = Object.assign({EASY:0,NORMAL:0,HARD:0,EXTREME:0}, save.best || {});
   window.flyingBirdRenderFps = () => cfg.fps;
+  window.flyingBirdInputAction=code=>window.HighFlyPreferences.action(cfg,code);
+  window.flyingBirdKeyLabel=action=>keyLabel(cfg.keyBindings[action]);
+  const effectStrength=()=>window.HighFlyPreferences.effectScale(cfg);
   const saveCfg = () => { store.set('flyingBirdCfg', cfg); window.dispatchEvent(new Event('flyingbird:progress-changed')); };
   const saveGame = () => { store.set('flyingBirdSave', save); window.dispatchEvent(new Event('flyingbird:progress-changed')); };
   const bestNow = () => save.best[cfg.diff] || 0;
@@ -166,7 +170,7 @@
   window.addEventListener('flyingbird:apply-progress', e => {
     const data = e.detail || {};
     if (data.cfg && typeof data.cfg === 'object') {
-      Object.assign(cfg, data.cfg);
+      Object.assign(cfg,{fx:false,effectsIntensity:undefined,backgroundMode:'NORMAL',otherPlayerEffects:'FULL',keyBindings:undefined},data.cfg);
       if (!['EASY','NORMAL','HARD','EXTREME'].includes(cfg.diff)) cfg.diff = 'NORMAL';
       if (!['EN','ZH','RU','ES','PT'].includes(cfg.lang)) cfg.lang = 'EN';
       if (!MAPS[cfg.map]) cfg.map = 'CITY';
@@ -174,6 +178,7 @@
       if (cfg.fps !== 'MAX' && !/^\d{2,3}$/.test(cfg.fps)) cfg.fps = 'MAX';
       if (!['AUTO','HIGH','LOW','OFF'].includes(cfg.particleQuality)) cfg.particleQuality = 'AUTO';
       window.HighFlyGraphics?.normalize(cfg);
+      window.HighFlyPreferences.normalize(cfg);
       if (!['SMALL','NORMAL','LARGE'].includes(cfg.uiScale)) cfg.uiScale='NORMAL';
       cfg.screenShake=cfg.screenShake!==false;
       syncUiScaleCss();
@@ -557,6 +562,8 @@
   };
   for (const lang of LANGS) Object.assign(I18N[lang], qualityText[lang]);
   // Settings labels are complete across all five supported languages.
+  const SETTINGS_EXTRA_TEXT = {"EN":{"TAB_GENERAL":"GENERAL","TAB_VISUAL":"GRAPHICS","TAB_KEYBOARD":"CONTROLS","FX_INTENSITY":"EFFECT INTENSITY","FX_FULL":"FULL","FX_BALANCED":"MODERATE","FX_MINIMAL":"MINIMAL","BACKGROUND_MODE":"BACKGROUND","BG_NORMAL":"NORMAL","BG_DIM":"DIMMED","OTHER_FX":"OTHERS’ TRAILS","OTHER_FULL":"FULL","OTHER_SIMPLE":"SIMPLE","OTHER_OFF":"OFF","UNCAPPED":"UNLIMITED","PREVIEW_LIVE":"LIVE PREVIEW · NO PROGRESS CHANGES","DISPLAY_RATE":"DISPLAY","KEY_FLAP":"FLAP","KEY_PAUSE":"PAUSE / EXIT","KEY_MUTE":"MUTE","KEY_FULLSCREEN":"FULLSCREEN","KEY_RESET":"RESET KEYS","KEY_WAIT":"PRESS A KEY","KEY_SPACE":"SPACE","KEY_HELP":"Click an action to change its key","KEY_CAPTURE_HELP":"A–Z, 0–9, Space, ↑ · Esc cancels","KEY_CONFLICT":"Key already assigned","KEY_INVALID":"Use a letter, digit, Space or ↑","MP_PAUSE_HELP":"In multiplayer, Pause opens the exit prompt"},"RU":{"TAB_GENERAL":"ОБЩИЕ","TAB_VISUAL":"ГРАФИКА","TAB_KEYBOARD":"УПРАВЛЕНИЕ","FX_INTENSITY":"СИЛА ЭФФЕКТОВ","FX_FULL":"ПОЛНАЯ","FX_BALANCED":"УМЕРЕННАЯ","FX_MINIMAL":"МИНИМАЛЬНАЯ","BACKGROUND_MODE":"ФОН","BG_NORMAL":"ОБЫЧНЫЙ","BG_DIM":"ПРИГЛУШЁННЫЙ","OTHER_FX":"СЛЕДЫ ДРУГИХ","OTHER_FULL":"ПОЛНЫЕ","OTHER_SIMPLE":"ПРОСТЫЕ","OTHER_OFF":"ВЫКЛ.","UNCAPPED":"БЕЗ ЛИМИТА","PREVIEW_LIVE":"ЖИВОЕ ПРЕВЬЮ · БЕЗ ИЗМЕНЕНИЯ ПРОГРЕССА","DISPLAY_RATE":"ЭКРАН","KEY_FLAP":"ВЗМАХ","KEY_PAUSE":"ПАУЗА / ВЫХОД","KEY_MUTE":"ЗВУК","KEY_FULLSCREEN":"ПОЛНЫЙ ЭКРАН","KEY_RESET":"СБРОСИТЬ КЛАВИШИ","KEY_WAIT":"НАЖМИ КЛАВИШУ","KEY_SPACE":"ПРОБЕЛ","KEY_HELP":"Нажми на действие, чтобы назначить клавишу","KEY_CAPTURE_HELP":"A–Z, 0–9, пробел, ↑ · Esc — отмена","KEY_CONFLICT":"Эта клавиша уже назначена","KEY_INVALID":"Выбери букву, цифру, пробел или ↑","MP_PAUSE_HELP":"В мультиплеере «Пауза» открывает запрос выхода"},"ZH":{"TAB_GENERAL":"通用","TAB_VISUAL":"画面","TAB_KEYBOARD":"操作","FX_INTENSITY":"特效强度","FX_FULL":"完整","FX_BALANCED":"适中","FX_MINIMAL":"最少","BACKGROUND_MODE":"背景","BG_NORMAL":"普通","BG_DIM":"调暗","OTHER_FX":"其他玩家尾迹","OTHER_FULL":"完整","OTHER_SIMPLE":"简化","OTHER_OFF":"关闭","UNCAPPED":"不限帧率","PREVIEW_LIVE":"实时预览 · 不改变进度","DISPLAY_RATE":"屏幕","KEY_FLAP":"拍翅","KEY_PAUSE":"暂停 / 退出","KEY_MUTE":"声音","KEY_FULLSCREEN":"全屏","KEY_RESET":"重置按键","KEY_WAIT":"请按键","KEY_SPACE":"空格","KEY_HELP":"点击操作以更改按键","KEY_CAPTURE_HELP":"A–Z、0–9、空格、↑ · Esc 取消","KEY_CONFLICT":"按键已被使用","KEY_INVALID":"请选择字母、数字、空格或 ↑","MP_PAUSE_HELP":"多人模式中暂停键会打开退出确认"},"ES":{"TAB_GENERAL":"GENERAL","TAB_VISUAL":"GRÁFICOS","TAB_KEYBOARD":"CONTROLES","FX_INTENSITY":"EFECTOS","FX_FULL":"COMPLETOS","FX_BALANCED":"MODERADOS","FX_MINIMAL":"MÍNIMOS","BACKGROUND_MODE":"FONDO","BG_NORMAL":"NORMAL","BG_DIM":"ATENUADO","OTHER_FX":"RASTROS AJENOS","OTHER_FULL":"COMPLETOS","OTHER_SIMPLE":"SIMPLES","OTHER_OFF":"NO","UNCAPPED":"SIN LÍMITE","PREVIEW_LIVE":"VISTA EN VIVO · NO CAMBIA EL PROGRESO","DISPLAY_RATE":"PANTALLA","KEY_FLAP":"ALETEAR","KEY_PAUSE":"PAUSA / SALIR","KEY_MUTE":"SONIDO","KEY_FULLSCREEN":"PANTALLA COMPLETA","KEY_RESET":"RESTABLECER TECLAS","KEY_WAIT":"PULSA UNA TECLA","KEY_SPACE":"ESPACIO","KEY_HELP":"Pulsa una acción para cambiar su tecla","KEY_CAPTURE_HELP":"A–Z, 0–9, espacio, ↑ · Esc cancela","KEY_CONFLICT":"Tecla ya asignada","KEY_INVALID":"Elige una letra, número, espacio o ↑","MP_PAUSE_HELP":"En multijugador, Pausa abre la confirmación de salida"},"PT":{"TAB_GENERAL":"GERAL","TAB_VISUAL":"GRÁFICOS","TAB_KEYBOARD":"CONTROLES","FX_INTENSITY":"EFEITOS","FX_FULL":"COMPLETOS","FX_BALANCED":"MODERADOS","FX_MINIMAL":"MÍNIMOS","BACKGROUND_MODE":"FUNDO","BG_NORMAL":"NORMAL","BG_DIM":"ESCURECIDO","OTHER_FX":"RASTROS ALHEIOS","OTHER_FULL":"COMPLETOS","OTHER_SIMPLE":"SIMPLES","OTHER_OFF":"NÃO","UNCAPPED":"SEM LIMITE","PREVIEW_LIVE":"PRÉVIA AO VIVO · SEM ALTERAR O PROGRESSO","DISPLAY_RATE":"TELA","KEY_FLAP":"BATER ASAS","KEY_PAUSE":"PAUSA / SAIR","KEY_MUTE":"SOM","KEY_FULLSCREEN":"TELA CHEIA","KEY_RESET":"REDEFINIR TECLAS","KEY_WAIT":"PRESSIONE UMA TECLA","KEY_SPACE":"ESPAÇO","KEY_HELP":"Clique em uma ação para mudar sua tecla","KEY_CAPTURE_HELP":"A–Z, 0–9, espaço, ↑ · Esc cancela","KEY_CONFLICT":"Tecla já atribuída","KEY_INVALID":"Escolha letra, número, espaço ou ↑","MP_PAUSE_HELP":"No multijogador, Pausa abre a confirmação de saída"}};
+  for(const lang of LANGS)Object.assign(I18N[lang],SETTINGS_EXTRA_TEXT[lang]);
   const SETTINGS_POLISH_TEXT = {
     EN:{GRAPHICS_QUALITY:'GRAPHICS QUALITY',SCREEN_SHAKE:'SCREEN SHAKE',UI_SCALE:'UI SCALE',MEDIUM:'MEDIUM',SMALL:'SMALL',LARGE:'LARGE',ULTRA:'ULTRA'},
     RU:{GRAPHICS_QUALITY:'КАЧЕСТВО ГРАФИКИ',SCREEN_SHAKE:'ТРЯСКА ЭКРАНА',UI_SCALE:'МАСШТАБ ИНТЕРФЕЙСА',MEDIUM:'СРЕДНЕЕ',SMALL:'МАЛЫЙ',LARGE:'БОЛЬШОЙ',ULTRA:'УЛЬТРА'},
@@ -729,6 +736,7 @@ if (!initialized) {
     if (cfg.fx || cfg.particleQuality === 'OFF') return 0;
     // Graphics Quality controls both the render budget and particle density.
     if (cfg.graphicsQuality === 'LOW') return 1;
+    if(cfg.effectsIntensity==='BALANCED')return 1;
     if ((cfg.graphicsQuality === 'HIGH' || cfg.graphicsQuality === 'ULTRA') && !particleReducedMotion.matches) return 3;
     return coarsePointer.matches || particleReducedMotion.matches ? 1 : 2;
   }
@@ -799,7 +807,7 @@ if (!initialized) {
   function die(onGround) {
     if (state === 'DEAD' || state === 'GAMEOVER') return;
     tone(240, 50, 0.35, 'sawtooth', 0.1);
-    if (!cfg.fx) { if (cfg.screenShake) shake = 12; flash = 0.8; }
+    if (!cfg.fx) { if (cfg.screenShake) shake = 12*effectStrength(); flash = 0.8*effectStrength(); }
     burst(bird.x + bird.w / 2, bird.y + bird.h / 2, cfg.fx ? 6 : 24, 4, 40, ['#ffd23f', '#ff9f1c', '#ff6b35', '#fff']);
     save.games++;
     if (score > save.best[cfg.diff]) { save.best[cfg.diff] = score; newBest = true; }
@@ -919,7 +927,7 @@ if (!initialized) {
       if (bird.y + bird.h >= GROUND) {
         bird.y = GROUND - bird.h;
         state = 'GAMEOVER'; overAt = performance.now();
-        if (cfg.screenShake && !cfg.fx) shake = 5; tone(120, 40, 0.15, 'triangle', 0.08);
+        if (cfg.screenShake && !cfg.fx) shake = 5*effectStrength(); tone(120, 40, 0.15, 'triangle', 0.08);
       }
     }
 
@@ -2192,13 +2200,13 @@ if (!initialized) {
     if(key!==hzK){hzK=key;const prem=SHOP_MAPS.some(m=>m.id===cfg.map);
       hzG=ctx.createLinearGradient(0,GROUND-70,0,GROUND);hzG.addColorStop(0,(HAZE[cfg.map]||'#ffffff')+'00');hzG.addColorStop(1,(HAZE[cfg.map]||'#ffffff')+(prem?'66':'33'));
       vgG=ctx.createLinearGradient(0,0,0,70);vgG.addColorStop(0,'rgba(5,4,25,.26)');vgG.addColorStop(1,'rgba(5,4,25,0)');}
-    ctx.fillStyle=hzG;ctx.fillRect(0,GROUND-70,W,70);ctx.fillStyle=vgG;ctx.fillRect(0,0,W,70);
+    ctx.save();ctx.globalAlpha=effectStrength();ctx.fillStyle=hzG;ctx.fillRect(0,GROUND-70,W,70);ctx.fillStyle=vgG;ctx.fillRect(0,0,W,70);ctx.restore();
   }
   const NEW_ITEMS=new Set(['MAPS:CELESTIAL','MAPS:CYBERPUNK','MAPS:MYSTIC','MAPS:SHATTERED','MAPS:TEMPEST','MAPS:ECLIPSE_REALM','MAPS:PRISM','MAPS:CLOCKWORK','MAPS:AURORA','MAPS:NECROPOLIS','MAPS:FOREST','MAPS:CRYSTAL','MAPS:DESERT','TRAILS:FROST','TRAILS:STARDUST','TRAILS:SHADOW','TRAILS:AURORA','TRAILS:HEART','TRAILS:INKFLOW','TRAILS:BUBBLE','TRAILS:SONIC','TRAILS:PHOENIX','TRAILS:LUNAR','TRAILS:OMEN']);
   const isNew=i=>i.kind==='BIRDS'?NEW_SKIN.has(i.name):NEW_ITEMS.has(i.kind+':'+i.id);
   function premiumArt(key,x,y,w,h,staticCard=false){
     if(MYTHIC_MAPS.has(key)){
-      window.flyingBirdMythicArt?.(ctx,{map:key,x,y,w,h,tick:ticks,distance:bgX,quality:particleLevel(),graphicsQuality:cfg.graphicsQuality,highContrast:cfg.cb==='HIGH CONTRAST',staticCard,reducedMotion:cfg.fx||particleReducedMotion.matches});
+      window.flyingBirdMythicArt?.(ctx,{map:key,x,y,w,h,tick:ticks,distance:bgX,quality:particleLevel(),graphicsQuality:cfg.graphicsQuality,effectScale:effectStrength(),highContrast:cfg.cb==='HIGH CONTRAST',staticCard,reducedMotion:cfg.fx||particleReducedMotion.matches});
       return;
     }
     if(ELITE_MAPS.has(key)){eliteArt(key,x,y,w,h,staticCard);return;}
@@ -2406,12 +2414,17 @@ if (!initialized) {
     }
   }
 
+  function drawBackgroundDim(active){
+    if(!active||cfg.backgroundMode!=='DIM')return;
+    ctx.save();ctx.fillStyle='rgba(4,8,20,.38)';ctx.fillRect(0,0,W,GROUND);ctx.restore();
+  }
+
   function drawMapDetail(){
     window.flyingBirdMapArt?.(ctx,{map:cfg.map,w:W,ground:GROUND,tick:ticks,distance:bgX,
       quality:particleLevel(),graphicsQuality:cfg.graphicsQuality,day:themeName()==='DAY',highContrast:cfg.cb==='HIGH CONTRAST',
       reducedMotion:cfg.fx||particleReducedMotion.matches});
     window.flyingBirdUltraArt?.(ctx,{map:cfg.map,w:W,ground:GROUND,tick:ticks,distance:bgX,
-      quality:cfg.graphicsQuality,highContrast:cfg.cb==='HIGH CONTRAST',
+      quality:cfg.graphicsQuality,effectScale:effectStrength(),highContrast:cfg.cb==='HIGH CONTRAST',
       effects:!cfg.fx,reducedMotion:particleReducedMotion.matches});
   }
 
@@ -2459,7 +2472,7 @@ if (!initialized) {
     ctx.restore();
     ctx.save();ctx.translate(x,y);
     window.flyingBirdUltraArt?.(ctx,{map:key,w,ground:h-12,quality:cfg.graphicsQuality,
-      staticCard:true,effects:!cfg.fx,highContrast:cfg.cb==='HIGH CONTRAST'});
+      staticCard:true,effectScale:effectStrength(),effects:!cfg.fx,highContrast:cfg.cb==='HIGH CONTRAST'});
     ctx.restore();
     if (drawActors) {
       // One fixed pipe pair and one animated bird per compact card.
@@ -2684,7 +2697,7 @@ if (!initialized) {
       const value=(on?'< ':'')+o.value+(on?' >':'');
       ctx.font='bold '+fs+'px "Courier New", monospace';
       const vw=Math.min(w*.46,Math.max(49,ctx.measureText(value).width+5));
-      txtFit(String(label),x+11,y+dy+h/2,fs,w-vw-21,BROWN,'left',false);
+      txtFit(String(label),x+11,y+dy+h/2,fs,w-vw-31,BROWN,'left',false);
       txtFit(String(value),x+w-9,y+dy+h/2,fs,vw,BROWN,'right',false);
     }else txtFit(String(label),x+w/2,y+dy+h/2,fs,w-16,BROWN,'center',false);
   }
@@ -2755,7 +2768,7 @@ if (!initialized) {
   function toMenu() { reset(); screen = 'MENU'; focus = 0; }
   function back() {
     if(lobbySkinPicker && screen!=='PREVIEW'){const picker=lobbySkinPicker;window.flyingBirdCloseSkinInventory();picker.cancel();return;}
-    if (screen === 'SETTINGS') { screen = settingsFrom; resetArmed = false; focus = 0; }
+    if (screen === 'SETTINGS') { bindingCapture=null; screen = settingsFrom; resetArmed = false; focus = 0; }
     else if (screen === 'ACH') { screen = 'MENU'; focus = 0; }
     else if (screen === 'PLAY_MODE') { screen = 'MENU'; focus = 0; }
     else if (screen === 'MAPS') { screen = 'PLAY_MODE'; focus = 0; }
@@ -3217,62 +3230,94 @@ function toggleFS() {
     btn(bx, y0 + 84, bw, 32, tr('MAIN_MENU'), toMenu);
   }
 
+  let settingsTab='GENERAL',bindingCapture=null,settingsPreviewMap=null;
+  function keyLabel(code){
+    if(code==='Space')return tr('KEY_SPACE');
+    if(code==='ArrowUp')return '↑';
+    return String(code||'').replace(/^Key|^Digit/,'');
+  }
+  window.flyingBirdUtilityAction=action=>{
+    if(action==='mute'){cfg.muted=!cfg.muted;saveCfg();}
+    else if(action==='fullscreen')toggleFS();
+  };
+  function drawSettingsPreview(x,y,w,h){
+    const keep={W,H,GROUND,L,ticks,bgX,groundX,map:cfg.map,hzK,hzG,vgG};
+    ctx.save();
+    try{
+      ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.translate(x,y);ctx.scale(w/640,h/360);
+      W=640;H=360;GROUND=312;L=true;
+      ticks=cfg.fx||particleReducedMotion.matches?90:Math.floor(performance.now()/16.667);
+      bgX=cfg.fx||particleReducedMotion.matches?0:ticks*.45;groundX=bgX*.82;
+      cfg.map=settingsPreviewMap||keep.map;hzK='';
+      drawBackground();drawMapDetail();drawAtmos();drawBackgroundDim(true);
+      drawPipe({x:440,top:96,gap:145,amp:0});drawGround();
+      ctx.save();ctx.translate(215,164+Math.sin(ticks*.04)*8);birdShapes(SKINS[cfg.skin]||SKINS[0],(Math.floor(ticks/5)%3-1)*3);ctx.restore();
+    }finally{
+      ({W,H,GROUND,L,ticks,bgX,groundX}=keep);cfg.map=keep.map;hzK=keep.hzK;hzG=keep.hzG;vgG=keep.vgG;ctx.restore();
+    }
+    ctx.strokeStyle='#8096af';ctx.lineWidth=1;ctx.strokeRect(x,y,w,h);
+  }
   function drawSettings() {
-    ctx.fillStyle = 'rgba(15,12,41,0.85)'; ctx.fillRect(0, 0, W, H);
-    title(tr('SETTINGS'), W / 2, 34, 26, '#ffd23f', 'center');
-    const wrap = (n, v, d) => (v + d + n) % n, onoff = v => (v ? tr('ON') : tr('OFF'));
-    const rows = [
-      [tr('LANGUAGE'), LANG_NAMES[cfg.lang], d => { cfg.lang = cyc(LANGS, cfg.lang, d); }],
-      [tr('THEME'), displayValue(cfg.theme), d => { cfg.theme = cyc(['NIGHT','DAY','AUTO'],cfg.theme,d); }],
-      [tr('MUSIC'), cfg.music*10+'%', d => { cfg.music = wrap(11,cfg.music,d); }],
-      [tr('SOUND_FX'), cfg.sfx*10+'%', d => { cfg.sfx = wrap(11,cfg.sfx,d); tone(500,700,.08); }],
-      [tr('GRAPHICS_QUALITY'), displayValue(cfg.graphicsQuality), d => {
-        cfg.graphicsQuality=cyc(['LOW','MEDIUM','HIGH','ULTRA'],cfg.graphicsQuality,d);
-        cfg.particleQuality='AUTO'; // Replaces the old, separate particle-quality control.
-        queueFit();
-      }],
-      [tr('REDUCE_EFFECTS'), onoff(cfg.fx), () => {cfg.fx=!cfg.fx;}],
-      [tr('SCREEN_SHAKE'), onoff(cfg.screenShake), () => {cfg.screenShake=!cfg.screenShake;if(!cfg.screenShake)shake=0;}],
-      [tr('UI_SCALE'), displayValue(cfg.uiScale), d => {
-        cfg.uiScale=cyc(['SMALL','NORMAL','LARGE'],cfg.uiScale,d);
-        syncUiScaleCss();
-        uiHitboxesStale=true;
-        uiHoverLevels.clear();
-      }],
-      [tr('FPS_LIMIT'), cfg.fps==='MAX'?tr('MAX')+' ('+displayHz()+')':cfg.fps, d => {const o=fpsOptions();cfg.fps=cyc(o,o.includes(cfg.fps)?cfg.fps:'MAX',d);}],
-      [tr('SHOW_FPS'), onoff(cfg.showFps), () => {cfg.showFps=!cfg.showFps;}],
-      [tr('FULLSCREEN'), onoff(fullscreenNow()||navigator.standalone||window.matchMedia('(display-mode: standalone)').matches), toggleFS]
+    ctx.fillStyle='rgba(15,12,41,.96)';ctx.fillRect(0,0,W,H);
+    title(tr('SETTINGS'),W/2,26,22,'#ffd23f','center');
+    const onoff=v=>tr(v?'ON':'OFF'),wrap=(n,v,d)=>(v+d+n)%n;
+    const left=16,inner=W-32,tabW=(inner-12)/3;
+    ['GENERAL','VISUAL','KEYBOARD'].forEach((tab,i)=>btn(left+i*(tabW+6),43,tabW,27,tr('TAB_'+tab),()=>{settingsTab=tab;bindingCapture=null;resetArmed=false;focus=i;},{size:10,secondary:settingsTab!==tab}));
+    ctx.fillStyle='#78d5d1';ctx.fillRect(left+['GENERAL','VISUAL','KEYBOARD'].indexOf(settingsTab)*(tabW+6)+8,74,tabW-16,2);
+    let rows=[];
+    if(settingsTab==='GENERAL')rows=[
+      [tr('LANGUAGE'),LANG_NAMES[cfg.lang],d=>{cfg.lang=cyc(LANGS,cfg.lang,d);} ],
+      [tr('THEME'),displayValue(cfg.theme),d=>{cfg.theme=cyc(['NIGHT','DAY','AUTO'],cfg.theme,d);} ],
+      [tr('MUSIC'),cfg.music*10+'%',d=>{cfg.music=wrap(11,cfg.music,d);} ],
+      [tr('SOUND_FX'),cfg.sfx*10+'%',d=>{cfg.sfx=wrap(11,cfg.sfx,d);tone(500,700,.08);} ],
+      [tr('UI_SCALE'),displayValue(cfg.uiScale),d=>{cfg.uiScale=cyc(['SMALL','NORMAL','LARGE'],cfg.uiScale,d);syncUiScaleCss();uiHitboxesStale=true;uiHoverLevels.clear();} ],
+      [tr('FULLSCREEN'),onoff(fullscreenNow()||navigator.standalone||window.matchMedia('(display-mode: standalone)').matches),toggleFS],
+      [resetArmed?tr('PRESS_RESET'):tr('RESET_PROGRESS'),null,()=>{
+        if(!resetArmed){resetArmed=true;return;}
+        Object.assign(save,{best:{EASY:0,NORMAL:0,HARD:0,EXTREME:0},games:0,flaps:0,pipes:0,earnedCoins:0,ach:{}});
+        cfg.skin=0;profile.av.skin=0;wallet.coins=0;wallet.owned=[];wallet.maps=[];wallet.trails=[];cfg.map='CITY';cfg.trail='NONE';saveProfile();saveWallet();saveGame();saveCfg();resetArmed=false;
+      },'reset']
     ];
-    const total=rows.length+2,cols=L?2:1,per=Math.ceil(total/cols);
-    const gutter=L?Math.min(30,W*.045):0;
-    const maxWidth=L?Math.min(880,W-44):Math.min(W-40,420);
-    const bw=L?(maxWidth-gutter)/2:maxWidth;
-    const bx0=(W-maxWidth)/2;
-    const gap=L?Math.min(12,Math.max(4,H*.014)):H>610?7:3;
-    const maxRh=L?Math.min(54,Math.max(30,H*.09)):Math.min(44,Math.max(29,H*.067));
-    const topClear=L?Math.max(64,Math.min(120,H*.13)):Math.max(58,Math.min(86,H*.11));
-    const bottomClear=L?Math.max(44,Math.min(88,H*.09)):48;
-    const rh=Math.max(24,Math.min(maxRh,Math.floor((H-topClear-bottomClear-gap*(per-1))/per)));
-    const blockH=per*rh+(per-1)*gap;
-    const y0=Math.max(topClear,Math.floor((H-blockH)/2));
-    const h=rh;
-    const fs=L?Math.min(14,Math.max(11,W/105)):Math.min(13,Math.max(11,W/27));
-    const pos=i=>({x:bx0+Math.floor(i/per)*(bw+gutter),y:y0+(i%per)*(rh+gap)});
-    rows.forEach((r,i)=>{
-      const q=pos(i);
-      btn(q.x,q.y,bw,h,r[0],d=>{r[2](d);saveCfg();},{value:String(r[1]),adj:true,size:fs});
-      // Color-coded category rails clarify related options without adding translation strings.
-      const stripeColor=i<2?'#69b9e4':i<4?'#ecad60':i<8?'#a68cf5':'#81c8ad';
-      ctx.fillStyle=stripeColor;ctx.fillRect(q.x+3,q.y+5,3,Math.max(0,h-10));
+    if(settingsTab==='VISUAL')rows=[
+      [tr('GRAPHICS_QUALITY'),displayValue(cfg.graphicsQuality),d=>{cfg.graphicsQuality=cyc(['LOW','MEDIUM','HIGH','ULTRA'],cfg.graphicsQuality,d);cfg.particleQuality='AUTO';queueFit();}],
+      [tr('FX_INTENSITY'),tr('FX_'+cfg.effectsIntensity),d=>{cfg.effectsIntensity=cyc(['FULL','BALANCED','MINIMAL'],cfg.effectsIntensity,d);cfg.fx=cfg.effectsIntensity==='MINIMAL';cfg.particleQuality='AUTO';if(cfg.fx){particles=[];trailParticles=[];shake=flash=0;}}],
+      [tr('BACKGROUND_MODE'),tr('BG_'+cfg.backgroundMode),d=>{cfg.backgroundMode=cyc(['NORMAL','DIM'],cfg.backgroundMode,d);} ],
+      [tr('OTHER_FX'),tr('OTHER_'+cfg.otherPlayerEffects),d=>{cfg.otherPlayerEffects=cyc(['FULL','SIMPLE','OFF'],cfg.otherPlayerEffects,d);} ],
+      [tr('SCREEN_SHAKE'),onoff(cfg.screenShake),()=>{cfg.screenShake=!cfg.screenShake;if(!cfg.screenShake)shake=0;} ],
+      [tr('FPS_LIMIT'),cfg.fps==='MAX'?tr('UNCAPPED'):cfg.fps+' FPS',d=>{cfg.fps=cyc(fpsOptions(),cfg.fps,d);} ],
+      [tr('SHOW_FPS'),onoff(cfg.showFps),()=>{cfg.showFps=!cfg.showFps;} ]
+    ];
+    if(settingsTab==='KEYBOARD')rows=[
+      ...['flap','pause','mute','fullscreen'].map(action=>[tr('KEY_'+action.toUpperCase()),bindingCapture===action?tr('KEY_WAIT'):keyLabel(cfg.keyBindings[action]),()=>{bindingCapture=action;}]),
+      [tr('KEY_RESET'),null,()=>{cfg.keyBindings={...window.HighFlyPreferences.defaults};bindingCapture=null;}]
+    ];
+    const visual=settingsTab==='VISUAL',wide=L&&W>=500;
+    const colW=wide?(inner-16)/2:inner;
+    let y0=86,available=H-134;
+    if(visual){
+      const px=wide?left+colW+16:left,pw=colW;
+      const ph=wide?Math.min(150,pw*360/640):Math.min(94,H*.20);
+      drawSettingsPreview(px,86,pw,ph);
+      const selected=settingsPreviewMap||cfg.map;
+      btn(px,92+ph,pw,24,mapLabel(selected),d=>{settingsPreviewMap=cyc(MAP_KEYS,selected,d);},{adj:true,size:10});
+      if(wide){
+        txtFit(tr('PREVIEW_LIVE'),px+pw/2,ph+138,10,pw,'#bdd4e7','center',false);
+        txtFit(tr('DISPLAY_RATE')+': '+displayHz()+' Hz',px+pw/2,ph+157,9,pw,'#96afc6','center',false);
+      }else{y0=ph+125;available=H-y0-46;}
+    }
+    const cols=wide&&!visual?2:1,per=Math.ceil(rows.length/cols);
+    const rh=Math.max(20,Math.min(wide?40:36,(available-(per-1)*4)/per));
+    rows.forEach((row,i)=>{
+      const x=left+Math.floor(i/per)*(colW+16),y=y0+(i%per)*(rh+4);
+      const isBinding=settingsTab==='KEYBOARD';
+      btn(x,y,colW,rh,row[0],d=>{row[2](d);saveCfg();},{value:row[1]===null?undefined:String(row[1]),adj:row[1]!==null&&!isBinding,size:wide?11:10,danger:row[3]==='reset',id:row[3]});
     });
-    let q=pos(rows.length);
-    btn(q.x,q.y,bw,h,resetArmed?tr('PRESS_RESET'):tr('RESET_PROGRESS'),()=>{
-      if(!resetArmed){resetArmed=true;return;}
-      Object.assign(save,{best:{EASY:0,NORMAL:0,HARD:0,EXTREME:0},games:0,flaps:0,pipes:0,earnedCoins:0,ach:{}});
-      cfg.skin=0;profile.av.skin=0;wallet.coins=0;wallet.owned=[];wallet.maps=[];wallet.trails=[];cfg.map='CITY';cfg.trail='NONE';saveProfile();saveWallet();saveGame();saveCfg();resetArmed=false;
-    },{id:'reset',size:fs,danger:true});
-    q=pos(rows.length+1);
-    btn(q.x,q.y,bw,h,tr('BACK'),back,{size:fs,secondary:true});
+    if(settingsTab==='KEYBOARD'){
+      const noteY=y0+per*(rh+4)+13;
+      txtFit(tr(bindingCapture?'KEY_CAPTURE_HELP':'KEY_HELP'),W/2,noteY,10,W-30,'#bfd0e1','center',false);
+      txtFit(tr('MP_PAUSE_HELP'),W/2,noteY+19,9,W-30,'#98adc5','center',false);
+    }
+    btn(W/2-70,H-34,140,26,tr('BACK'),()=>{if(bindingCapture){bindingCapture=null;return;}back();},{size:11,secondary:true});
   }
 
   function drawAch() {
@@ -3340,7 +3385,7 @@ function toggleFS() {
 
     if (state === 'READY' && !screen) {
       const py = L ? 250 : 320;
-      if (blink) txt(tr('SPACE_CLICK_TAP'), W / 2, py, cfg.lang === 'EN' ? 16 : 12);
+      if (blink) txt(keyLabel(cfg.keyBindings.flap)+' / '+tr('SPACE_CLICK_TAP').split(' / ').slice(1).join(' / '), W / 2, py, cfg.lang === 'EN' ? 16 : 12);
       txt(tr('BEST') + ' ' + bestNow(), W / 2, py + 30, 16);
     }
 
@@ -3380,7 +3425,7 @@ function toggleFS() {
     if (screen === 'PREVIEW') drawPreview();
 
     if (screen === 'MENU' || (!screen && state !== 'GAMEOVER'))
-      txt(tr('PAUSE_HINT') + '  M: ' + (cfg.muted ? tr('UNMUTE') : tr('MUTE')) + '  ' + tr('FULLSCREEN_HINT'), W / 2, H - 14, 8, '#f3e3c7', 'center', false);
+      txt(keyLabel(cfg.keyBindings.pause)+': '+tr('KEY_PAUSE')+'  '+keyLabel(cfg.keyBindings.mute)+': '+(cfg.muted?tr('UNMUTE'):tr('MUTE'))+'  '+keyLabel(cfg.keyBindings.fullscreen)+': '+tr('KEY_FULLSCREEN'), W / 2, H - 14, 8, '#f3e3c7', 'center', false);
 
     if (toasts.length) {
       const t = toasts[0], k = Math.min(1, ((t.duration || (t.duration = t.t)) - t.t) / 12, t.t / 12), w = 220, y = Math.round(H + 4 - 46 * k), x = Math.round(W / 2 - w / 2);
@@ -3427,6 +3472,7 @@ function toggleFS() {
     drawBackground();
     drawMapDetail();
     drawAtmos();
+    drawBackgroundDim(!screen||screen==='PAUSE');
     for (const p of pipes) {
       drawPipe(p);
       if (!p.coinTaken) drawCoin(p.x + PW / 2, p.top + p.gap / 2);
@@ -3513,26 +3559,36 @@ function toggleFS() {
     if (window.flyingBirdMpRaceActive || window.flyingBirdCampaignActive || editing ||
         e.target.closest?.('input, textarea, select, button, [contenteditable="true"]') ||
         document.querySelector('[role="dialog"]:not([hidden])')) return;
-    const k = e.code, nav = screen || state === 'GAMEOVER', n = btns.length || 1;
-    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'KeyW', 'KeyS'].includes(k)) e.preventDefault();
-    if (e.repeat && !(nav && (k === 'ArrowLeft' || k === 'ArrowRight'))) return;
-    initAudio();
-    if (k === 'KeyM') { cfg.muted = !cfg.muted; saveCfg(); return; }
-    if (k === 'KeyF') { toggleFS(); return; }
-    if (nav) {
-      const b = btns[focus];
-      if (k === 'ArrowUp' || k === 'KeyW') focus = (focus - 1 + n) % n;
-      else if (k === 'ArrowDown' || k === 'KeyS') focus = (focus + 1) % n;
-      else if ((k === 'ArrowLeft' || k === 'ArrowRight') && b && b.adj) { resetArmed = false; b.fn(k === 'ArrowLeft' ? -1 : 1, true); }
-      else if (k === 'Space' || k === 'Enter') press(focus);
-      else if (k === 'Escape' || k === 'KeyP') { if (screen) back(); else toMenu(); }
+    const k=e.code,nav=screen||state==='GAMEOVER',n=btns.length||1;
+    if(e.ctrlKey||e.metaKey||e.altKey)return;
+    if(bindingCapture&&screen==='SETTINGS'){
+      e.preventDefault();if(e.repeat)return;
+      if(k==='Escape'){bindingCapture=null;return;}
+      const result=window.HighFlyPreferences.bind(cfg,bindingCapture,k);
+      if(result==='OK'){bindingCapture=null;saveCfg();}
+      else toasts.push({text:tr(result==='CONFLICT'?'KEY_CONFLICT':'KEY_INVALID'),plain:true,t:150});
       return;
     }
-    if (k === 'Space' || k === 'ArrowUp' || k === 'KeyW' || k === 'Enter') act();
-    else if ((k === 'Escape' || k === 'KeyP') && state === 'PLAYING') { screen = 'PAUSE'; focus = 0; }
+    const action=window.flyingBirdInputAction(k);
+    if(action||['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter','KeyW','KeyS'].includes(k))e.preventDefault();
+    if(e.repeat&&!(nav&&(k==='ArrowLeft'||k==='ArrowRight')))return;
+    initAudio();
+    if(nav){
+      const b=btns[focus];
+      if(k==='ArrowUp'||k==='KeyW')focus=(focus-1+n)%n;
+      else if(k==='ArrowDown'||k==='KeyS')focus=(focus+1)%n;
+      else if((k==='ArrowLeft'||k==='ArrowRight')&&b&&b.adj){resetArmed=false;b.fn(k==='ArrowLeft'?-1:1,true);}
+      else if(k==='Space'||k==='Enter')press(focus);
+      else if(k==='Escape'||action==='pause'){if(screen)back();else toMenu();}
+      else if(action==='mute'||action==='fullscreen')window.flyingBirdUtilityAction(action);
+      return;
+    }
+    if(action==='flap')act();
+    else if(action==='pause'&&state==='PLAYING'){screen='PAUSE';focus=0;}
+    else if(action==='mute'||action==='fullscreen')window.flyingBirdUtilityAction(action);
   });
   window.flyingBirdPauseForOverlay=()=>{if(state==='PLAYING'&&!screen){screen='PAUSE';focus=0;}};
-  window.addEventListener('blur', () => { if (state === 'PLAYING' && !screen) { screen = 'PAUSE'; focus = 0; } });
+  window.addEventListener('blur', () => { bindingCapture=null; if (state === 'PLAYING' && !screen) { screen = 'PAUSE'; focus = 0; } });
 
   // ---------- Sizing: picks portrait or 16:9 by window shape ----------
   function fit() {
@@ -3657,10 +3713,7 @@ fit();
   }
   // Only limits that divide the refresh rate evenly (e.g. 120 Hz -> 60, 40, 30) give even frame pacing.
   function fpsOptions() {
-    const hz = displayHz(), list = ['MAX', String(hz)];
-    if (cfg.fps !== 'MAX' && !list.includes(cfg.fps)) list.push(cfg.fps);
-    for (let k = 2; k <= 4; k++) { const v = String(Math.round(hz / k)); if (+v >= 30 && !list.includes(v)) list.push(v); }
-    return list;
+    return window.HighFlyPreferences.fpsOptions(displayHz(),cfg.fps);
   }
 
   const prev = { by: 0, br: 0, gx: 0, bx: 0 };
@@ -3777,6 +3830,8 @@ fit();
     for(const player of scene.birds||[]){
       if(!player.id)continue;
       const id=String(player.id),type=String(player.trail||'NONE');present.add(id);
+      const remoteStyle=window.HighFlyPreferences.remoteStyle(cfg,id,scene.localPlayerId);
+      if(remoteStyle==='OFF'||!enabled){multiplayerTrailTracks.delete(id);continue;}
       let track=multiplayerTrailTracks.get(id);
       if(!track){track={particles:[],emission:0,type};multiplayerTrailTracks.set(id,track)}
       if(track.type!==type){track.particles=[];track.emission=0;track.type=type}
@@ -3787,8 +3842,8 @@ fit();
       }
       track.particles=track.particles.filter(p=>p.life>0);
       if(enabled&&def&&player.active!==false){
-        const premium=PREMIUM_TRAIL_IDS.has(type);
-        track.emission+=(ELITE_TRAIL_IDS.has(type)?Math.max(.55,quality*.52):premium?Math.max(.7,quality*.67):quality)*dt;
+        const premium=PREMIUM_TRAIL_IDS.has(type)&&remoteStyle!=='SIMPLE';
+        track.emission+=(remoteStyle==='SIMPLE'?.55:ELITE_TRAIL_IDS.has(type)?Math.max(.55,quality*.52):premium?Math.max(.7,quality*.67):quality)*dt;
         const count=Math.min(9,Math.floor(track.emission));track.emission-=count;
         for(let i=0;i<count;i++){
           if(type==='HEART'&&Math.random()<.5)continue;
@@ -3799,18 +3854,18 @@ fit();
             size:premium?3+Math.random()*2.1:2+Math.random()*3,k:type,i:Math.floor(now/16)+i,
             opacity:Math.max(0,Math.min(1,Number(player.alpha??1)))});
         }
-        const maxPerBird=ELITE_TRAIL_IDS.has(type)?(quality===1?28:quality===2?42:56):120;
+        const maxPerBird=remoteStyle==='SIMPLE'?12:ELITE_TRAIL_IDS.has(type)?(quality===1?28:quality===2?42:56):120;
         if(track.particles.length>maxPerBird)track.particles.splice(0,track.particles.length-maxPerBird);
       }
-      if(type==='CONSTELLATION')constellationLinks(track.particles);
+      if(type==='CONSTELLATION'&&remoteStyle!=='SIMPLE')constellationLinks(track.particles);
       for(const p of track.particles){
         const alpha=Math.max(0,p.life/p.max)*p.opacity;
-        if(NEWTR[p.k])trailMark(p.k,p.x,p.y,p.size,p.i,alpha,ticks);
+        if(NEWTR[p.k]&&remoteStyle!=='SIMPLE')trailMark(p.k,p.x,p.y,p.size,p.i,alpha,ticks);
         else{
           g.globalAlpha=alpha;g.fillStyle=p.col;
           g.fillRect(Math.round(p.x),Math.round(p.y),Math.max(1,Math.round(p.size)),Math.max(1,Math.round(p.size)));
           // A subtle inner sparkle makes classic trails match the lively solo particle effect.
-          if(p.size>=3&&p.i%3===0){g.globalAlpha=alpha*.5;g.fillStyle='#fff';g.fillRect(Math.round(p.x)+1,Math.round(p.y)+1,1,1)}
+          if(remoteStyle!=='SIMPLE'&&p.size>=3&&p.i%3===0){g.globalAlpha=alpha*.5;g.fillStyle='#fff';g.fillRect(Math.round(p.x)+1,Math.round(p.y)+1,1,1)}
           g.globalAlpha=1;
         }
       }
@@ -3834,7 +3889,7 @@ fit();
         g.setTransform(destination.canvas.width/world.w,0,0,destination.canvas.height/world.h,0,0);
         g.imageSmoothingEnabled=false;
         g.clearRect(0,0,W,H);
-        drawBackground();drawMapDetail();drawAtmos();
+        drawBackground();drawMapDetail();drawAtmos();drawBackgroundDim(true);
         for(const pipe of (scene.pipes||[]))drawPipe(pipe);
         drawGround();
         drawMultiplayerTrails(scene,g);

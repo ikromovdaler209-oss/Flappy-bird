@@ -81,3 +81,85 @@ const skull={map:'NECROPOLIS',w:640,h:312,quality:3,tick:90};
 assert.ok(capturePass(art.flyingBirdMythicArt,{...skull,graphicsQuality:'ULTRA'}).includes('#ff294d'));
 assert.ok(!capturePass(art.flyingBirdMythicArt,{...skull,graphicsQuality:'HIGH'}).includes('#ff294d'));
 console.log('PASS 21 maps × 4 presets × 3 sizes: distinct detail, finite geometry, static previews, reduced motion, effects off, Ultra storm rate and skull sockets');
+
+// Preferences must survive reload/migration without altering cosmetic ownership.
+const preferences=globalThis.HighFlyPreferences;
+for(const legacy of [{},{fx:true},{particleQuality:'OFF'},{effectsIntensity:'BALANCED',graphicsQuality:'ULTRA'}]){
+ const cfg={...legacy,wallet:{coins:50},map:'NECROPOLIS'};
+ preferences.normalize(cfg);
+ const roundTrip=JSON.parse(JSON.stringify(cfg));preferences.normalize(roundTrip);
+ assert.deepEqual(roundTrip,cfg);assert.equal(cfg.map,'NECROPOLIS');assert.equal(cfg.wallet.coins,50);
+ assert.equal(new Set(Object.values(cfg.keyBindings)).size,4);
+}
+const cfg={};preferences.normalize(cfg);
+assert.equal(preferences.bind(cfg,'flap','KeyM'),'CONFLICT');assert.equal(cfg.keyBindings.flap,'Space');
+assert.equal(preferences.bind(cfg,'flap','Escape'),'INVALID');assert.equal(preferences.bind(cfg,'flap','KeyB'),'OK');
+assert.equal(preferences.action(cfg,'KeyB'),'flap');assert.equal(preferences.action(cfg,'Space'),null);
+assert.equal(preferences.action(cfg,'KeyW'),null);assert.equal(preferences.action(cfg,'Escape'),'pause');
+assert.equal(preferences.bind(cfg,'mute','KeyW'),'OK');assert.equal(preferences.action(cfg,'KeyW'),'mute');
+const broken={keyBindings:{flap:'KeyM',mute:'KeyM',pause:'Escape',fullscreen:null}};preferences.normalize(broken);
+assert.equal(new Set(Object.values(broken.keyBindings)).size,4);assert.equal(broken.keyBindings.flap,'KeyM');
+assert.ok(!Object.values(broken.keyBindings).includes('Escape'));
+for(const intensity of ['FULL','BALANCED','MINIMAL']){
+ const p={graphicsQuality:'ULTRA',effectsIntensity:intensity};preferences.normalize(p);
+ assert.equal(p.graphicsQuality,'ULTRA');assert.equal(p.fx,intensity==='MINIMAL');
+ assert.equal(preferences.effectScale(p),{FULL:1,BALANCED:.45,MINIMAL:0}[intensity]);
+}
+for(const rate of [60,120,144,165]){
+ const limits=preferences.fpsOptions(rate,'75');
+ for(const limit of ['60','120','MAX','75'])assert.ok(limits.includes(limit));
+ assert.equal(limits.length,new Set(limits).size);
+}
+for(const style of ['FULL','SIMPLE','OFF']){
+ assert.equal(preferences.remoteStyle({otherPlayerEffects:style},'me','me'),'FULL');
+ assert.equal(preferences.remoteStyle({otherPlayerEffects:style},'friend','me'),style);
+}
+// Run the real preview function with drawing stubs, including its error path:
+// selected map, camera, clock, dimensions and gradient cache must be restored.
+const previewCode=source.slice(source.indexOf('  function drawSettingsPreview('),source.indexOf('  function drawSettings()'));
+for(const throwInDraw of [false,true]){
+ const previewScope={window:{},Math,performance:{now:()=>1000},particleReducedMotion:{matches:false},
+ cfg:{map:'CITY',fx:false,skin:0},settingsPreviewMap:'TEMPEST',W:320,H:480,GROUND:430,L:false,ticks:42,bgX:7,groundX:9,hzK:'original',hzG:'haze',vgG:'vignette',SKINS:[{}],depth:0};
+ previewScope.ctx=new Proxy({}, {get:(_,key)=>(...args)=>{if(key==='save')previewScope.depth++;if(key==='restore')previewScope.depth--;},set:()=>true});
+ for(const name of ['drawMapDetail','drawAtmos','drawBackgroundDim','drawPipe','drawGround','birdShapes'])previewScope[name]=()=>{};
+ previewScope.drawBackground=()=>{assert.equal(previewScope.cfg.map,'TEMPEST');if(throwInDraw)throw Error('draw failure');};
+ vm.runInNewContext(previewCode+'\ntry{drawSettingsPreview(0,0,200,110)}catch(e){if(e.message!=="draw failure")throw e}',previewScope);
+ assert.equal(previewScope.cfg.map,'CITY');assert.equal(previewScope.ticks,42);assert.equal(previewScope.bgX,7);
+ assert.equal(previewScope.W,320);assert.equal(previewScope.GROUND,430);assert.equal(previewScope.hzK,'original');assert.equal(previewScope.depth,0);
+}
+console.log('PASS preference migration/reload, binding conflicts and aliases, FPS options, own/remote effects, preview isolation including render failure');
+
+// Run the real MP trail renderer: hiding other trails must leave own particles alive.
+const trailStart=source.indexOf('  const multiplayerTrailTracks =');
+const trailEnd=source.indexOf('  window.flyingBirdMultiplayerArt =',trailStart);
+const trailCode=source.slice(trailStart,trailEnd);
+let testNow=1000;
+const trailScope={window:{HighFlyPreferences:preferences},Map,Set,Math,performance:{now:()=>testNow},
+ cfg:{fx:false,particleQuality:'AUTO',otherPlayerEffects:'FULL'},particleLevel:()=>3,
+ TRAILS:[{id:'FIRE',colors:['#ff9900']}],PREMIUM_TRAIL_IDS:new Set(),ELITE_TRAIL_IDS:new Set(),NEWTR:{},
+ advanceTrailParticle:()=>{},constellationLinks:()=>{},ticks:100};
+const trailCtx=new Proxy({}, {get:()=>()=>{},set:()=>true});
+trailScope.scene={matchId:'test',world:{w:640,h:360},localPlayerId:'me',birds:[{id:'me',trail:'FIRE',x:100,y:100,active:true},{id:'friend',trail:'FIRE',x:100,y:140,active:true}]};
+trailScope.g=trailCtx;
+vm.createContext(trailScope);vm.runInContext(trailCode,trailScope);
+const runTrail=()=>{testNow+=17;vm.runInContext('drawMultiplayerTrails(scene,g)',trailScope);};
+for(let i=0;i<15;i++)runTrail();
+assert.ok(vm.runInContext('multiplayerTrailTracks.get("me").particles.length>0&&multiplayerTrailTracks.get("friend").particles.length>0',trailScope));
+trailScope.cfg.otherPlayerEffects='OFF';runTrail();
+assert.equal(vm.runInContext('multiplayerTrailTracks.has("friend")',trailScope),false);
+assert.ok(vm.runInContext('multiplayerTrailTracks.get("me").particles.length>0',trailScope));
+trailScope.cfg.otherPlayerEffects='SIMPLE';for(let i=0;i<30;i++)runTrail();
+assert.ok(vm.runInContext('multiplayerTrailTracks.get("friend").particles.length<=12',trailScope));
+trailScope.cfg.fx=true;runTrail();assert.equal(vm.runInContext('multiplayerTrailTracks.size',trailScope),0);
+// Actual MP keyboard listener shares rebound keys and never pauses network simulation.
+const mpSource=readFileSync(new URL('../src/multiplayer/multiplayer.js',import.meta.url),'utf8');
+const listenerStart=mpSource.indexOf("window.addEventListener('keydown',e=>{\n if(!race");
+const listenerEnd=mpSource.indexOf('},true);',listenerStart)+9;
+let handler,flaps=0,exits=0,utilities=0;
+const mpScope={race:{},raceUI:{hidden:false},raceFlap:()=>flaps++,raceExitPrompt:()=>exits++,window:{
+ addEventListener:(_,fn)=>handler=fn,flyingBirdInputAction:code=>preferences.action(cfg,code),flyingBirdUtilityAction:()=>utilities++}};
+vm.runInNewContext(mpSource.slice(listenerStart,listenerEnd),mpScope);
+const key=(code,extra={})=>handler({code,target:{closest:()=>false},preventDefault(){},stopImmediatePropagation(){},...extra});
+key('KeyB');key('Space');key('KeyB',{repeat:true});key('KeyB',{metaKey:true});
+assert.equal(flaps,1);key('Escape');assert.equal(exits,1);key('KeyW');assert.equal(utilities,1);
+console.log('PASS actual MP renderer filters only remote trails; MP keyboard honors remapping, repeat and browser shortcuts');

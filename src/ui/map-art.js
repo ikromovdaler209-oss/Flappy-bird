@@ -152,7 +152,8 @@
     const {x=0,y=0,w,h}=s;
     if(!(w>0&&h>0))return;
     const c=worlds[s.map],q=Math.max(0,Math.min(3,s.quality|0));
-    const ultra=s.graphicsQuality==='ULTRA'&&!s.highContrast;
+    const effectScale=Number.isFinite(s.effectScale)?Math.max(0,Math.min(1,s.effectScale)):1;
+    const ultra=s.graphicsQuality==='ULTRA'&&!s.highContrast&&effectScale>0;
     const low=s.graphicsQuality==='LOW';
     const detailed=['HIGH','ULTRA'].includes(s.graphicsQuality);
     const t=(s.staticCard||s.reducedMotion)?0:(s.tick||0);
@@ -164,7 +165,7 @@
     const poly=(col,pts)=>{g.fillStyle=col;g.beginPath();g.moveTo(pts[0],pts[1]);for(let i=2;i<pts.length;i+=2)g.lineTo(pts[i],pts[i+1]);g.closePath();g.fill()};
     const circ=(col,cx,cy,r)=>{g.fillStyle=col;g.beginPath();g.arc(cx,cy,Math.max(.1,r),0,TAU);g.fill()};
     const ring=(col,cx,cy,r,width=1,a=0,b=TAU)=>{g.strokeStyle=col;g.lineWidth=width;g.beginPath();g.arc(cx,cy,r,a,b);g.stroke()};
-    const glow=(cx,cy,r,color)=>{if(!q)return;const grd=g.createRadialGradient(cx,cy,0,cx,cy,r);grd.addColorStop(0,color);grd.addColorStop(1,'rgba(0,0,0,0)');rect(grd,cx-r,cy-r,2*r,2*r)};
+    const glow=(cx,cy,r,color)=>{if(!q)return;g.save();g.globalAlpha=effectScale;const grd=g.createRadialGradient(cx,cy,0,cx,cy,r);grd.addColorStop(0,color);grd.addColorStop(1,'rgba(0,0,0,0)');rect(grd,cx-r,cy-r,2*r,2*r);g.restore()};
     const tile=(step,velocity,fn)=>{const off=scroll*velocity,first=Math.floor(off/step)-1;for(let i=first;i<=first+Math.ceil(w/step)+2;i++)fn(x+i*step-off,i)};
     // Surface detail belongs to scenery, never the moving particle budget.
     const masonry=(bx,by,bw,bh,color)=>{
@@ -213,13 +214,13 @@
         for(let j=0;j<3;j++)rect('#a1c7d6',bx+(11+j*14)*k,floor-bh+14*k,4*k,6*k);
       });
       // Ultra: three spatially separated branches per slow storm cycle; no full-screen flash.
-      const lightningCycle=ultra?240:430;
+      const lightningCycle=ultra&&effectScale===1?240:430;
       const phase=mod(t,lightningCycle);
-      const strikeCount=ultra?3:1;
+      const strikeCount=ultra&&effectScale===1?3:1;
       for(let strike=0;strike<strikeCount;strike++)if(q>0&&!s.highContrast&&!s.reducedMotion && (s.staticCard || (phase>=86+strike*22&&phase<93+strike*22))){
         const sx=x+w*(strike===0?.31:strike===1?.70:.51),sy=y+h*.04;
         const points=[[sx,sy],[sx+13*k,sy+29*k],[sx+1*k,sy+43*k],[sx+25*k,sy+70*k],[sx+13*k,sy+97*k]];
-        if(q>1){g.shadowColor='#9de5ff';g.shadowBlur=17*k;}
+        if(q>1&&effectScale===1){g.shadowColor='#9de5ff';g.shadowBlur=17*k;}
         g.strokeStyle='#e5faff';g.lineWidth=Math.max(1.5,2*k);g.beginPath();g.moveTo(...points[0]);for(let j=1;j<points.length;j++)g.lineTo(...points[j]);g.stroke();g.shadowBlur=0;
         line('rgba(190,242,255,.65)',sx+1*k,sy+43*k,sx-18*k,sy+68*k,1.5*k);
         // Local light keeps the playable corridor readable.

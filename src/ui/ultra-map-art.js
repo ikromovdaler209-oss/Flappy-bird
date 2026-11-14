@@ -29,7 +29,8 @@
   function draw(g, scene) {
     const theme = themes[scene.map];
     if (!['HIGH','ULTRA'].includes(scene.quality) || !theme || scene.highContrast) return;
-    const ultra=scene.quality==='ULTRA'&&scene.effects!==false;
+    const effectScale=Number.isFinite(scene.effectScale)?Math.max(0,Math.min(1,scene.effectScale)):1;
+    const ultra=scene.quality==='ULTRA'&&scene.effects!==false&&effectScale>0;
     const w = Number(scene.w), h = Number(scene.ground);
     if (!(w > 0 && h > 0)) return;
     const frozen = scene.staticCard || scene.reducedMotion || scene.effects === false;
@@ -195,7 +196,7 @@
             break;
         }
         if(ultra){
-          const pulse=.68+.18*Math.sin(time*.018+i);
+          const pulse=(.68+.18*Math.sin(time*.018+i))*effectScale;
           const glow=(cx,cy,r,color)=>{
             const gradient=g.createRadialGradient(cx,cy,0,cx,cy,r);
             gradient.addColorStop(0,color);gradient.addColorStop(1,'rgba(0,0,0,0)');
@@ -212,13 +213,13 @@
             case 'NEON': case 'CYBERPUNK':
               glow(0,-24,28,'rgba(91,225,255,.28)');g.strokeStyle='#ffa1e2';g.globalAlpha=pulse;line(-12,-30+Math.sin(time*.015+i)*10,12,-30+Math.sin(time*.015+i)*10);wash('#66eaff',8);break;
             case 'OCEAN':
-              g.strokeStyle='#b5fff1';g.globalAlpha=.40;
+              g.strokeStyle='#b5fff1';g.globalAlpha=.40*effectScale;
               for(let j=0;j<3;j++){const yy=5+j*5;g.beginPath();g.moveTo(-24,yy);g.quadraticCurveTo(Math.sin(time*.012+i+j)*12,yy-12,35,yy);g.stroke();line(-20,yy,-8,yy-7);line(15,yy-4,29,yy+2);}break;
             case 'COSMIC': glow(0,-48,32,'rgba(155,121,255,.25)');break;
             case 'FOREST': glow(-5,-7,15,'rgba(186,237,114,.35)');glow(9,-2,10,'rgba(137,224,150,.25)');break;
             case 'CRYSTAL': case 'PRISM':
               glow(-9,-16,24,'rgba(133,229,255,.30)');g.strokeStyle='#fff5e2';g.globalAlpha=pulse;line(-9,-23,-4,-10);wash('#c4c0ff',9);break;
-            case 'DESERT': wash('#ffdfab',12);glow(0,-5,20,'rgba(255,178,82,.40)');g.strokeStyle='#f5c381';g.globalAlpha=.25;for(let shimmer=0;shimmer<3;shimmer++)line(-28,3+shimmer*4+Math.sin(time*.025+i+shimmer)*2,28,3+shimmer*4);break;
+            case 'DESERT': wash('#ffdfab',12);glow(0,-5,20,'rgba(255,178,82,.40)');g.strokeStyle='#f5c381';g.globalAlpha=.25*effectScale;for(let shimmer=0;shimmer<3;shimmer++)line(-28,3+shimmer*4+Math.sin(time*.025+i+shimmer)*2,28,3+shimmer*4);break;
             case 'CELESTIAL': glow(0,-49,24,'rgba(255,226,140,.40)');wash('#fff2c4',5);break;
             case 'MYSTIC': glow(0,-12,28,'rgba(103,255,204,.30)');break;
             case 'SHATTERED': glow(0,-18,22,'rgba(181,119,255,.28)');break;
