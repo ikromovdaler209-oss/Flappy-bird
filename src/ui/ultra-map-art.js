@@ -1,5 +1,5 @@
-// Decorative Ultra pass. All geometry is behind obstacles and players.
-// Counts are bounded; effects are calculated from scene time without particle queues.
+// High landmark detail and Ultra environmental lighting. No extra airborne particles. All geometry is behind obstacles and players.
+// Bounded landmark geometry; Ultra light is attached to scenery, not particle queues.
 (() => {
   const themes = Object.freeze({
     CITY: ['#ffd99b', 'dust'],
@@ -28,13 +28,14 @@
 
   function draw(g, scene) {
     const theme = themes[scene.map];
-    if (scene.quality !== 'ULTRA' || !theme || scene.highContrast) return;
+    if (!['HIGH','ULTRA'].includes(scene.quality) || !theme || scene.highContrast) return;
+    const ultra=scene.quality==='ULTRA'&&scene.effects!==false;
     const w = Number(scene.w), h = Number(scene.ground);
     if (!(w > 0 && h > 0)) return;
     const frozen = scene.staticCard || scene.reducedMotion || scene.effects === false;
-    const time = frozen ? 0 : Math.max(0, Number(scene.tick) || 0);
-    const distance = frozen ? 0 : Math.max(0, Number(scene.distance) || 0);
-    const [accent, effect] = theme;
+    const time = frozen || !ultra ? 0 : Math.max(0, Number(scene.tick) || 0);
+    const distance = scene.staticCard ? 0 : Math.max(0, Number(scene.distance) || 0);
+    const [accent] = theme;
     const scale = Math.min(1.3, Math.max(.35, h / 312));
     const line = (x, y, x2, y2, width = 1) => {
       g.lineWidth = width;
@@ -61,7 +62,7 @@
         const unit = scale;
         g.save();
         g.translate(x, y); g.scale(unit, unit);
-        g.globalAlpha = .44;
+        g.globalAlpha = .68;
         switch (scene.map) {
           case 'CITY':
             line(0, 0, 0, -36); line(0, -36, 13, -36);
@@ -85,6 +86,7 @@
             }
             break;
           case 'NEON':
+            g.fillStyle='#1b2c48';g.fillRect(-15,-40,30,30);
             g.strokeRect(-15, -40, 30, 30);
             line(-11, -32, 9, -32, 2); line(-11, -25, 4, -25, 2);
             g.globalAlpha = .12; g.fillRect(-15, 7, 30, 3); g.fillRect(-10, 12, 20, 2);
@@ -119,6 +121,7 @@
             g.strokeStyle = '#ffffff'; line(-9, -25, -9, 10);
             break;
           case 'DESERT':
+            g.fillStyle='#775442';g.fillRect(-18,-23,36,34);g.strokeStyle='#c49b69';
             g.strokeRect(-18, -23, 36, 34); line(-18, -24, 0, -38); line(0, -38, 18, -24);
             g.strokeRect(-4, -5, 8, 16); line(-22, 14, 24, 14);
             break;
@@ -129,6 +132,7 @@
             g.globalAlpha = .14; circle(0, -49, 10);
             break;
           case 'CYBERPUNK':
+            g.fillStyle='#1b2446';g.fillRect(-18,-42,36,45);
             g.strokeRect(-18, -42, 36, 45);
             for (let j = 0; j < 4; j++) {
               g.globalAlpha = .18 + .12 * (1 + Math.sin(time * .025 + j + i));
@@ -183,44 +187,51 @@
             g.closePath(); g.fill();
             break;
           case 'NECROPOLIS':
+            g.fillStyle='#2f1b28';g.fillRect(-13,-23,26,34);g.beginPath();g.arc(0,-23,13,Math.PI,0);g.fill();g.strokeStyle='#9b6873';
             g.strokeRect(-13, -23, 26, 34);
             g.beginPath(); g.arc(0, -23, 13, Math.PI, 0); g.stroke();
             line(0, -20, 0, -2); line(-6, -14, 6, -14);
             g.globalAlpha = .08; g.beginPath(); g.ellipse(5, 12, 30, 6, 0, 0, Math.PI * 2); g.fill();
             break;
         }
-        g.restore();
-      }
-
-      if (scene.effects === false) return;
-      const particles = Math.min(scene.staticCard ? 12 : 38, Math.max(8, Math.round(w / 18)));
-      for (let i = 0; i < particles; i++) {
-        const speed = .12 + i % 5 * .035;
-        const rises = ['bubble', 'ember', 'ash', 'firefly', 'spore', 'steam', 'wisp', 'cinder'].includes(effect);
-        const px = mod(i * 137.37 + Math.sin(time * .008 + i) * 8 - time * speed - distance * .05, w + 12) - 6;
-        const py = mod(i * 71.13 + time * speed * (rises ? -1 : 1), h);
-        const size = scale * (1 + i % 3 * .6);
-        g.save(); g.translate(px, py);
-        g.fillStyle = accent; g.strokeStyle = accent;
-        g.globalAlpha = .18 + .22 * (1 + Math.sin(time * .025 + i)) / 2;
-        switch (effect) {
-          case 'rain': line(0, 0, -3 * scale, 9 * scale); break;
-          case 'bubble': circle(0, 0, size * 2); break;
-          case 'petal': case 'feather':
-            g.rotate(time * .012 + i);
-            g.beginPath(); g.ellipse(0, 0, size * 2, size * .7, 0, 0, Math.PI * 2); g.fill(); break;
-          case 'shard': case 'prism': case 'rock':
-            g.rotate(i + time * .006); diamond(0, 0, size * 2); break;
-          case 'data': g.fillRect(0, 0, size, size * 4); g.fillRect(size * 2, size, size, size); break;
-          case 'star': line(-size * 2, 0, size * 2, 0); line(0, -size * 2, 0, size * 2); break;
-          case 'steam': case 'wisp': case 'spore':
-            g.globalAlpha *= .5;
-            g.beginPath(); g.ellipse(0, 0, size * 3, size * 1.8, i, 0, Math.PI * 2); g.fill(); break;
-          case 'sand': case 'ash': line(0, 0, size * 3, size); break;
-          default: g.fillRect(0, 0, size, size);
+        if(ultra){
+          const pulse=.68+.18*Math.sin(time*.018+i);
+          const glow=(cx,cy,r,color)=>{
+            const gradient=g.createRadialGradient(cx,cy,0,cx,cy,r);
+            gradient.addColorStop(0,color);gradient.addColorStop(1,'rgba(0,0,0,0)');
+            g.fillStyle=gradient;g.globalAlpha=pulse;g.fillRect(cx-r,cy-r,r*2,r*2);
+          };
+          const wash=(color,yy)=>{g.strokeStyle=color;g.globalAlpha=.24*pulse;
+            for(let row=0;row<3;row++)line(-18+row*3,yy+row*4,20-row*2,yy+row*4);};
+          switch(scene.map){
+            case 'CITY': glow(13,-32,20,'rgba(255,210,128,.45)');wash('#ffdc9c',8);break;
+            case 'MOUNTAINS': wash('#def5ff',-10);g.strokeStyle='#f0fcff';g.globalAlpha=pulse;line(-7,-12,0,-16,2);glow(0,-16,18,'rgba(188,230,255,.30)');break;
+            case 'VOLCANO': case 'VOLCANO_PLUS':
+              glow(4,0,26,'rgba(255,84,24,.40)');g.strokeStyle='#ffd18a';g.globalAlpha=pulse;line(-3,2,7,-10);break;
+            case 'SAKURA': glow(0,-22,25,'rgba(255,156,198,.25)');wash('#f4b4cd',10);break;
+            case 'NEON': case 'CYBERPUNK':
+              glow(0,-24,28,'rgba(91,225,255,.28)');g.strokeStyle='#ffa1e2';g.globalAlpha=pulse;line(-12,-30+Math.sin(time*.015+i)*10,12,-30+Math.sin(time*.015+i)*10);wash('#66eaff',8);break;
+            case 'OCEAN':
+              g.strokeStyle='#b5fff1';g.globalAlpha=.40;
+              for(let j=0;j<3;j++){const yy=5+j*5;g.beginPath();g.moveTo(-24,yy);g.quadraticCurveTo(Math.sin(time*.012+i+j)*12,yy-12,35,yy);g.stroke();line(-20,yy,-8,yy-7);line(15,yy-4,29,yy+2);}break;
+            case 'COSMIC': glow(0,-48,32,'rgba(155,121,255,.25)');break;
+            case 'FOREST': glow(-5,-7,15,'rgba(186,237,114,.35)');glow(9,-2,10,'rgba(137,224,150,.25)');break;
+            case 'CRYSTAL': case 'PRISM':
+              glow(-9,-16,24,'rgba(133,229,255,.30)');g.strokeStyle='#fff5e2';g.globalAlpha=pulse;line(-9,-23,-4,-10);wash('#c4c0ff',9);break;
+            case 'DESERT': wash('#ffdfab',12);glow(0,-5,20,'rgba(255,178,82,.40)');g.strokeStyle='#f5c381';g.globalAlpha=.25;for(let shimmer=0;shimmer<3;shimmer++)line(-28,3+shimmer*4+Math.sin(time*.025+i+shimmer)*2,28,3+shimmer*4);break;
+            case 'CELESTIAL': glow(0,-49,24,'rgba(255,226,140,.40)');wash('#fff2c4',5);break;
+            case 'MYSTIC': glow(0,-12,28,'rgba(103,255,204,.30)');break;
+            case 'SHATTERED': glow(0,-18,22,'rgba(181,119,255,.28)');break;
+            case 'TEMPEST': wash('#b6eaff',5);break;
+            case 'ECLIPSE_REALM': glow(0,-35,36,'rgba(255,139,65,.28)');break;
+            case 'CLOCKWORK': glow(0,-16,20,'rgba(255,194,96,.28)');g.strokeStyle='#ffe3a0';g.globalAlpha=pulse;line(-13,-16,-7,-25);break;
+            case 'AURORA': wash('#9affe0',5);break;
+            case 'NECROPOLIS': glow(0,-14,18,'rgba(183,23,51,.25)');break;
+          }
         }
         g.restore();
       }
+
     } finally { g.restore(); }
   }
   window.flyingBirdUltraArt = draw;

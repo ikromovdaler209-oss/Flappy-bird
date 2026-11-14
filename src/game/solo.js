@@ -2198,7 +2198,7 @@ if (!initialized) {
   const isNew=i=>i.kind==='BIRDS'?NEW_SKIN.has(i.name):NEW_ITEMS.has(i.kind+':'+i.id);
   function premiumArt(key,x,y,w,h,staticCard=false){
     if(MYTHIC_MAPS.has(key)){
-      window.flyingBirdMythicArt?.(ctx,{map:key,x,y,w,h,tick:ticks,distance:bgX,quality:particleLevel(),staticCard,reducedMotion:cfg.fx||particleReducedMotion.matches});
+      window.flyingBirdMythicArt?.(ctx,{map:key,x,y,w,h,tick:ticks,distance:bgX,quality:particleLevel(),graphicsQuality:cfg.graphicsQuality,highContrast:cfg.cb==='HIGH CONTRAST',staticCard,reducedMotion:cfg.fx||particleReducedMotion.matches});
       return;
     }
     if(ELITE_MAPS.has(key)){eliteArt(key,x,y,w,h,staticCard);return;}
@@ -2408,7 +2408,7 @@ if (!initialized) {
 
   function drawMapDetail(){
     window.flyingBirdMapArt?.(ctx,{map:cfg.map,w:W,ground:GROUND,tick:ticks,distance:bgX,
-      quality:particleLevel(),day:themeName()==='DAY',highContrast:cfg.cb==='HIGH CONTRAST',
+      quality:particleLevel(),graphicsQuality:cfg.graphicsQuality,day:themeName()==='DAY',highContrast:cfg.cb==='HIGH CONTRAST',
       reducedMotion:cfg.fx||particleReducedMotion.matches});
     window.flyingBirdUltraArt?.(ctx,{map:cfg.map,w:W,ground:GROUND,tick:ticks,distance:bgX,
       quality:cfg.graphicsQuality,highContrast:cfg.cb==='HIGH CONTRAST',
@@ -2455,7 +2455,7 @@ if (!initialized) {
     // Preserve proportions of foreground details on both tall and wide cards.
     const detailScale=Math.max(.01,(h-12)/312);
     ctx.save();ctx.translate(x,y);ctx.scale(detailScale,detailScale);
-    window.flyingBirdMapArt?.(ctx,{map:key,w:w/detailScale,ground:312,tick:0,distance:0,quality:0,day:false,reducedMotion:true});
+    window.flyingBirdMapArt?.(ctx,{map:key,w:w/detailScale,ground:312,tick:0,distance:0,quality:0,graphicsQuality:cfg.graphicsQuality,day:false,reducedMotion:true});
     ctx.restore();
     ctx.save();ctx.translate(x,y);
     window.flyingBirdUltraArt?.(ctx,{map:key,w,ground:h-12,quality:cfg.graphicsQuality,
