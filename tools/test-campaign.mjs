@@ -1,0 +1,41 @@
+/* Pure model tests; no Firebase credentials, network calls, or player data. */
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+const ctx={window:{}};vm.createContext(ctx);
+vm.runInContext(readFileSync(new URL('../src/campaign/model.js',import.meta.url),'utf8'),ctx);
+const m=ctx.window.HighFlyCampaignModel;
+assert.equal(m.chapters.length,13);
+assert.deepEqual(Array.from(m.acts,a=>a.count),[3,4,3,3]);
+assert.deepEqual(Array.from(m.chapters.filter(c=>c.finale),c=>c.number),[3,7,10,13]);
+assert.equal(new Set(m.chapters.map(c=>c.id)).size,13);
+for(const [i,c] of m.chapters.entries()){
+ assert.equal(c.previous,i?m.chapters[i-1].id:null);
+ assert.equal(c.release,'development');assert.equal(c.mapId,null);
+ assert.equal(m.access(c,m.empty()),i?'locked':'available');
+ for(const mode of ['solo','coop'])assert.equal(m.canStart(c,m.empty(),{landscape:true,mode,uid:'A',peer:m.empty()}),false,'No placeholder may launch');
+}
+const future=m.chapters.map(c=>({...c,release:'released',mapId:'future-map',bossId:'future-boss'}));
+const p=done=>({schema:1,completed:future.slice(0,done).map(c=>c.id),claimedActs:[]});
+assert.equal(m.canStart(future[0],p(0),{landscape:true,catalog:future}),true,'Guest solo is supported');
+assert.equal(m.canStart(future[0],p(0),{landscape:false,catalog:future}),false,'Portrait never starts');
+assert.equal(m.canStart(future[0],p(0),{landscape:true,catalog:future,mode:'coop',peer:p(0)}),false,'Co-op requires account');
+assert.equal(m.canStart(future[2],p(4),{landscape:true,catalog:future,mode:'coop',uid:'A',peer:p(2)}),true,'Players on 5 and 3 may play 3');
+assert.equal(m.canStart(future[4],p(4),{landscape:true,catalog:future,mode:'coop',uid:'A',peer:p(2)}),false,'Cannot skip peer progression');
+assert.equal(m.normalize({...p(0),completed:['chapter-13']},future).completed.length,0,'Reject skipped completion');
+assert.equal(m.normalize(p(13)).completed.length,0,'Unreleased chapters cannot become completed');
+assert.equal(m.normalize({...p(2),claimedActs:['act-1']},future).claimedActs.length,0);
+assert.equal(m.normalize({...p(3),claimedActs:['act-1']},future).claimedActs.length,1);
+const saved=new Map([['flyingBirdWallet','untouched'],['flyingBirdSave','untouched']]);
+const store={getItem:k=>saved.get(k)??null,setItem:(k,v)=>saved.set(k,v)};
+assert.equal(m.selectChapter(store,null,'chapter-06').saved,true);
+assert.equal(m.selectChapter(store,'A','chapter-09').saved,true);
+assert.equal(m.read(store,null).selectedChapter,'chapter-06');assert.equal(m.read(store,'A').selectedChapter,'chapter-09');assert.equal(m.read(store,'B').selectedChapter,'chapter-01');
+assert.equal(saved.get('flyingBirdWallet'),'untouched');assert.equal(saved.get('flyingBirdSave'),'untouched');
+const writes=saved.size;assert.equal(m.selectChapter(store,null,'not-a-chapter').saved,false);assert.equal(saved.size,writes);
+saved.set(m.storageKey('corrupt'),'{broken');assert.equal(m.read(store,'corrupt').selectedChapter,'chapter-01');
+assert.equal(m.selectChapter({getItem:()=>null,setItem:()=>{throw Error('quota')}},null,'chapter-02').saved,false);
+assert.notEqual(m.storageKey(null),m.storageKey('guest'));assert.notEqual(m.storageKey('a/b'),m.storageKey('a%2Fb'));
+vm.runInContext(readFileSync(new URL('../src/campaign/localization.js',import.meta.url),'utf8'),ctx);
+for(const lang of ['EN','RU','ZH','ES','PT'])assert.ok(ctx.window.HighFlyCampaignText(lang,'previousUnlock',{n:12}).includes('12'));
+console.log('PASS campaign: 13 chapters, 3+4+3+3, linear access, launch gates, co-op 5/3, corrupt saves, isolated guest/UID selection, wallet preservation, storage failures, localization');

@@ -2827,18 +2827,23 @@ function toggleFS() {
     // Keep the title and the menu in separate vertical bands on both layouts.
     // The former BEST line is intentionally removed from the main menu; records
     // remain available on the difficulty and profile screens.
-    const bw = L ? 220 : 200, menuBh = L ? 40 : 30;
+    const bw = L ? 220 : 200, menuBh = L ? 34 : 26;
     const menuX = i => L ? W / 2 - bw - 10 + (i % 2) * (bw + 20) : W / 2 - bw / 2;
-    const menuY = i => L ? 114 + Math.floor(i / 2) * 48 : 190 + i * 32;
+    const menuY = i => L ? 104 + Math.floor(i / 2) * 43 : 184 + i * 28;
     const got = ACH.filter(a => save.ach[a.id]).length;
     btn(menuX(0), menuY(0), bw, menuBh, tr('PLAY'), () => { screen = 'MAPS'; mapPage = Math.floor(Math.max(0,MAP_KEYS.indexOf(cfg.map))/(L?4:3)); focus = 0; });
-    btn(menuX(1), menuY(1), bw, menuBh, tr('PROFILE'), () => { screen = 'PROFILE'; profileStatsPage = 0; window.flyingBirdMpStats?.refreshSelf?.(); focus = 0; });
-    btn(menuX(2), menuY(2), bw, menuBh, ({EN:'FRIENDS',RU:'ДРУЗЬЯ',ZH:'好友',ES:'AMIGOS',PT:'AMIGOS'})[cfg.lang]||'FRIENDS', () => window.flyingBirdOpenFriends?.());
-    btn(menuX(3), menuY(3), bw, menuBh, ({EN:'MULTIPLAYER',RU:'МУЛЬТИПЛЕЕР',ZH:'多人游戏',ES:'MULTIJUGADOR',PT:'MULTIJOGADOR'})[cfg.lang]||'MULTIPLAYER', () => window.flyingBirdOpenMultiplayer?.(), {size: 12});
-    btn(menuX(4), menuY(4), bw, menuBh, tr('ACHIEVEMENTS') + ' ' + got + '/' + ACH.length, () => { checkExpandedAchievements(false); achievementPage=0; screen = 'ACH'; focus = 0; }, { size: 12 });
-    btn(menuX(5), menuY(5), bw, menuBh, tr('SHOP'), () => { screen = 'SHOP'; focus = 0; });
-    btn(menuX(6), menuY(6), bw, menuBh, tr('INVENTORY'), () => { screen = 'INVENTORY'; focus = 0; });
-    btn(menuX(7), menuY(7), bw, menuBh, tr('SETTINGS'), () => { settingsFrom = 'MENU'; screen = 'SETTINGS'; focus = 0; });
+    btn(menuX(1), menuY(1), bw, menuBh, window.HighFlyCampaignText(cfg.lang,'menu'), () => {
+      if (window.HighFlyCampaign?.open(() => { screen='MENU'; focus=1; })) {
+        screen='CAMPAIGN'; focus=0; drawUI();
+      }
+    }, {size:12});
+    btn(menuX(2), menuY(2), bw, menuBh, tr('PROFILE'), () => { screen = 'PROFILE'; profileStatsPage = 0; window.flyingBirdMpStats?.refreshSelf?.(); focus = 0; });
+    btn(menuX(3), menuY(3), bw, menuBh, ({EN:'FRIENDS',RU:'ДРУЗЬЯ',ZH:'好友',ES:'AMIGOS',PT:'AMIGOS'})[cfg.lang]||'FRIENDS', () => window.flyingBirdOpenFriends?.());
+    btn(menuX(4), menuY(4), bw, menuBh, ({EN:'MULTIPLAYER',RU:'МУЛЬТИПЛЕЕР',ZH:'多人游戏',ES:'MULTIJUGADOR',PT:'MULTIJOGADOR'})[cfg.lang]||'MULTIPLAYER', () => window.flyingBirdOpenMultiplayer?.(), {size: 12});
+    btn(menuX(5), menuY(5), bw, menuBh, tr('ACHIEVEMENTS') + ' ' + got + '/' + ACH.length, () => { checkExpandedAchievements(false); achievementPage=0; screen = 'ACH'; focus = 0; }, { size: 12 });
+    btn(menuX(6), menuY(6), bw, menuBh, tr('SHOP'), () => { screen = 'SHOP'; focus = 0; });
+    btn(menuX(7), menuY(7), bw, menuBh, tr('INVENTORY'), () => { screen = 'INVENTORY'; focus = 0; });
+    btn(menuX(8), menuY(8), bw, menuBh, tr('SETTINGS'), () => { settingsFrom = 'MENU'; screen = 'SETTINGS'; focus = 0; });
   }
 
   // Unified cosmetics catalogue. The legacy numeric skin indices are preserved for cloud-save compatibility.
@@ -3455,7 +3460,7 @@ function toggleFS() {
     b.fn(1);
   }
   function pointer(p) {
-    if (!p || window.flyingBirdMpRaceActive) return;
+    if (!p || window.flyingBirdMpRaceActive || window.flyingBirdCampaignActive) return;
     if (uiHitboxesStale) {uiHitboxesStale=false;draw();}
     initAudio();
     uiHoverPoint={...p,touch:true,at:performance.now()};
@@ -3485,7 +3490,7 @@ function toggleFS() {
   canvas.addEventListener('pointercancel',()=>{uiHoverPoint=null;});
 
   window.addEventListener('keydown', e => {
-    if (window.flyingBirdMpRaceActive || editing ||
+    if (window.flyingBirdMpRaceActive || window.flyingBirdCampaignActive || editing ||
         e.target.closest?.('input, textarea, select, button, [contenteditable="true"]') ||
         document.querySelector('[role="dialog"]:not([hidden])')) return;
     const k = e.code, nav = screen || state === 'GAMEOVER', n = btns.length || 1;
@@ -3668,7 +3673,7 @@ fit();
     last = now;
     // In multiplayer the shared Canvas renderer runs its own animation loop.
     // Do not simulate/redraw the hidden solo world at the same time.
-    if (window.flyingBirdMpRaceActive) {
+    if (window.flyingBirdMpRaceActive || window.flyingBirdCampaignActive) {
       acc=0;
       loopRaf = requestAnimationFrame(loop);
       return;

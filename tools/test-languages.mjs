@@ -2,7 +2,7 @@ import {readFileSync,readdirSync} from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const languages=['EN','RU','ZH','ES','PT'];let dictionaries=0;
-for(const dir of ['src/game','src/ui','src/firebase','src/multiplayer'])for(const file of readdirSync(new URL('../'+dir+'/',import.meta.url)).filter(f=>f.endsWith('.js'))){
+for(const dir of ['src/game','src/ui','src/firebase','src/multiplayer','src/campaign'])for(const file of readdirSync(new URL('../'+dir+'/',import.meta.url)).filter(f=>f.endsWith('.js'))){
  const s=readFileSync(new URL('../'+dir+'/'+file,import.meta.url),'utf8');
  for(const m of s.matchAll(/(?:const|let)\s+(\w+)\s*=\s*\{/g)){
   const start=m.index+m[0].length-1;let level=0,quote='',escape=false,end=-1;
