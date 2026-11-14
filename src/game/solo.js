@@ -2757,7 +2757,8 @@ if (!initialized) {
     if(lobbySkinPicker && screen!=='PREVIEW'){const picker=lobbySkinPicker;window.flyingBirdCloseSkinInventory();picker.cancel();return;}
     if (screen === 'SETTINGS') { screen = settingsFrom; resetArmed = false; focus = 0; }
     else if (screen === 'ACH') { screen = 'MENU'; focus = 0; }
-    else if (screen === 'MAPS') { screen = 'MENU'; focus = 0; }
+    else if (screen === 'PLAY_MODE') { screen = 'MENU'; focus = 0; }
+    else if (screen === 'MAPS') { screen = 'PLAY_MODE'; focus = 0; }
     else if (screen === 'DIFFICULTY') { screen = 'MAPS'; focus = 0; }
     else if (screen === 'PREVIEW') { screen=previewReturn; focus=0; }
     else if (screen === 'PROFILE' || screen === 'SHOP' || screen === 'INVENTORY') { screen = 'MENU'; focus = 0; }
@@ -2814,6 +2815,25 @@ function toggleFS() {
     fullscreenUnavailable();
   }
 }
+  function drawPlayMode() {
+    ctx.fillStyle='rgba(11,17,39,.96)';ctx.fillRect(0,0,W,H);
+    titleFitted(tr('PLAY'),L?65:100,L?28:26);
+    const labels={
+      EN:{solo:'SOLO',multiplayer:'MULTIPLAYER'},
+      RU:{solo:'СОЛО',multiplayer:'МУЛЬТИПЛЕЕР'},
+      ZH:{solo:'单人模式',multiplayer:'多人游戏'},
+      ES:{solo:'EN SOLITARIO',multiplayer:'MULTIJUGADOR'},
+      PT:{solo:'SOLO',multiplayer:'MULTIJOGADOR'}
+    };
+    const text=labels[cfg.lang]||labels.EN;
+    const bw=L?260:240,bh=L?48:44,bx=W/2-bw/2,y=L?118:185;
+    btn(bx,y,bw,bh,text.solo,()=>{
+      screen='MAPS';mapPage=Math.floor(Math.max(0,MAP_KEYS.indexOf(cfg.map))/(L?4:3));focus=0;
+    },{size:15});
+    btn(bx,y+bh+16,bw,bh,text.multiplayer,()=>window.flyingBirdOpenMultiplayer?.(),{size:13});
+    btn(W/2-67,H-36,134,26,tr('BACK'),back,{size:11});
+  }
+
   function drawMenu() {
     if (L) {
       title('HIGH', W / 2 - 8, 70, 40, '#ffd23f', 'right');
@@ -2827,11 +2847,11 @@ function toggleFS() {
     // Keep the title and the menu in separate vertical bands on both layouts.
     // The former BEST line is intentionally removed from the main menu; records
     // remain available on the difficulty and profile screens.
-    const bw = L ? 220 : 200, menuBh = L ? 34 : 26;
+    const bw = L ? 220 : 200, menuBh = L ? 40 : 30;
     const menuX = i => L ? W / 2 - bw - 10 + (i % 2) * (bw + 20) : W / 2 - bw / 2;
-    const menuY = i => L ? 104 + Math.floor(i / 2) * 43 : 184 + i * 28;
+    const menuY = i => L ? 114 + Math.floor(i / 2) * 48 : 190 + i * 32;
     const got = ACH.filter(a => save.ach[a.id]).length;
-    btn(menuX(0), menuY(0), bw, menuBh, tr('PLAY'), () => { screen = 'MAPS'; mapPage = Math.floor(Math.max(0,MAP_KEYS.indexOf(cfg.map))/(L?4:3)); focus = 0; });
+    btn(menuX(0), menuY(0), bw, menuBh, tr('PLAY'), () => { screen = 'PLAY_MODE'; focus = 0; });
     btn(menuX(1), menuY(1), bw, menuBh, window.HighFlyCampaignText(cfg.lang,'menu'), () => {
       if (window.HighFlyCampaign?.open(() => { screen='MENU'; focus=1; })) {
         screen='CAMPAIGN'; focus=0; drawUI();
@@ -2839,11 +2859,10 @@ function toggleFS() {
     }, {size:12});
     btn(menuX(2), menuY(2), bw, menuBh, tr('PROFILE'), () => { screen = 'PROFILE'; profileStatsPage = 0; window.flyingBirdMpStats?.refreshSelf?.(); focus = 0; });
     btn(menuX(3), menuY(3), bw, menuBh, ({EN:'FRIENDS',RU:'ДРУЗЬЯ',ZH:'好友',ES:'AMIGOS',PT:'AMIGOS'})[cfg.lang]||'FRIENDS', () => window.flyingBirdOpenFriends?.());
-    btn(menuX(4), menuY(4), bw, menuBh, ({EN:'MULTIPLAYER',RU:'МУЛЬТИПЛЕЕР',ZH:'多人游戏',ES:'MULTIJUGADOR',PT:'MULTIJOGADOR'})[cfg.lang]||'MULTIPLAYER', () => window.flyingBirdOpenMultiplayer?.(), {size: 12});
-    btn(menuX(5), menuY(5), bw, menuBh, tr('ACHIEVEMENTS') + ' ' + got + '/' + ACH.length, () => { checkExpandedAchievements(false); achievementPage=0; screen = 'ACH'; focus = 0; }, { size: 12 });
-    btn(menuX(6), menuY(6), bw, menuBh, tr('SHOP'), () => { screen = 'SHOP'; focus = 0; });
-    btn(menuX(7), menuY(7), bw, menuBh, tr('INVENTORY'), () => { screen = 'INVENTORY'; focus = 0; });
-    btn(menuX(8), menuY(8), bw, menuBh, tr('SETTINGS'), () => { settingsFrom = 'MENU'; screen = 'SETTINGS'; focus = 0; });
+    btn(menuX(4), menuY(4), bw, menuBh, tr('ACHIEVEMENTS') + ' ' + got + '/' + ACH.length, () => { checkExpandedAchievements(false); achievementPage=0; screen = 'ACH'; focus = 0; }, { size: 12 });
+    btn(menuX(5), menuY(5), bw, menuBh, tr('SHOP'), () => { screen = 'SHOP'; focus = 0; });
+    btn(menuX(6), menuY(6), bw, menuBh, tr('INVENTORY'), () => { screen = 'INVENTORY'; focus = 0; });
+    btn(menuX(7), menuY(7), bw, menuBh, tr('SETTINGS'), () => { settingsFrom = 'MENU'; screen = 'SETTINGS'; focus = 0; });
   }
 
   // Unified cosmetics catalogue. The legacy numeric skin indices are preserved for cloud-save compatibility.
@@ -3352,6 +3371,7 @@ function toggleFS() {
     if (screen === 'PAUSE') drawPause();
     if (screen === 'SETTINGS') drawSettings();
     if (screen === 'ACH') drawAch();
+    if (screen === 'PLAY_MODE') drawPlayMode();
     if (screen === 'MAPS') drawMaps();
     if (screen === 'DIFFICULTY') drawDifficulty();
     if (screen === 'PROFILE') drawProfile();

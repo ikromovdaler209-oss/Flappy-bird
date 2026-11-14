@@ -13,3 +13,6 @@
   #hfCampaign .hfCampaignFooter{padding-top:6px}
   #hfCampaign .hfMapFoot{bottom:7px;font-size:8px}
 }
+
+/* Act selection is independent of the saved chapter selection. */
+#hfCampaign .hfActLand.hfActSelected{stroke:#f0d590;stroke-opacity:1;stroke-width:3;vector-effect:non-scaling-stroke;fill:#344e50}
