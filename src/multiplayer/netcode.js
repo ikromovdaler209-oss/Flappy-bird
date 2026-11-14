@@ -113,7 +113,7 @@ export function noteWriteAck(stats, ms, success, now) {
 
 /** Small rooms can send more often; busy/slow links self-throttle. */
 export function publishInterval(playerCount, ackMs) {
-  const base=playerCount>=6?125:playerCount>=3?105:85;
+  const base=playerCount>=6?85:playerCount>=3?66:50;
   const congestion=ackMs===null?0:ackMs>500?65:ackMs>270?35:ackMs>155?15:0;
   return base+congestion;
 }

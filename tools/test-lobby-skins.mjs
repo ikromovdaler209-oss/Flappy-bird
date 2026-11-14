@@ -69,3 +69,62 @@ assert.equal(selectors.fbMpLobbyCapacity.value,'10');
 lobby.syncLobbyDraft({...initial,version:1},false);
 assert.equal(selectors.fbMpLobbyMap.disabled,true);
 console.log('PASS Solo/MP speed and gap parity at 112 boundaries, MP reference world, room draft survives RTDB renders');
+
+// Run the actual save/start functions against an acknowledged room transport.
+const fields = Object.fromEntries(['fbMpLobbyCapacity','fbMpLobbyMap','fbMpLobbyDifficulty']
+ .map(id => [id, {value:'', disabled:false}]));
+let stored = {hostUid:'host',meta:{capacity:3,map:'CITY',diff:'NORMAL',version:0},
+ slots:{0:{uid:'host',ready:true,rev:0},1:{uid:'friend',ready:true,rev:0}}};
+let writes = 0, denyWrite = false;
+const roomTest = {busy:false,raceSnapshot:null,matchLaunchPending:false,
+ roomConnected:true,roomCode:'FBM-TEST-TEST',roomData:structuredClone(stored),db:{},
+ ownUid:()=> 'host', $:id=>fields[id],mapIds:['CITY','OCEAN','MYSTIC'],
+ lobbyConfigIds:Object.keys(fields),memberSeats:()=>Object.entries(stored.slots),
+ roomPath:code=>'rooms/'+code,ref:(_db,path)=>path,
+ get:async()=>({exists:()=>true,val:()=>structuredClone(stored)}),
+ set:async(_ref,meta)=>{if(denyWrite)throw Error('permission-denied');stored.meta=structuredClone(meta);writes++;},
+ say:()=>{},T:x=>x,setBusy:value=>{roomTest.busy=value;}};
+vm.createContext(roomTest);
+vm.runInContext(cut(mp,'function lobbyConfigChanged()', 'function renderLobby()')+
+ cut(mp,'async function saveConfig()', 'async function loadFriends()')+
+ cut(mp,'async function startSurvivalMatch()', 'let raceResizeScheduled='), roomTest);
+fields.fbMpLobbyCapacity.value='3';fields.fbMpLobbyMap.value='OCEAN';fields.fbMpLobbyDifficulty.value='HARD';
+// Starting with a draft saves it and returns for renewed Ready, without creating a match.
+await roomTest.startSurvivalMatch();
+assert.equal(writes,1);
+assert.equal(stored.meta.map,'OCEAN');assert.equal(stored.meta.diff,'HARD');
+assert.equal(stored.meta.version,1);
+assert.equal(roomTest.roomData.meta.version,1,'acknowledged values adopted before listener');
+assert.equal(stored.slots[0].rev,0,'previous readiness invalidated by revision');
+assert.equal(roomTest.lobbyConfigChanged(),false);
+let launched = null;
+Object.assign(roomTest, {
+ renderLobby:()=>{}, uniqueRoomSkins:()=>true,
+ assessReadyRoom:()=>({host:true,valid:true,participants:Object.entries(stored.slots)}),
+ readRaceServerOffset:async()=>0, raceWorld:()=>({ground:400}),rtStamp:()=>0,
+ crypto:{getRandomValues:array=>{array[0]=123;}},raceRoot:()=> 'round',
+ set:async(path,value)=>{if(path==='round'){launched=value;return;}if(denyWrite)throw Error('denied');stored.meta=structuredClone(value);writes++;},
+ console, RT:x=>x
+});
+fields.fbMpStartInfo={textContent:''};
+await roomTest.startSurvivalMatch();
+assert.equal(launched.meta.map,'OCEAN');
+assert.equal(launched.meta.diff,'HARD');
+assert.equal(launched.meta.version,1);
+roomTest.matchLaunchPending=false;
+fields.fbMpLobbyMap.value='MYSTIC';denyWrite=true;
+await roomTest.startSurvivalMatch();
+assert.equal(writes,1,'failed save must not start an old configuration');
+assert.equal(roomTest.lobbyConfigChanged(),true,'failed draft retained');
+assert.equal(roomTest.busy,false);
+// Verify change events call the same save path for every selector.
+const handlers = {};
+for(const id of roomTest.lobbyConfigIds)fields[id].addEventListener=(event,fn)=>{assert.equal(event,'change');handlers[id]=fn;};
+let calls=0;
+roomTest.saveConfig=async()=>{calls++;};
+const wiring=mp.split('\n').find(line=>line.startsWith('for(const id of lobbyConfigIds)$(id).addEventListener'));
+assert.ok(wiring);
+vm.runInContext(wiring,roomTest);
+for(const handler of Object.values(handlers))handler();
+assert.equal(calls,3);
+console.log('PASS lobby autosave, acknowledged map/difficulty, Ready revision and failed-save start gate');

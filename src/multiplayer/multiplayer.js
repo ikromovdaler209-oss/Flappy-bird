@@ -83,6 +83,14 @@ function syncLobbyDraft(meta,host){
  for(const id of lobbyConfigIds)$(id).disabled=!host||busy||!roomConnected||!!raceSnapshot||matchLaunchPending;
  $('fbMpApplyConfig').disabled=!host||busy||!roomConnected||!!raceSnapshot||matchLaunchPending;
 }
+function lobbyConfigChanged() {
+ const meta = roomData?.meta;
+ return !!meta && roomData.hostUid === ownUid() && (
+  Number($('fbMpLobbyCapacity').value) !== meta.capacity ||
+  $('fbMpLobbyMap').value !== meta.map ||
+  $('fbMpLobbyDifficulty').value !== meta.diff
+ );
+}
 function renderLobby(){if(!roomData||!roomCode)return;const host=roomData.hostUid===ownUid(),seats=memberSeats(),mine=seats.find(([,v])=>v.uid===ownUid()),vers=roomData.meta?.version??0;
  $('fbMpRoomCode').textContent=roomCode;$('fbMpRoomInfo').textContent=seats.length+'/'+roomData.meta.capacity+' · '+roomData.meta.layout+' · '+roomData.meta.diff;
  $('fbMpLayoutInfo').textContent=T('orientation')+': '+roomData.meta.layout;
@@ -218,6 +226,7 @@ async function kick(uid){if(raceSnapshot)return;if(!roomCode||!roomData||roomDat
  }catch(e){say(T('error')+': '+e.message,true)}}
 async function changeReady(){
  if(raceSnapshot||!roomConnected||!roomCode||!roomData||mySeat===null||busy)return;
+ if(lobbyConfigChanged()){await saveConfig();return;}
  const me=roomData.slots?.[mySeat],code=roomCode,seat=mySeat,uid=ownUid();
  if(me?.uid!==uid)return;
  setBusy(true);say('');
@@ -241,6 +250,7 @@ async function saveConfig(){
  if(![3,5,10].includes(capacity)||!mapIds.includes(map)||!['EASY','NORMAL','HARD','EXTREME'].includes(diff)){say(T('error')+': Invalid room settings.',true);return}
  if(memberSeats().some(([seat])=>Number(seat)>=capacity)){say(T('full'),true);return}
  setBusy(true);say('');
+ for(const id of lobbyConfigIds)$(id).disabled=true;
  try{
   // Check again against the latest room state: joins and other host actions
   // may have happened while this client was viewing its lobby draft.
@@ -253,6 +263,9 @@ async function saveConfig(){
   if(latest.meta.capacity===capacity&&latest.meta.map===map&&latest.meta.diff===diff){say(T('settingsUnchanged'));return;}
   const nm={...latest.meta,capacity,map,diff,version:latest.meta.version+1};
   await set(ref(db,roomPath(code)+'/meta'),nm);
+  if(roomCode!==code)return;
+  // Adopt the acknowledged revision even if the listener callback is delayed.
+  if(roomData.meta.version <= nm.version)roomData={...roomData,meta:nm};
   // Other clients' Ready states become invalid when the version changes.
   say(T('settingsChanged'));
  }catch(e){say(T('error')+': SAVE_CONFIG · '+(e.code||e.message),true)}
@@ -915,6 +928,7 @@ function watchRace(code,version){
 
 async function startSurvivalMatch(){
  if(!db||!roomConnected||!roomData||!roomCode||busy||matchLaunchPending)return;
+ if(lobbyConfigChanged()){await saveConfig();return;}
  const code=roomCode;
  if(roomData.hostUid!==ownUid()){say(T('onlyHost'),true);return}
  setBusy(true);$('fbMpStartInfo').textContent=T('preparing');let stage='READ_ROOM';
@@ -1015,6 +1029,7 @@ $('fbMpCode').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefaul
 $('fbMpReady').onclick=()=>void changeReady();
 $('fbMpStart').onclick=()=>void startSurvivalMatch();
 $('fbMpApplyConfig').onclick=()=>void saveConfig();
+for(const id of lobbyConfigIds)$(id).addEventListener('change',()=>void saveConfig());
 $('fbMpLeave').onclick=()=>void leaveRoom();
 $('fbMpCopy').onclick=async()=>{await copy(roomCode);say(T('codeCopied'))};
 $('fbMpCopyLink').onclick=async()=>{await copy(localCodeLink());say(T('roomLink'))};
