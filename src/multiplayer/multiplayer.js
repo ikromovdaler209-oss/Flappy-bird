@@ -638,7 +638,8 @@ const networkDetails=el('details','','mpNetworkDetails');
 const networkSummary=el('summary');
 const networkReport=el('pre');
 networkDetails.append(networkSummary,networkReport);
-$('fbMpRaceTop').after(networkDetails);
+$('fbMpRaceTop').append(networkDetails);
+networkDetails.addEventListener('toggle',()=>{if(networkDetails.open)updateNetworkBadge();});
 function updateNetworkBadge(){
  if(!race)return;
  const stats=race.net,quality=networkQuality(stats,performance.now());
