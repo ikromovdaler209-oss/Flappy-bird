@@ -35,7 +35,7 @@ export function isFreshPlayerState(previous, next) {
 }
 
 export function newGhostTrack() {
-  return {samples: [],lastStatus: 'ALIVE',lastReceiveMs: null,intervalMs: null,renderY: null,received: 0, jitterMs: 0, ageMs: null, bufferMs: 60, renderTick: null, lastLocalTick: null, ageSampleTick: null};
+  return {samples: [],lastStatus: 'ALIVE',lastReceiveMs: null,intervalMs: null,renderY: null,received: 0, jitterMs: 0, ageMs: null, bufferMs: 60, renderTick: null, lastLocalTick: null, ageSampleTick: null, ageSamples: []};
 }
 
 /** Ignores stale / replayed packets and NEVER lets a terminal bird revive. */
@@ -73,11 +73,13 @@ export function ghostPosition(track, localTick, gravity, minY, maxY) {
   track.lastLocalTick = localTick;
   if(track.ageSampleTick !== latest.tick) {
     const age = Math.max(0, (localTick - latest.tick) * MP_TICK_MS);
-    track.ageMs = track.ageMs === null ? age : track.ageMs * .8 + age * .2;
+    track.ageMs = track.ageMs === null ? age : track.ageMs * .7 + age * .3;
+    track.ageSamples.push(age);
+    if(track.ageSamples.length > 60)track.ageSamples.shift();
     track.ageSampleTick = latest.tick;
   }
-  const desiredBuffer = clamp((track.ageMs || 0) + (track.intervalMs || 50) + track.jitterMs, 60, 250);
-  const adjustment = desiredBuffer > track.bufferMs ? 1.5 : .35;
+  const desiredBuffer = clamp((track.ageMs || 0) + (track.intervalMs || 50) * .5 + Math.min(track.jitterMs,60) * .5, 60, 250);
+  const adjustment = desiredBuffer > track.bufferMs ? 1.5 : 1.2;
   track.bufferMs += clamp(desiredBuffer - track.bufferMs, -adjustment * elapsedTicks, adjustment * elapsedTicks);
   // A monotonic playback clock avoids backwards movement when the buffer grows.
   const targetTick = Math.max(track.renderTick || 0, localTick - track.bufferMs / MP_TICK_MS, 0);

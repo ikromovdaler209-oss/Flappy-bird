@@ -203,3 +203,13 @@ for(const mode of ['stable','stall']){
  assert.ok(result.delayedMean<15,mode+' bounded delayed trajectory error');
  console.log(`PASS ${mode}: velocity-change ${fmt(result.oldJerk)} -> ${fmt(result.newJerk)}, delayed error ${fmt(result.delayedMean)}px`);
 }
+
+// Recover promptly from a previously saturated buffer when delivery improves.
+const recovering=newGhostTrack();recovering.bufferMs=250;
+for(let tick=60;tick<=240;tick++){
+ if(tick%3===0)acceptGhostPacket(recovering,{tick:tick-6,y:100,vy:0,status:'ALIVE'},tick*MP_TICK_MS);
+ ghostPosition(recovering,tick,.26,0,400);
+}
+assert.ok(recovering.bufferMs<140,'buffer recovers below 140ms within three seconds');
+assert.ok(recovering.ageSamples.length<=60,'bounded diagnostic history');
+console.log(`PASS improved-link recovery: 250 -> ${Math.round(recovering.bufferMs)}ms buffer`);

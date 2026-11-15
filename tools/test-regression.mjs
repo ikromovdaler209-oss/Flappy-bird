@@ -59,9 +59,9 @@ const networkSource=cut('// Never cancel the disconnect guard','function raceFla
 function createNetwork({send,guardReady=true}={}){
  const writes=[],events=[];
  let cancels=0;
- const r={code:'FBM-TEST',path:'multiplayerRounds/FBM-TEST/r0',simTick:60,me:{alive:true,status:'ALIVE',tick:60,y:150,vy:1,score:0,elapsedMs:1000},
+ const r={meta:{startAt:0},code:'FBM-TEST',path:'multiplayerRounds/FBM-TEST/r0',simTick:60,me:{alive:true,status:'ALIVE',tick:60,y:150,vy:1,score:0,elapsedMs:1000},
   publishBusy:false,publishChain:Promise.resolve(),net:newNetworkStats(),disconnectGuard:{cancel:async()=>{events.push('guard-cancel');cancels++}},guardReady,finalWritePromise:null,finalConfirmed:false};
- const ctx={race:r,RACE_STEP:1000/60,db:{},raceRoot:x=>`matches/${x}`,ref:(_db,p)=>p,ownUid:()=> 'uid',rtStamp:()=>999,
+ const ctx={race:r,serverClock:()=>1000,RACE_STEP:1000/60,db:{},raceRoot:x=>`matches/${x}`,ref:(_db,p)=>p,ownUid:()=> 'uid',rtStamp:()=>999,
   update:async(_path,data)=>{writes.push({...data});events.push('write-'+data.status);await send?.(data)},
   updateSpectator:()=>{},noteWriteAck,performance:{now:()=>100},raceSetStatus:()=>{},RT:s=>s,
   console:{warn:()=>{}},setTimeout,clearTimeout,Promise,};

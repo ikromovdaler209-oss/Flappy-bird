@@ -539,7 +539,13 @@ function rememberGhostSamples(data){
   if(uid===ownUid())continue;
   let track=race.ghostTracks.get(uid);
   if(!track){track=newGhostTrack();race.ghostTracks.set(uid,track)}
-  if(acceptGhostPacket(track,p,arrival))race.net.remotes++;
+  if(acceptGhostPacket(track,p,arrival)){
+   race.net.remotes++;
+   if(Number.isFinite(p.lastSeen)){
+    track.toDatabaseMs=p.lastSeen-race.meta.startAt-p.tick*RACE_STEP;
+    track.fromDatabaseMs=serverClock()-p.lastSeen;
+   }
+  }
  }
 }
 function ghostY(uid,p){
@@ -655,12 +661,17 @@ function updateNetworkBadge(){
  if(networkDetails.open){
   const value=n=>Number.isFinite(n)?Math.round(n)+' ms':'—';
   const rows=[`ACK: ${ack} | Frame: ${value(race.frameMs)} | Peak: ${value(race.framePeakMs)}`,
+   `Local send lag: ${value(race.net.sendLagMs)}`,
    lang()==='RU'?'Игрок: возраст / интервал / колебания / буфер':'Player: age / interval / jitter / buffer'];
   let number=0;
   for(const track of race.ghostTracks.values()){
    const latest=track.samples.at(-1);
    if(!latest || track.lastStatus!=='ALIVE')continue;
    rows.push(`#${++number}: ${value(Math.max(0,race.simTick-latest.tick)*1000/60)} / ${value(track.intervalMs)} / ${value(track.jitterMs)} / ${value(track.bufferMs)}`);
+   const ages=[...track.ageSamples].sort((a,b)=>a-b);
+   const mean=ages.length?ages.reduce((a,b)=>a+b,0)/ages.length:undefined;
+   rows.push(`Age avg / P95 (${ages.length} packets): ${value(mean)} / ${value(ages[Math.min(ages.length-1,Math.floor(ages.length*.95))])}`);
+   rows.push(`Sim→DB / DB→here ≈ ${value(track.toDatabaseMs)} / ${value(track.fromDatabaseMs)}`);
   }
   networkReport.textContent=rows.join('\n');
  }
@@ -790,6 +801,7 @@ async function racePublish(final=false,r=race){
  r.publishInFlight = (r.publishInFlight || 0) + 1;
  r.publishBusy = r.publishInFlight >= 3;
  const state=r.me,uid=ownUid(),code=r.code;
+ r.net.sendLagMs=Math.max(0,serverClock()-r.meta.startAt-state.tick*RACE_STEP);
  const data={status:state.status,tick:Math.max(0,Math.floor(state.tick)),y:Math.round(state.y*10)/10,
   vy:Math.round(state.vy*100)/100,score:Math.max(0,Math.floor(state.score)),
   elapsedMs:Math.max(0,Math.round(state.elapsedMs)),lastSeen:rtStamp()};
