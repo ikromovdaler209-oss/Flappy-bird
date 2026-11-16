@@ -23,7 +23,11 @@ export function assessReadyRoom(room, hostUid) {
 
 /** Ignore regressions from a delayed state listener, even before interpolation. */
 export function isFreshPlayerState(previous, next) {
-  if(!next || !finite(next.tick) || next.tick<0)return false;
+  if(!next || !Number.isSafeInteger(next.tick) || next.tick<0)return false;
+  if(next.status !== 'ALIVE' && !TERMINAL.has(next.status))return false;
+  for(const key of ['y','vy','score','elapsedMs']) {
+    if(next[key] !== undefined && !finite(next[key]))return false;
+  }
   if(!previous)return true;
   if(!finite(previous.tick) || next.tick<previous.tick)return false;
   if(TERMINAL.has(previous.status) && next.status!==previous.status)return false;
@@ -31,27 +35,30 @@ export function isFreshPlayerState(previous, next) {
 }
 
 export function newGhostTrack() {
-  return {samples: [],lastStatus: 'ALIVE',lastReceiveMs: null,intervalMs: null,renderY: null,received: 0};
+  return {samples: [],lastStatus: 'ALIVE',lastReceiveMs: null,intervalMs: null,renderY: null,received: 0, jitterMs: 0, ageMs: null, bufferMs: 60, renderTick: null, lastLocalTick: null, ageSampleTick: null, ageSamples: []};
 }
 
 /** Ignores stale / replayed packets and NEVER lets a terminal bird revive. */
 export function acceptGhostPacket(track, packet, receiveMs) {
-  if (!packet || !finite(packet.tick) || packet.tick < 0 || !finite(packet.y) || !finite(packet.vy)) return false;
+  if (!packet || !Number.isSafeInteger(packet.tick) || packet.tick < 0 || !finite(packet.y) || !finite(packet.vy)) return false;
   const status = String(packet.status || 'ALIVE');
   if (!['ALIVE',...TERMINAL].includes(status)) return false;
   const samples=track.samples,previous=samples[samples.length-1];
-  if (TERMINAL.has(track.lastStatus) && status === 'ALIVE') return false;
+  if (TERMINAL.has(track.lastStatus) && status !== track.lastStatus) return false;
   if (previous && (packet.tick < previous.tick ||
       (packet.tick === previous.tick && !(status !== 'ALIVE' && track.lastStatus === 'ALIVE')))) return false;
   const previousReceive=track.lastReceiveMs;
   if (finite(receiveMs) && finite(previousReceive)) {
     const gap = receiveMs - previousReceive;
-    if (gap >= 0 && gap < 15000) track.intervalMs = track.intervalMs === null ? gap : track.intervalMs * .8 + gap * .2;
+    if (gap >= 0 && gap < 15000) {
+      if(track.intervalMs !== null)track.jitterMs = track.jitterMs * .8 + Math.abs(gap - track.intervalMs) * .2;
+      track.intervalMs = track.intervalMs === null ? gap : track.intervalMs * .8 + gap * .2;
+    }
   }
   if (finite(receiveMs)) track.lastReceiveMs=receiveMs;
   if (previous && packet.tick === previous.tick) samples.pop();
   samples.push({tick:packet.tick,y:packet.y,vy:packet.vy,status});
-  if(samples.length>5)samples.shift();
+  if(samples.length>24)samples.shift();
   track.lastStatus = status;
   track.received++;
   return true;
@@ -61,7 +68,26 @@ export function acceptGhostPacket(track, packet, receiveMs) {
 export function ghostPosition(track, localTick, gravity, minY, maxY) {
   const samples=track.samples;
   if(!samples.length)return null;
-  const targetTick=Math.max(0,localTick-2); // ~33ms rendering buffer
+  const latest = samples[samples.length - 1];
+  const elapsedTicks = track.lastLocalTick === null ? 1 : clamp(localTick - track.lastLocalTick, 0, 6);
+  track.lastLocalTick = localTick;
+  if(track.ageSampleTick !== latest.tick) {
+    const age = Math.max(0, (localTick - latest.tick) * MP_TICK_MS);
+    track.ageMs = track.ageMs === null ? age : track.ageMs * .7 + age * .3;
+    track.ageSamples.push(age);
+    if(track.ageSamples.length > 60)track.ageSamples.shift();
+    track.ageSampleTick = latest.tick;
+  }
+  const desiredBuffer = clamp((track.ageMs || 0) + (track.intervalMs || 50) * .5 + Math.min(track.jitterMs,60) * .5, 60, 250);
+  const adjustment = desiredBuffer > track.bufferMs ? 1.5 : 1.2;
+  track.bufferMs += clamp(desiredBuffer - track.bufferMs, -adjustment * elapsedTicks, adjustment * elapsedTicks);
+  // A monotonic playback clock avoids backwards movement when the buffer grows.
+  const targetTick = Math.max(track.renderTick || 0, localTick - track.bufferMs / MP_TICK_MS, 0);
+  track.renderTick = targetTick;
+  if(TERMINAL.has(latest.status)) {
+    track.renderY = clamp(latest.y, minY, maxY);
+    return track.renderY;
+  }
   let estimate=samples[samples.length-1].y;
   if(targetTick<=samples[0].tick)estimate=samples[0].y;
   else {
@@ -84,7 +110,8 @@ export function ghostPosition(track, localTick, gravity, minY, maxY) {
   const prev=track.renderY;
   const diff=prev===null?0:Math.abs(estimate-prev);
   // Minimize the extra display delay caused by overly conservative smoothing.
-  const gain=diff>55?.82:diff>22?.70:.53;
+  const baseGain=diff>55?.65:diff>22?.5:.4;
+  const gain=1-Math.pow(1-baseGain,elapsedTicks);
   const display=prev===null?estimate:prev+(estimate-prev)*gain;
   track.renderY=clamp(display,minY,maxY);
   return track.renderY;
@@ -109,7 +136,7 @@ export function noteWriteAck(stats, ms, success, now) {
 
 /** Small rooms can send more often; busy/slow links self-throttle. */
 export function publishInterval(playerCount, ackMs) {
-  const base=playerCount>=6?125:playerCount>=3?105:85;
+  const base=playerCount>=6?85:playerCount>=3?66:50;
   const congestion=ackMs===null?0:ackMs>500?65:ackMs>270?35:ackMs>155?15:0;
   return base+congestion;
 }

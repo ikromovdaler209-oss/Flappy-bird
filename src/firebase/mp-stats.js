@@ -140,9 +140,9 @@ export async function loadCloud(uid=myUid()){
     if(myUid()!==uid)return null;
     if(snap.exists()){
       const server=normalizeStats(snap.data());
-      // A queued record may not have reached the cloud yet: never show totals below the local cache.
-      if(server.matches>=cached.matches||cachedUid!==uid)adopt(uid,server);
-    }
+      // Online totals come from Firestore; an edited local cache is not authoritative.
+      adopt(uid,server);
+    }else adopt(uid,emptyStats());
     notify();return cached;
   }catch(e){if(e?.code!=='permission-denied')console.warn('[MP stats] cloud read failed',e?.code||e);return null}
 }

@@ -1,10 +1,14 @@
+import {isDeepStrictEqual} from 'node:util';
 import {initializeApp} from 'firebase-admin/app';
 import {getDatabase} from 'firebase-admin/database';
 import {getFirestore,FieldValue} from 'firebase-admin/firestore';
 import {onCall,HttpsError} from 'firebase-functions/v2/https';
 import {verifyRound,applyRecord,emptyStats,parseRoundPath} from './shared/stats.js';
 import {validateProgress} from './progress.js';
-initializeApp({databaseURL:'https://flying-bird-d6832-default-rtdb.europe-west1.firebasedatabase.app'});
+// The demo namespace is used only when an RTDB emulator is explicitly configured.
+initializeApp({databaseURL:(process.env.FIREBASE_DATABASE_EMULATOR_HOST || process.env.GCLOUD_PROJECT?.startsWith('demo-'))
+ ? 'https://demo-high-fly-default-rtdb.firebaseio.com'
+ : 'https://flying-bird-d6832-default-rtdb.europe-west1.firebasedatabase.app'});
 const db=getFirestore();
 const options={region:'europe-west1',maxInstances:3,concurrency:20,timeoutSeconds:30,memory:'256MiB'};
 function user(req){
@@ -42,15 +46,36 @@ export const saveHighFlyProgress=onCall(options,async req=>{
  const payload=req.data;
  if(payload?.expectedUid!==uid)throw new HttpsError('permission-denied','Account changed.');
  return db.runTransaction(async tx=>{
-  const [s,g]=await Promise.all([tx.get(ref),tx.get(guardRef)]);
-  if(payload.initializeOnly===true&&s.exists)return {ok:true};
-  const verdict=validateProgress(s.exists?s.data():null,payload,g.exists?g.data():null,Date.now());
-  if(!verdict.ok)throw new HttpsError('failed-precondition',verdict.reason);
+  const [snapshot,guard]=await Promise.all([tx.get(ref),tx.get(guardRef)]);
+  const before=snapshot.exists?snapshot.data():null;
+  const revision=Number.isSafeInteger(before?.revision)?before.revision:0;
+  if(payload.initializeOnly===true){
+   if(Object.keys(payload).some(key=>!['expectedUid','initializeOnly'].includes(key)))
+    throw new HttpsError('invalid-argument','Initialization does not accept local progress.');
+   if(before)return {ok:true,revision,progress:{cfg:before.cfg||{},save:before.save||{},wallet:before.wallet||{}}};
+   const progress={cfg:{},save:{games:0,pipes:0,flaps:0,earnedCoins:0,
+    best:{EASY:0,NORMAL:0,HARD:0,EXTREME:0},ach:{}},wallet:{coins:0,owned:[],maps:[],trails:[]}};
+   tx.create(ref,{...progress,revision:0,version:3,updatedAt:FieldValue.serverTimestamp()});
+   tx.set(guardRef,{at:Date.now(),credits:10});
+   return {ok:true,revision:0,progress};
+  }
+  if(!before)throw new HttpsError('failed-precondition','Initialize the account first.');
+  if(!Number.isSafeInteger(payload.baseRevision)||payload.baseRevision<0)
+   throw new HttpsError('invalid-argument','Missing progress revision.');
   const data={cfg:payload.cfg,save:payload.save,wallet:payload.wallet};
-  tx.set(ref,{...data,updatedAt:FieldValue.serverTimestamp(),version:3});
+  const unchanged=isDeepStrictEqual(data,{cfg:before.cfg,save:before.save,wallet:before.wallet});
+  if(payload.baseRevision!==revision){
+   if(unchanged)return {ok:true,revision};
+   throw new HttpsError('aborted','Progress changed on another device.');
+  }
+  const verdict=validateProgress(before,payload,guard.exists?guard.data():null,Date.now());
+  if(!verdict.ok)throw new HttpsError('failed-precondition','Progress rejected: '+verdict.reason,{reason:verdict.reason});
+  const nextRevision=unchanged?revision:revision+1;
+  tx.set(ref,{...data,revision:nextRevision,updatedAt:FieldValue.serverTimestamp(),version:3});
   tx.set(guardRef,verdict.guard);
-  // Public statistics reflect accepted cloud progress only.
-  tx.set(db.doc('publicStats/'+uid),{best:data.save.best,games:data.save.games,pipes:data.save.pipes,flaps:data.save.flaps,earnedCoins:data.save.earnedCoins,coins:data.wallet.coins,achievements:Object.keys(data.save.ach).length,updatedAt:FieldValue.serverTimestamp()});
-  return {ok:true};
+  tx.set(db.doc('publicStats/'+uid),{best:data.save.best,games:data.save.games,pipes:data.save.pipes,
+   flaps:data.save.flaps,earnedCoins:data.save.earnedCoins,coins:data.wallet.coins,
+   achievements:Object.values(data.save.ach).filter(Boolean).length,updatedAt:FieldValue.serverTimestamp()});
+  return {ok:true,revision:nextRevision};
  });
 });

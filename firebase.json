@@ -8,7 +8,10 @@
   "functions": [
     {
       "source": "functions",
-      "codebase": "high-fly"
+      "codebase": "high-fly",
+      "predeploy": [
+        "node \"$PROJECT_DIR/tools/prepare-functions.mjs\""
+      ]
     }
   ],
   "emulators": {

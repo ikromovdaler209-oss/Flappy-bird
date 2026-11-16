@@ -16,11 +16,20 @@ try{
  await deny(db.doc('publicStats/'+uid).set({coins:999999}));
  await deny(db.doc('leaderboardEntries/'+uid).set({coins:999999}));
  await deny(db.doc('lastBirdEntries/'+uid).set({wins:9999}));
+ // Spark contract: a shaped batch is accepted without server-side RTDB verification.
+ const {serverTimestamp}=await import('firebase/firestore');
+ const startAt=Date.now()-20000,id='FBM-ABCD-EFGH_r0';
+ const batch=db.batch();
+ batch.set(db.doc('multiplayerStats/'+uid),{v:1,matches:1,wins:1,totalMs:2000,bestMs:2000,lastStartAt:startAt,lastRound:id,updatedAt:serverTimestamp()});
+ batch.set(db.doc('multiplayerStats/'+uid+'/rounds/'+id),{code:'FBM-ABCD-EFGH',roundKey:'r0',startAt,players:2,status:'SURVIVED',place:1,tie:false,elapsedMs:2000,score:1,win:true,createdAt:serverTimestamp()});
+ await ok(batch.commit());
+ await deny(db.doc('multiplayerStats/'+uid).update({wins:2}));
+ await deny(db.doc('multiplayerStats/'+uid+'/rounds/'+id).delete());
  await env.withSecurityRulesDisabled(async c=>{const x=c.firestore();await x.doc('progress/'+uid).set({wallet:{coins:600}});await x.doc('multiplayerStats/'+uid).set({matches:1,wins:0});await x.doc('publicProfiles/'+uid).set({visibility:'hidden'});});
  await ok(db.doc('progress/'+uid).get());await deny(stranger.doc('progress/'+uid).get());
  await ok(db.doc('multiplayerStats/'+uid).get());await deny(stranger.doc('multiplayerStats/'+uid).get());
  await deny(env.unauthenticatedContext().firestore().doc('publicProfiles/'+uid).get());
  await deny(stranger.doc('progress/'+uid).delete());
  await ok(db.doc('progress/'+uid).delete());
- console.log('PASS Firestore emulator:',count,'owner/privacy and forged writes checks; rules compile');
+ console.log('PASS Firestore emulator:',count,'Spark contract/privacy checks; shaped client records are NOT server-verified');
 }finally{await env.cleanup()}

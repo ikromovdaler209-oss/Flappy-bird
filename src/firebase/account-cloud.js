@@ -2,7 +2,7 @@
   import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup,
     createUserWithEmailAndPassword, signInWithEmailAndPassword,
     sendPasswordResetEmail, signOut } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
-  import { getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
+  import { getFirestore, doc, getDoc, getDocFromServer, setDoc, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
   const firebaseConfig = {
     apiKey: 'AIzaSyBXhPjfPGPjD6SX6ISyd9UIGcwIGDir2IE',
@@ -330,20 +330,26 @@
       if (auth.currentUser?.uid!==uid) return false;
       progressBusy=true; pendingSave=false;
       const payload=readProgress();
+      let retry=true;
       setSyncStatus(t('SYNC_SAVING'),'syncing');
       try {
         await setDoc(doc(db,'progress',uid),{...payload,updatedAt:serverTimestamp(),version:2});
-        if (gen===syncGeneration) {
-          localStorage.setItem(userProgressKey(uid),JSON.stringify(payload));
-          setSyncStatus(t('SYNC_SAVED'),'saved');
+        if (gen===syncGeneration && auth.currentUser?.uid===uid) {
+          cacheCurrent(uid);
+          setSyncStatus(t(pendingSave?'SYNC_PENDING':'SYNC_SAVED'),pendingSave?'pending':'saved');
         }
         return true;
       } catch(e) {
-        if (gen===syncGeneration) { pendingSave=true;cacheCurrent(uid);setSyncStatus(t('SYNC_PENDING_NETWORK'),'pending'); }
+        if (gen===syncGeneration && auth.currentUser?.uid===uid) {
+          pendingSave=true;cacheCurrent(uid);
+          retry=!['permission-denied','unauthenticated','invalid-argument'].includes(e?.code);
+          setSyncStatus(t(retry?'SYNC_PENDING_NETWORK':'SYNC_REJECTED'),'pending');
+          if(!retry)error.textContent=t('SYNC_REJECTED_HELP');
+        }
         return false;
       } finally {
         progressBusy=false;
-        if (pendingSave && gen===syncGeneration && navigator.onLine && auth.currentUser?.uid===uid) {
+        if ((retry || gen!==syncGeneration) && pendingSave && activeProgressUser && navigator.onLine && auth.currentUser?.uid===activeProgressUser) {
           clearTimeout(syncTimer);syncTimer=setTimeout(flushProgress,12000);
         }
       }
@@ -377,7 +383,7 @@
       const local=cached||migrated;
       setSyncStatus(t('SYNC_CHECK'),'syncing');
       try {
-        const snapshot=await getDoc(doc(db,'progress',uid));
+        const snapshot=await getDocFromServer(doc(db,'progress',uid));
         if(gen!==syncGeneration||auth.currentUser?.uid!==uid)return;
         const cloud=snapshot.exists()?snapshot.data():null;
         const cloudProgress=cloud?{cfg:cloud.cfg||{},save:cloud.save||{},wallet:cloud.wallet||{}}:null;
